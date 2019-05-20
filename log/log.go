@@ -499,9 +499,66 @@ func NewFromEntry (services *io.IpfsServices, identity *identityprovider.Identit
 }
 
 
-// TODO: findTails
+func FindTails(entries []*entry.Entry) []*entry.Entry {
+	// Reverse index { next -> entry }
+	reverseIndex := map[string][]*entry.Entry{}
+	// Null index containing entries that have no parents (nexts)
+	nullIndex := []*entry.Entry{}
+	// Hashes for all entries for quick lookups
+	hashes := map[string]bool{}
+	// Hashes of all next entries
+	nexts := []cid.Cid{}
 
-// TODO: findTailHashes
+	for _, e := range entries {
+		if len(e.Next) == 0 {
+			nullIndex = append(nullIndex, e)
+		}
+
+		for _, nextE := range e.Next {
+			reverseIndex[nextE.String()] = append(reverseIndex[nextE.String()], e)
+		}
+
+		nexts = append(nexts, e.Next...)
+
+		hashes[e.Hash.String()] = true
+	}
+
+	tails := []*entry.Entry{}
+
+	for _, n := range nexts {
+		if _, ok := hashes[n.String()]; !ok {
+			continue
+		}
+
+		tails = append(tails, reverseIndex[n.String()]...)
+	}
+
+	tails = append(tails, nullIndex...)
+
+	return entryMapToSlice(mapUniqueEntries(tails))
+}
+
+func  FindTailHashes (entries []*entry.Entry) []string {
+	res := []string{}
+	hashes := map[string]bool{}
+	for _, e := range entries {
+		hashes[e.Hash.String()] = true
+	}
+
+	for _, e := range entries {
+		nextLength := len(e.Next)
+
+		for i := range e.Next {
+			next := e.Next[nextLength - i]
+			if _, ok := hashes[next.String()]; !ok {
+				res = append([]string{e.Hash.String()}, res...)
+			}
+		}
+	}
+
+	return res
+}
+
 
 func concatEntryMaps(sets ...map[string]*entry.Entry) map[string]*entry.Entry {
 	result := map[string]*entry.Entry{}
