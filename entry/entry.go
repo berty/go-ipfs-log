@@ -43,7 +43,7 @@ type EntryToHash struct {
 var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
 	StructMap().
 	AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-	AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
+	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
 	AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
 	AddField("V", atlas.StructMapEntry{SerialName: "v"}).
@@ -172,7 +172,7 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 
 func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
 	e := &Entry{
-		Hash:    nil,
+		Hash:    cid.Cid{},
 		LogID:   entry.LogID,
 		Payload: entry.Payload,
 		Next:    entry.Next,
