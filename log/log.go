@@ -412,21 +412,92 @@ func (l *Log) ToBuffer() ([]byte, error) {
 	return json.Marshal(l.ToJSON())
 }
 
-// TODO:
-//func (l *Log) ToMultihash() {
-//	return LogIO.toMultihash(this._storage, this,
-//	{
-//		format
-//	})
-//}
+func (l *Log) ToMultihash() (cid.Cid, error) {
+	return ToMultihash(l.Storage, l)
+}
 
-// TODO: fromMultihash
+func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
+	data, err := FromMultihash(services, hash, &FetchOptions{
+		Length: fetchOptions.Length,
+		Exclude: fetchOptions.Exclude,
+		ProgressChan: fetchOptions.ProgressChan,
+	})
 
-// TODO: fromEntryHash
+	if err != nil {
+		return nil, err
+	}
 
-// TODO: fromJSON
+	heads := []*entry.Entry{}
+	for _, e := range data.Values {
+		for _, h := range data.Heads {
+			if e.Hash.String() == h.String() {
+				heads = append(heads, e)
+				break
+			}
+		}
+	}
 
-// TODO: fromEntry
+	return NewLog(services, identity, &NewLogOptions{
+		ID: data.ID,
+		AccessController: logOptions.AccessController,
+		Entries: data.Values,
+		Heads: heads,
+		Clock: lamportclock.New(data.Clock.ID, data.Clock.Time),
+		SortFn: logOptions.SortFn,
+	}), nil
+}
+
+
+func NewFromEntryHash (services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) *Log {
+	// TODO: need to verify the entries with 'key'
+	entries := FromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
+		Length: fetchOptions.Length,
+		Exclude: fetchOptions.Exclude,
+		ProgressChan: fetchOptions.ProgressChan,
+	})
+
+	return NewLog(services, identity, &NewLogOptions{
+		ID: logOptions.ID,
+		AccessController: logOptions.AccessController,
+		Entries: entries,
+		SortFn: logOptions.SortFn,
+	})
+}
+
+func NewFromJSON (services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+	// TODO: need to verify the entries with 'key'
+	jsonLog := JSONLog{}
+
+	snapshot := FromJSON(services, jsonLog, &entry.FetchOptions{
+		Length: fetchOptions.Length,
+		Timeout: fetchOptions.Timeout,
+		ProgressChan: fetchOptions.ProgressChan,
+	})
+
+	return NewLog(services, identity, &NewLogOptions{
+		ID: logOptions.ID,
+		AccessController: logOptions.AccessController,
+		Entries: snapshot.Values,
+		SortFn: logOptions.SortFn,
+	})
+}
+
+func NewFromEntry (services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+	// TODO: need to verify the entries with 'key'
+	snapshot := FromEntry(services, sourceEntries, &entry.FetchOptions{
+		Length: fetchOptions.Length,
+		Exclude: fetchOptions.Exclude,
+		ProgressChan: fetchOptions.ProgressChan,
+	})
+
+	return NewLog(services, identity, &NewLogOptions{
+		ID: logOptions.ID,
+		AccessController: logOptions.AccessController,
+		Entries: snapshot.Values,
+		SortFn: logOptions.SortFn,
+	})
+}
+
 
 // TODO: findTails
 

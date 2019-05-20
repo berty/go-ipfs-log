@@ -19,7 +19,7 @@ type FetchOptions struct {
 }
 
 
-func ToMultihash (services *io.IpfsServices, log *Log) (cid.Cid, error) {
+func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
 	if len(log.Values()) < 1 {
 		return cid.Cid{}, errors.New(`Can't serialize an empty log`)
 	}
@@ -27,7 +27,7 @@ func ToMultihash (services *io.IpfsServices, log *Log) (cid.Cid, error) {
 	return io.WriteCBOR(services, log.ToJSON())
 }
 
-func FromMultihash (services *io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
+func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
 	result, err := io.ReadCBOR(services, hash)
 	if err != nil {
 		return nil, err
