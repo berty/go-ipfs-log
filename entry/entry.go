@@ -213,6 +213,8 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
 }
 
 func Compare(a, b *Entry) (int, error) {
+	// TODO: Make it a Golang slice-compatible sort function
+
 	distance, err := lamportclock.Compare(&a.Clock, &b.Clock)
 	if err != nil {
 		return 0, err
