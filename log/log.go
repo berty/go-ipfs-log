@@ -105,6 +105,10 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 	}
 	maxTime = maxClockTimeForEntries(options.Heads, maxTime)
 
+	if options.AccessController == nil {
+        options.AccessController = &accesscontroler.Default{}
+    }
+
 	return &Log{
 		Storage:          services,
 		ID:               options.ID,
