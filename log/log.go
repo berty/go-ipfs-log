@@ -179,7 +179,7 @@ func (l *Log) Traverse(rootEntries map[string]*entry.Entry, amount int, endHash 
 	return result
 }
 
-func (l *Log) Append(data entry.Entry, pointerCount int) (*entry.Entry, error) {
+func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	// Update the clock (find the latest clock)
 	newTime := maxClockTimeForEntries(entryMapToSlice(l.Heads), 0)
 	newTime = maxInt(l.Clock.Time, newTime) + 1
@@ -195,11 +195,14 @@ func (l *Log) Append(data entry.Entry, pointerCount int) (*entry.Entry, error) {
 	}
 
 	// TODO: ensure port of ```Object.keys(Object.assign({}, this._headsIndex, references))``` is correctly implemented
-	data.Next = next
 
 	// @TODO: Split Entry.create into creating object, checking permission, signing and then posting to IPFS
 	// Create the entry and add it to the internal cache
-	e, err := entry.CreateEntry(l.Storage, l.Identity, &data, l.Clock)
+	e, err := entry.CreateEntry(l.Storage, l.Identity, &entry.Entry{
+		LogID: l.ID,
+		Payload: payload,
+		Next: next,
+	}, l.Clock)
 	if err != nil {
 		return nil, err
 	}
