@@ -47,7 +47,7 @@ func (k *Keystore) HasKey(id string) (bool, error) {
 	return hasKey, nil
 }
 
-func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
+func (k *Keystore) CreateKey(id string) (*crypto.Secp256k1PrivateKey, error) {
 	// FIXME: I kept Secp256k1 for compatibility with OrbitDB, should we change this?
 	priv, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
 	if err != nil {
@@ -65,10 +65,10 @@ func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 
 	k.cache.Add(id, priv)
 
-	return priv, nil
+	return priv.(*crypto.Secp256k1PrivateKey), nil
 }
 
-func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
+func (k *Keystore) GetKey(id string) (*crypto.Secp256k1PrivateKey, error) {
 	var err error
 
 	cachedKey, ok := k.cache.Get(id)
@@ -92,7 +92,7 @@ func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 		return nil, err
 	}
 
-	return privateKey, nil
+	return privateKey.(*crypto.Secp256k1PrivateKey), nil
 }
 
 var _ Interface = &Keystore{}

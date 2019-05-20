@@ -11,13 +11,13 @@ import (
 
 type IdentitySignature struct {
 	ID []byte
-	PublicKey ic.PubKey
+	PublicKey *ic.Secp256k1PublicKey
 }
 
 type Identity struct {
 	ID         string
-	PublicKey  ic.PubKey
-	PrivateKey ic.PrivKey
+	PublicKey  *ic.Secp256k1PublicKey
+	PrivateKey *ic.Secp256k1PrivateKey
 	Signatures *IdentitySignature
 	Type       pb.KeyType
 	Provider   Interface
