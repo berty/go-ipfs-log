@@ -129,6 +129,76 @@ func FromJSON (services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchO
 	}
 }
 
-func FromEntry() {
-	
+func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) *Snapshot {
+	// Fetch given length, return size at least the given input entries
+	length := options.Length
+	if length > -1 {
+		length = maxInt(length, len(sourceEntries))
+	}
+
+	// Make sure we pass hashes instead of objects to the fetcher function
+	hashes := []cid.Cid{}
+	for _, e := range sourceEntries {
+		hashes = append(hashes, e.Hash)
+	}
+
+	// Fetch the entries
+	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
+		Length: length,
+		Exclude: options.Exclude,
+		ProgressChan: options.ProgressChan,
+	})
+
+	// Combine the fetches with the source entries and take only uniques
+	combined := append(sourceEntries, entries...)
+	uniques := entryMapToSlice(mapUniqueEntries(combined))
+	sort.SliceStable(uniques, func (i, j int) bool {
+		ret, err := entry.Compare(uniques[i], uniques[j])
+		if err != nil {
+			return false
+		}
+		return ret > 0
+	})
+
+	// Cap the result at the right size by taking the last n entries
+	sliced := entries
+	if length > -1 {
+		entries = entries[:-length]
+	}
+
+	// Make sure that the given input entries are present in the result
+	// in order to not lose references
+	missingSourceEntries := entriesDiff(sliced, sourceEntries)
+
+	// Add the input entries at the beginning of the array and remove
+	// as many elements from the array before inserting the original entries
+	result := append(missingSourceEntries, sliced[len(missingSourceEntries):]...)
+
+	return &Snapshot{
+		ID: result[len(result)- 1].Hash.String(),
+		Values: result,
+	}
+}
+
+
+func entriesDiff (setA, setB []*entry.Entry) []*entry.Entry {
+	setAHashMap := map[string]*entry.Entry{}
+	setBHashMap := map[string]bool{}
+	ret := []*entry.Entry{}
+
+	for _, e := range setA {
+		setAHashMap[e.Hash.String()] = e
+	}
+
+	for _, e := range setB {
+		setBHashMap[e.Hash.String()] = true
+	}
+
+	for k := range setAHashMap {
+		if _, ok := setBHashMap[k]; !ok {
+			ret = append(ret, setAHashMap[k])
+		}
+	}
+
+	return ret
 }

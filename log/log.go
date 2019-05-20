@@ -420,6 +420,18 @@ func (l *Log) ToBuffer() ([]byte, error) {
 //	})
 //}
 
+// TODO: fromMultihash
+
+// TODO: fromEntryHash
+
+// TODO: fromJSON
+
+// TODO: fromEntry
+
+// TODO: findTails
+
+// TODO: findTailHashes
+
 func concatEntryMaps(sets ...map[string]*entry.Entry) map[string]*entry.Entry {
 	result := map[string]*entry.Entry{}
 
