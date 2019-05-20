@@ -3,7 +3,6 @@ package identityprovider
 import (
 	"fmt"
 	"github.com/berty/go-ipfs-log/keystore"
-	"github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +16,7 @@ func NewOrbitDBIdentityProvider(keystore keystore.Interface) *OrbitDBIdentityPro
 	}
 }
 
-func (p *OrbitDBIdentityProvider) GetID(id string) (crypto.PrivKey, error) {
+func (p *OrbitDBIdentityProvider) GetID(id string) (*Identity, error) {
 	private, err := p.keystore.GetKey(id)
 	if err != nil {
 		private, err = p.keystore.CreateKey(id)
@@ -26,7 +25,28 @@ func (p *OrbitDBIdentityProvider) GetID(id string) (crypto.PrivKey, error) {
 		}
 	}
 
-	return private, nil
+	pubKey := private.GetPublic()
+	pubKeyBytes, err := pubKey.Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	keySign, err := private.Sign(pubKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Identity{
+		ID:        id,
+		PublicKey: pubKey,
+		Signatures: &IdentitySignature{
+			ID:        keySign,
+			PublicKey: pubKey,
+		},
+		PrivateKey: private,
+		Type:       private.Type(),
+		Provider:   p,
+	}, nil
 }
 
 func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
