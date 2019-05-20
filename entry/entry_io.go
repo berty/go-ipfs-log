@@ -40,7 +40,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 	}
 
 	shouldFetchMore := func () bool {
-		return len(loadingQueue) > 0 && (len(result) < options.Length || options.Length < 0)
+		return len(loadingQueue) > 0 && (len(result) < options.Length || options.Length <= 0)
 	}
 
 	fetchEntry := func () {

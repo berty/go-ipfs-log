@@ -24,7 +24,7 @@ type Entry struct {
 	LogID    string
 	Next     []cid.Cid
 	V        uint64
-	Key      ic.PubKey
+	Key      *ic.Secp256k1PublicKey
 	Sig      mh.Multihash
 	Identity *identityprovider.Identity
 	Hash     cid.Cid

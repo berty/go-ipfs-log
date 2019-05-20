@@ -7,7 +7,7 @@ import (
 )
 
 type LamportClock struct {
-	ID   ic.PubKey
+	ID   *ic.Secp256k1PublicKey
 	Time int
 }
 
@@ -63,7 +63,7 @@ func Compare(a *LamportClock, b *LamportClock) (int, error) {
 	return int(dist), nil
 }
 
-func New(identity ic.PubKey, time int) *LamportClock {
+func New(identity *ic.Secp256k1PublicKey, time int) *LamportClock {
 	return &LamportClock{
 		ID:   identity,
 		Time: time,
