@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/berty/go-ipfs-log/accesscontroler"
 	"github.com/berty/go-ipfs-log/entry"
 	"github.com/berty/go-ipfs-log/identityprovider"
@@ -11,9 +15,6 @@ import (
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
-	"sort"
-	"strings"
-	"time"
 )
 
 type JSONLog struct {
@@ -99,9 +100,10 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 	}
 
 	maxTime := 0
-	if options.Clock == nil {
-		maxTime = maxClockTimeForEntries(options.Heads, options.Clock.Time)
+	if options.Clock != nil {
+		maxTime = options.Clock.Time
 	}
+	maxTime = maxClockTimeForEntries(options.Heads, maxTime)
 
 	return &Log{
 		Storage:          services,
@@ -199,9 +201,9 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	// @TODO: Split Entry.create into creating object, checking permission, signing and then posting to IPFS
 	// Create the entry and add it to the internal cache
 	e, err := entry.CreateEntry(l.Storage, l.Identity, &entry.Entry{
-		LogID: l.ID,
+		LogID:   l.ID,
 		Payload: payload,
-		Next: next,
+		Next:    next,
 	}, l.Clock)
 	if err != nil {
 		return nil, err
@@ -421,8 +423,8 @@ func (l *Log) ToMultihash() (cid.Cid, error) {
 
 func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	data, err := FromMultihash(services, hash, &FetchOptions{
-		Length: fetchOptions.Length,
-		Exclude: fetchOptions.Exclude,
+		Length:       fetchOptions.Length,
+		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 
@@ -441,66 +443,64 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 	}
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID: data.ID,
+		ID:               data.ID,
 		AccessController: logOptions.AccessController,
-		Entries: data.Values,
-		Heads: heads,
-		Clock: lamportclock.New(data.Clock.ID, data.Clock.Time),
-		SortFn: logOptions.SortFn,
+		Entries:          data.Values,
+		Heads:            heads,
+		Clock:            lamportclock.New(data.Clock.ID, data.Clock.Time),
+		SortFn:           logOptions.SortFn,
 	}), nil
 }
 
-
-func NewFromEntryHash (services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) *Log {
+func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) *Log {
 	// TODO: need to verify the entries with 'key'
 	entries := FromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
-		Length: fetchOptions.Length,
-		Exclude: fetchOptions.Exclude,
+		Length:       fetchOptions.Length,
+		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID: logOptions.ID,
+		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries: entries,
-		SortFn: logOptions.SortFn,
+		Entries:          entries,
+		SortFn:           logOptions.SortFn,
 	})
 }
 
-func NewFromJSON (services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
 	// TODO: need to verify the entries with 'key'
 	jsonLog := JSONLog{}
 
 	snapshot := FromJSON(services, jsonLog, &entry.FetchOptions{
-		Length: fetchOptions.Length,
-		Timeout: fetchOptions.Timeout,
+		Length:       fetchOptions.Length,
+		Timeout:      fetchOptions.Timeout,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID: logOptions.ID,
+		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries: snapshot.Values,
-		SortFn: logOptions.SortFn,
+		Entries:          snapshot.Values,
+		SortFn:           logOptions.SortFn,
 	})
 }
 
-func NewFromEntry (services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
 	// TODO: need to verify the entries with 'key'
 	snapshot := FromEntry(services, sourceEntries, &entry.FetchOptions{
-		Length: fetchOptions.Length,
-		Exclude: fetchOptions.Exclude,
+		Length:       fetchOptions.Length,
+		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID: logOptions.ID,
+		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries: snapshot.Values,
-		SortFn: logOptions.SortFn,
+		Entries:          snapshot.Values,
+		SortFn:           logOptions.SortFn,
 	})
 }
-
 
 func FindTails(entries []*entry.Entry) []*entry.Entry {
 	// Reverse index { next -> entry }
@@ -541,7 +541,7 @@ func FindTails(entries []*entry.Entry) []*entry.Entry {
 	return entryMapToSlice(mapUniqueEntries(tails))
 }
 
-func  FindTailHashes (entries []*entry.Entry) []string {
+func FindTailHashes(entries []*entry.Entry) []string {
 	res := []string{}
 	hashes := map[string]bool{}
 	for _, e := range entries {
@@ -552,7 +552,7 @@ func  FindTailHashes (entries []*entry.Entry) []string {
 		nextLength := len(e.Next)
 
 		for i := range e.Next {
-			next := e.Next[nextLength - i]
+			next := e.Next[nextLength-i]
 			if _, ok := hashes[next.String()]; !ok {
 				res = append([]string{e.Hash.String()}, res...)
 			}
@@ -561,7 +561,6 @@ func  FindTailHashes (entries []*entry.Entry) []string {
 
 	return res
 }
-
 
 func concatEntryMaps(sets ...map[string]*entry.Entry) map[string]*entry.Entry {
 	result := map[string]*entry.Entry{}
@@ -626,7 +625,7 @@ func (l *Log) ToJSON() *JSONLog {
 	}
 
 	return &JSONLog{
-		ID: l.ID,
+		ID:    l.ID,
 		Heads: hashes,
 	}
 }
