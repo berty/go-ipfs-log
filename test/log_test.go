@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/berty/go-ipfs-log/entry"
 	idp "github.com/berty/go-ipfs-log/identityprovider"
 	io "github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
@@ -49,7 +50,7 @@ func TestLog(t *testing.T) {
 			c.So(log1.Clock.ID.Equals(identities[0].PublicKey), ShouldBeTrue)
 		})
 
-		c.Convey("set time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
+		c.Convey("sets time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
 			before := time.Now().Unix() / 1000
 			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{})
 			after := time.Now().Unix() / 1000
@@ -58,6 +59,23 @@ func TestLog(t *testing.T) {
 			c.So(err, ShouldBeNil)
 			c.So(logid, ShouldBeGreaterThanOrEqualTo, before)
 			c.So(logid, ShouldBeLessThanOrEqualTo, after)
+		})
+
+		c.Convey("set time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
+			e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
+			c.So(err, ShouldBeNil)
+			e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
+			c.So(err, ShouldBeNil)
+			e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
+			c.So(err, ShouldBeNil)
+
+			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", Entries: []*entry.Entry{e1, e2, e3}})
+			heads := log.FindHeads(log1.Entries)
+
+			c.So(len(heads), ShouldEqual, 3)
+			c.So(heads[2].Hash.Equals(e1.Hash), ShouldBeTrue)
+			c.So(heads[1].Hash.Equals(e2.Hash), ShouldBeTrue)
+			c.So(heads[0].Hash.Equals(e3.Hash), ShouldBeTrue)
 		})
 	})
 }
