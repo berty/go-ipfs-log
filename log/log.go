@@ -111,13 +111,19 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
         options.AccessController = &accesscontroler.Default{}
     }
 
+	entries := mapUniqueEntries(options.Entries)
+
+	if len(options.Heads) == 0 && len(entries) > 0 {
+		options.Heads = FindHeads(entries)
+	}
+
 	return &Log{
 		Storage:          services,
 		ID:               options.ID,
 		Identity:         identity,
 		AccessController: options.AccessController,
 		SortFn:           NoZeroes(options.SortFn),
-		Entries:          mapUniqueEntries(options.Entries),
+		Entries:          entries,
 		Heads:            mapUniqueEntries(options.Heads),
 		Next:             map[string]*entry.Entry{},
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
@@ -321,7 +327,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	for idx, e := range mergedHeads {
 		if _, ok := nextsFromNewItems[e.Hash.String()]; ok {
 			mergedHeads[idx] = nil
-		} else if _, ok := l.Next[e.Hash.String()]; !ok {
+		} else if _, ok := l.Next[e.Hash.String()]; ok {
 			mergedHeads[idx] = nil
 		}
 	}
@@ -336,7 +342,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	}
 
 	// Find the latest clock from the heads
-	maxClock := maxClockTimeForEntries(mergedHeads, 0)
+	maxClock := maxClockTimeForEntries(entryMapToSlice(l.Heads), 0)
 	l.Clock = lamportclock.New(l.Clock.ID, maxInt(l.Clock.Time, maxClock))
 
 	return l, nil
@@ -596,7 +602,7 @@ func FindHeads(entries map[string]*entry.Entry) []*entry.Entry {
 	}
 
 	for _, e := range entries {
-		if sub, ok := items[e.Hash.String()]; ok == true && sub != nil {
+		if _, ok := items[e.Hash.String()]; ok != true {
 			continue
 		}
 
