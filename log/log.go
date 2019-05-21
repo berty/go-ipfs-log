@@ -117,6 +117,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		SortFn:           NoZeroes(options.SortFn),
 		Entries:          mapUniqueEntries(options.Entries),
 		Heads:            mapUniqueEntries(options.Heads),
+		Next:             map[string]*entry.Entry{},
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
 	}
 }
