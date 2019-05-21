@@ -2,7 +2,9 @@ package lamportclock
 
 import (
 	"bytes"
+	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
+	"github.com/polydawn/refmt/obj/atlas"
 	"math"
 )
 
@@ -38,6 +40,8 @@ func (l *LamportClock) Clone() *LamportClock {
 
 // Compare Calculate the "distance" based on the clock, ie. lower or greater
 func Compare(a *LamportClock, b *LamportClock) (int, error) {
+	// TODO: Make it a Golang slice-compatible sort function
+
 	var dist = a.Time - b.Time
 
 	// If the sequence number is the same (concurrent events),
@@ -68,4 +72,15 @@ func New(identity *ic.Secp256k1PublicKey, time int) *LamportClock {
 		ID:   identity,
 		Time: time,
 	}
+}
+
+var AtlasLamportClock = atlas.BuildEntry(LamportClock{}).
+	StructMap().
+	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+	AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
+	Complete()
+
+
+func init() {
+	cbornode.RegisterCborType(AtlasLamportClock)
 }

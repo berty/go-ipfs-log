@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	cbornode "github.com/ipfs/go-ipld-cbor"
+	"github.com/polydawn/refmt/obj/atlas"
 	"sort"
 	"strings"
 	"time"
@@ -633,4 +635,14 @@ func (l *Log) ToJSON() *JSONLog {
 		ID:    l.ID,
 		Heads: hashes,
 	}
+}
+
+var AtlasJSONLog = atlas.BuildEntry(JSONLog{}).
+	StructMap().
+	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+	AddField("Heads", atlas.StructMapEntry{SerialName: "publicKey"}).
+	Complete()
+
+func init() {
+	cbornode.RegisterCborType(AtlasJSONLog)
 }
