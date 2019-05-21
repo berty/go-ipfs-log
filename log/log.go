@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/polydawn/refmt/obj/atlas"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	cbornode "github.com/ipfs/go-ipld-cbor"
+	"github.com/polydawn/refmt/obj/atlas"
 
 	"github.com/berty/go-ipfs-log/accesscontroler"
 	"github.com/berty/go-ipfs-log/entry"
@@ -94,7 +96,7 @@ func mapUniqueEntries(entries []*entry.Entry) map[string]*entry.Entry {
 
 func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) *Log {
 	if options.ID == "" {
-		options.ID = time.Now().String()
+		options.ID = strconv.FormatInt(time.Now().Unix()/1000, 10)
 	}
 
 	if options.SortFn == nil {
@@ -108,8 +110,8 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 	maxTime = maxClockTimeForEntries(options.Heads, maxTime)
 
 	if options.AccessController == nil {
-        options.AccessController = &accesscontroler.Default{}
-    }
+		options.AccessController = &accesscontroler.Default{}
+	}
 
 	entries := mapUniqueEntries(options.Entries)
 
