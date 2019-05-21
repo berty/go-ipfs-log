@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -96,6 +97,7 @@ func TestPersistency(t *testing.T) {
 		c.Convey("load only 42 entries from a log with 100 entries", FailureHalts, func(c C) {
 			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+
 			for i := 0; i < 100; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
@@ -118,6 +120,7 @@ func TestPersistency(t *testing.T) {
 		c.Convey("load only 99 entries from a log with 100 entries", FailureHalts, func(c C) {
 			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+
 			for i := 0; i < 100; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
@@ -136,6 +139,81 @@ func TestPersistency(t *testing.T) {
 			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 99})
 			c.So(err, ShouldBeNil)
 			c.So(len(res.Entries), ShouldEqual, 99)
+		})
+
+		c.Convey("load only 10 entries from a log with 100 entries", FailureHalts, func(c C) {
+			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log3 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+
+			for i := 0; i < 100; i++ {
+				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
+				c.So(err, ShouldBeNil)
+				if i%10 == 0 {
+					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: log.FindHeads(log2.Entries)})
+					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
+					c.So(err, ShouldBeNil)
+					_, err = log2.Join(log1, -1)
+					c.So(err, ShouldBeNil)
+				}
+				if i%25 == 0 {
+					heads := append(log.FindHeads(log3.Entries), log.FindHeads(log2.Entries)...)
+					log3 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					_, err := log3.Append([]byte(fmt.Sprintf("--%d", i)), 1)
+					c.So(err, ShouldBeNil)
+				}
+			}
+
+			_, err := log3.Join(log2, -1)
+			c.So(err, ShouldBeNil)
+
+			hash, err := log3.ToMultihash()
+			c.So(err, ShouldBeNil)
+
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 10})
+			c.So(err, ShouldBeNil)
+			c.So(len(res.Entries), ShouldEqual, 10)
+		})
+
+		c.Convey("load only 10 entries and then expand to max from a log with 100 entries", FailureHalts, func(c C) {
+			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log2 := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+			log3 := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+
+			for i := 0; i < 30; i++ {
+				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
+				c.So(err, ShouldBeNil)
+				if i%10 == 0 {
+					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
+					c.So(err, ShouldBeNil)
+					_, err = log2.Join(log1, -1)
+					c.So(err, ShouldBeNil)
+				}
+				if i%25 == 0 {
+					heads := append(log.FindHeads(log3.Entries), log.FindHeads(log2.Entries)...)
+					log3 = log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					_, err := log3.Append([]byte(fmt.Sprintf("--%d", i)), 1)
+					c.So(err, ShouldBeNil)
+				}
+			}
+
+			_, err = log3.Join(log2, -1)
+			c.So(err, ShouldBeNil)
+
+			log4 := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+			_, err = log4.Join(log2, -1)
+			c.So(err, ShouldBeNil)
+			_, err = log4.Join(log3, -1)
+			c.So(err, ShouldBeNil)
+
+			var values3, values4 [][]byte
+			for _, v := range log3.Values() {
+				values3 = append(values3, v.Payload)
+			}
+			for _, v := range log4.Values() {
+				values4 = append(values4, v.Payload)
+			}
+			c.So(reflect.DeepEqual(values3, values4), ShouldBeTrue)
 		})
 	})
 }
