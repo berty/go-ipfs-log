@@ -8,7 +8,7 @@ import (
 )
 
 func SortByClocks(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
-	diff, err := lamportclock.Compare(&a.Clock, &b.Clock)
+	diff, err := lamportclock.Compare(a.Clock, b.Clock)
 
 	if err != nil {
 		return 0, err

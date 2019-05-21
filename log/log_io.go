@@ -53,9 +53,8 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 		}
 	}
 
-	finalEntries := append(entries[:0:0], entries...)
-	sort.SliceStable(finalEntries, func (i, j int) bool {
-		ret, err := entry.Compare(finalEntries[i], finalEntries[j])
+	sort.SliceStable(entries, func (i, j int) bool {
+		ret, err := entry.Compare(entries[i], entries[j])
 		if err != nil {
 			return false
 		}
@@ -63,7 +62,7 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 	})
 
 	heads := []*entry.Entry{}
-	for _, e := range finalEntries {
+	for _, e := range entries {
 		for _, h := range logData.Heads {
 			if h.String() == e.Hash.String() {
 				heads = append(heads, e)
@@ -77,10 +76,10 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 	}
 
 	return &Snapshot{
-		ID: logData.ID,
-		Values: finalEntries,
-		Heads: headsCids,
-		Clock: clock,
+		ID:     logData.ID,
+		Values: entries,
+		Heads:  headsCids,
+		Clock:  clock,
 	}, nil
 }
 

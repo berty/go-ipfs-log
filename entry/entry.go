@@ -28,7 +28,7 @@ type Entry struct {
 	Sig      mh.Multihash
 	Identity *identityprovider.Identity
 	Hash     cid.Cid
-	Clock    lamportclock.LamportClock
+	Clock    *lamportclock.LamportClock
 }
 
 type EntryToHash struct {
@@ -37,7 +37,7 @@ type EntryToHash struct {
 	Payload []byte
 	Next    []cid.Cid
 	V       uint64
-	Clock   lamportclock.LamportClock
+	Clock   *lamportclock.LamportClock
 }
 
 var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
@@ -48,12 +48,6 @@ var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
 	AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
 	AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-	Complete()
-
-var AtlasLamportClock = atlas.BuildEntry(lamportclock.LamportClock{}).
-	StructMap().
-	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-	AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
 	Complete()
 
 func init() {
@@ -69,7 +63,6 @@ func init() {
 		Complete()
 
 	cbornode.RegisterCborType(AtlasEntry)
-	cbornode.RegisterCborType(AtlasLamportClock)
 }
 
 func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *lamportclock.LamportClock) (*Entry, error) {
@@ -91,7 +84,8 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 	data.Sig = signature
 	data.V = 1
 	data.Identity = identity.Filtered()
-	data.Hash, err = io.WriteCBOR(ipfsInstance, data)
+	data.Clock = clock
+	data.Hash, err = ToMultihash(ipfsInstance, data)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +119,7 @@ func (e *Entry) Copy() *Entry {
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
-	atl, err := atlas.Build(AtlasEntryToHash, AtlasLamportClock)
+	atl, err := atlas.Build(AtlasEntryToHash, lamportclock.AtlasLamportClock)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +209,7 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
 func Compare(a, b *Entry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
 
-	distance, err := lamportclock.Compare(&a.Clock, &b.Clock)
+	distance, err := lamportclock.Compare(a.Clock, b.Clock)
 	if err != nil {
 		return 0, err
 	}
@@ -247,7 +241,7 @@ func IsEqual(a, b *Entry) bool {
 
 func IsParent(entry1, entry2 *Entry) bool {
 	for _, next := range entry2.Next {
-		if next == entry2.Hash {
+		if next.String() == entry1.Hash.String() {
 			return true
 		}
 	}
