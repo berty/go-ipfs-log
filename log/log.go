@@ -94,7 +94,19 @@ func mapUniqueEntries(entries []*entry.Entry) map[string]*entry.Entry {
 	return res
 }
 
-func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) *Log {
+func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) (*Log, error) {
+	if services == nil {
+		return nil, errors.New("ipfs instance not defined")
+	}
+
+	if identity == nil {
+		return nil, errors.New("identity is required")
+	}
+
+	if options == nil {
+		options = &NewLogOptions{}
+	}
+
 	if options.ID == "" {
 		options.ID = strconv.FormatInt(time.Now().Unix()/1000, 10)
 	}
@@ -129,7 +141,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		Heads:            mapUniqueEntries(options.Heads),
 		Next:             map[string]*entry.Entry{},
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
-	}
+	}, nil
 }
 
 // addToStack Add an entry to the stack and traversed nodes index
@@ -465,10 +477,10 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 		Heads:            heads,
 		Clock:            lamportclock.New(data.Clock.ID, data.Clock.Time),
 		SortFn:           logOptions.SortFn,
-	}), nil
+	})
 }
 
-func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) *Log {
+func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	// TODO: need to verify the entries with 'key'
 	entries := FromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
 		Length:       fetchOptions.Length,
@@ -484,7 +496,7 @@ func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Iden
 	})
 }
 
-func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	// TODO: need to verify the entries with 'key'
 	jsonLog := JSONLog{}
 
@@ -502,7 +514,7 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 	})
 }
 
-func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) *Log {
+func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	// TODO: need to verify the entries with 'key'
 	snapshot := FromEntry(services, sourceEntries, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
