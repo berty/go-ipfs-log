@@ -61,7 +61,7 @@ func TestLog(t *testing.T) {
 			c.So(logid, ShouldBeLessThanOrEqualTo, after)
 		})
 
-		c.Convey("set time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
+		c.Convey("finds heads if heads not given as params", FailureHalts, func(c C) {
 			e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
 			c.So(err, ShouldBeNil)
 			e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
@@ -73,9 +73,9 @@ func TestLog(t *testing.T) {
 			heads := log.FindHeads(log1.Entries)
 
 			c.So(len(heads), ShouldEqual, 3)
-			c.So(heads[2].Hash.Equals(e1.Hash), ShouldBeTrue)
-			c.So(heads[1].Hash.Equals(e2.Hash), ShouldBeTrue)
-			c.So(heads[0].Hash.Equals(e3.Hash), ShouldBeTrue)
+			c.So(heads[2].Hash.String(), ShouldEqual, e1.Hash.String())
+			c.So(heads[1].Hash.String(), ShouldEqual, e2.Hash.String())
+			c.So(heads[0].Hash.String(), ShouldEqual, e3.Hash.String())
 		})
 	})
 }

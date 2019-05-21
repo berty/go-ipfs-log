@@ -383,8 +383,9 @@ func Difference(logA, logB *Log) map[string]*entry.Entry {
 	return res
 }
 
-func (l *Log) toString(payloadMapper func(*entry.Entry) string) string {
+func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 	values := l.Values()
+	fmt.Printf("VALUES: %+v\n", values)
 	reverse(values)
 
 	lines := []string{}
@@ -401,10 +402,10 @@ func (l *Log) toString(payloadMapper func(*entry.Entry) string) string {
 		if payloadMapper != nil {
 			payload = payloadMapper(e)
 		} else {
-			payload = fmt.Sprintf("%v", e.Payload)
+			payload = fmt.Sprintf("%+v", e.Payload)
 		}
 
-		return padding + payload
+		lines = append(lines, padding + payload)
 	}
 
 	return strings.Join(lines, "\n")
@@ -615,7 +616,7 @@ func FindHeads(entries map[string]*entry.Entry) []*entry.Entry {
 		bytesA, _ := entries[result[a].Hash.String()].Clock.ID.Bytes()
 		bytesB, _ := entries[result[b].Hash.String()].Clock.ID.Bytes()
 
-		return bytes.Compare(bytesA, bytesB) > 0
+		return bytes.Compare(bytesA, bytesB) <= 0
 	})
 
 	return result
