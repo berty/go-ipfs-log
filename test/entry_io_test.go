@@ -101,8 +101,31 @@ func TestPersistency(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				if i%10 == 0 {
 					heads := append(log.FindHeads(log2.Entries), log.FindHeads(log1.Entries)...)
-					log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
+					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
 					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
+					c.So(err, ShouldBeNil)
+				}
+			}
+
+			hash, err := log1.ToMultihash()
+			c.So(err, ShouldBeNil)
+
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 42})
+			c.So(err, ShouldBeNil)
+			c.So(len(res.Entries), ShouldEqual, 42)
+		})
+
+		c.Convey("load only 99 entries from a log with 100 entries", FailureHalts, func(c C) {
+			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			for i := 0; i < 100; i++ {
+				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
+				c.So(err, ShouldBeNil)
+				if i%10 == 0 {
+					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values()})
+					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
+					c.So(err, ShouldBeNil)
+					_, err = log2.Join(log1, -1)
 					c.So(err, ShouldBeNil)
 				}
 			}
@@ -110,9 +133,9 @@ func TestPersistency(t *testing.T) {
 			hash, err := log2.ToMultihash()
 			c.So(err, ShouldBeNil)
 
-			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 42})
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 99})
 			c.So(err, ShouldBeNil)
-			c.So(len(res.Entries), ShouldEqual, 42)
+			c.So(len(res.Entries), ShouldEqual, 99)
 		})
 	})
 }
