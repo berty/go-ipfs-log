@@ -3,12 +3,12 @@ package entry
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/ipfs/go-ipld-cbor/encoding"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/pkg/errors"
@@ -74,17 +74,24 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 		clock = lamportclock.New(identity.PublicKey, 0)
 	}
 
-	signature, err := identity.PrivateKey.Sign(data.Payload)
+	data = data.Copy()
+	data.Clock = clock
+	data.V = 1
+
+	jsonBytes, err := ToBuffer(data.ToHashable())
 	if err != nil {
 		return nil, err
 	}
 
-	data = data.Copy()
+	signature, err := identity.PrivateKey.Sign(jsonBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	data.Key = identity.PublicKey
 	data.Sig = signature
-	data.V = 1
+
 	data.Identity = identity.Filtered()
-	data.Clock = clock
 	data.Hash, err = ToMultihash(ipfsInstance, data)
 	if err != nil {
 		return nil, err
@@ -119,13 +126,33 @@ func (e *Entry) Copy() *Entry {
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
-	atl, err := atlas.Build(AtlasEntryToHash, lamportclock.AtlasLamportClock)
+	//atl, err := atlas.Build(AtlasEntryToHash, lamportclock.AtlasLamportClock, identityprovider.AtlasPubKey)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//marshaller := encoding.NewMarshallerAtlased(atl)
+	//jsonBytes, err := marshaller.Marshal(e)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	clockBytes, err := e.Clock.ID.Bytes()
 	if err != nil {
 		return nil, err
 	}
 
-	marshaller := encoding.NewMarshallerAtlased(atl)
-	jsonBytes, err := marshaller.Marshal(e)
+	jsonBytes, err := json.Marshal(map[string]interface{}{
+		"hash":    nil,
+		"id":      e.ID,
+		"payload": e.Payload,
+		"next":    e.Next,
+		"v":       e.V,
+		"clock": map[string]interface{}{
+			"id":   clockBytes,
+			"time": e.Clock.Time,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
