@@ -46,7 +46,8 @@ func TestEntryPersistency(t *testing.T) {
 
 	Convey("Entry - Persistency", t, FailureHalts, func(c C) {
 		c.Convey("log with 1 entry", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 			e, err := log1.Append([]byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
@@ -56,8 +57,9 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("log with 2 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			_, err := log1.Append([]byte("one"), 1)
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			_, err = log1.Append([]byte("one"), 1)
 			c.So(err, ShouldBeNil)
 			e, err := log1.Append([]byte("two"), 1)
 			c.So(err, ShouldBeNil)
@@ -68,8 +70,9 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("loads max 1 entry from a log of 2 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			_, err := log1.Append([]byte("one"), 1)
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			_, err = log1.Append([]byte("one"), 1)
 			c.So(err, ShouldBeNil)
 			e, err := log1.Append([]byte("two"), 1)
 			c.So(err, ShouldBeNil)
@@ -83,7 +86,8 @@ func TestEntryPersistency(t *testing.T) {
 			var e *entry.Entry
 			var err error
 
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 			for i := 0; i < 100; i++ {
 				e, err = log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
@@ -95,15 +99,18 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("load only 42 entries from a log with 100 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 
 			for i := 0; i < 100; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
 				if i%10 == 0 {
 					heads := append(log.FindHeads(log2.Entries), log.FindHeads(log1.Entries)...)
-					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
+					log2, err = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
+					c.So(err, ShouldBeNil)
 					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
@@ -118,14 +125,17 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("load only 99 entries from a log with 100 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 
 			for i := 0; i < 100; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
 				if i%10 == 0 {
-					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values()})
+					log2, err = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values()})
+					c.So(err, ShouldBeNil)
 					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
 					c.So(err, ShouldBeNil)
 					_, err = log2.Join(log1, -1)
@@ -142,15 +152,19 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("load only 10 entries from a log with 100 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			log2 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			log3 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log3, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 
 			for i := 0; i < 100; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
 				c.So(err, ShouldBeNil)
 				if i%10 == 0 {
-					log2 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: log.FindHeads(log2.Entries)})
+					log2, err = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log2.ID, Entries: log2.Values(), Heads: log.FindHeads(log2.Entries)})
+					c.So(err, ShouldBeNil)
 					_, err := log2.Append([]byte(fmt.Sprintf("hi%d", i)), 1)
 					c.So(err, ShouldBeNil)
 					_, err = log2.Join(log1, -1)
@@ -158,13 +172,14 @@ func TestEntryPersistency(t *testing.T) {
 				}
 				if i%25 == 0 {
 					heads := append(log.FindHeads(log3.Entries), log.FindHeads(log2.Entries)...)
-					log3 = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					log3, err = log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					c.So(err, ShouldBeNil)
 					_, err := log3.Append([]byte(fmt.Sprintf("--%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 			}
 
-			_, err := log3.Join(log2, -1)
+			_, err = log3.Join(log2, -1)
 			c.So(err, ShouldBeNil)
 
 			hash, err := log3.ToMultihash()
@@ -176,9 +191,12 @@ func TestEntryPersistency(t *testing.T) {
 		})
 
 		c.Convey("load only 10 entries and then expand to max from a log with 100 entries", FailureHalts, func(c C) {
-			log1 := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
-			log2 := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
-			log3 := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
+			log3, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 
 			for i := 0; i < 30; i++ {
 				_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), 1)
@@ -191,7 +209,8 @@ func TestEntryPersistency(t *testing.T) {
 				}
 				if i%25 == 0 {
 					heads := append(log.FindHeads(log3.Entries), log.FindHeads(log2.Entries)...)
-					log3 = log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					log3, err = log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+					c.So(err, ShouldBeNil)
 					_, err := log3.Append([]byte(fmt.Sprintf("--%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
@@ -200,7 +219,8 @@ func TestEntryPersistency(t *testing.T) {
 			_, err = log3.Join(log2, -1)
 			c.So(err, ShouldBeNil)
 
-			log4 := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+			log4, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+			c.So(err, ShouldBeNil)
 			_, err = log4.Join(log2, -1)
 			c.So(err, ShouldBeNil)
 			_, err = log4.Join(log3, -1)

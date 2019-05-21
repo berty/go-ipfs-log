@@ -37,8 +37,9 @@ func TestLogAppend(t *testing.T) {
 	Convey("Log - Append", t, FailureHalts, func(c C) {
 		c.Convey("append", FailureHalts, func(c C) {
 			c.Convey("append one", FailureHalts, func(c C) {
-				log1 := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
-				_, err := log1.Append([]byte("hello1"), 1)
+				log1, err := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
+				c.So(err, ShouldBeNil)
+				_, err = log1.Append([]byte("hello1"), 1)
 				c.So(err, ShouldBeNil)
 
 				c.So(len(log1.Entries), ShouldEqual, 1)
@@ -49,12 +50,13 @@ func TestLogAppend(t *testing.T) {
 					c.So(v.Clock.Time, ShouldEqual, 1)
 				}
 				for _, v := range log.FindHeads(log1.Entries) {
-					c.So(v.Hash.Equals(log1.Values()[0].Hash), ShouldBeTrue)
+					c.So(v.Hash.String(), ShouldEqual, log1.Values()[0].Hash.String())
 				}
 			})
 
 			c.Convey("append 100 items to a log", FailureHalts, func(c C) {
-				log1 := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
+				log1, err := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
+				c.So(err, ShouldBeNil)
 				nextPointerAmount := 64
 
 				for i := 0; i < 100; i++ {
@@ -63,7 +65,7 @@ func TestLogAppend(t *testing.T) {
 
 					values := log1.Values()
 					c.So(len(log.FindHeads(log1.Entries)), ShouldEqual, 1)
-					c.So(log.FindHeads(log1.Entries)[0].Hash.Equals(values[len(values)-1].Hash), ShouldBeTrue)
+					c.So(log.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, values[len(values)-1].Hash.String())
 				}
 
 				c.So(len(log1.Entries), ShouldEqual, 100)
