@@ -39,6 +39,7 @@ func TestEntry(t *testing.T) {
 				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
+
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
 				c.So(e.LogID, ShouldEqual, "A")
 				c.So(e.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)

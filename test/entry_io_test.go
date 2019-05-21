@@ -19,7 +19,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestPersistency(t *testing.T) {
+func TestEntryPersistency(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
