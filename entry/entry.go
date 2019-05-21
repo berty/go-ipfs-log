@@ -203,6 +203,8 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
 		return nil, err
 	}
 
+	obj.Hash = hash
+
 	return obj, nil
 }
 
