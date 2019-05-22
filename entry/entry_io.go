@@ -17,14 +17,14 @@ type FetchOptions struct {
 
 func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
-	cache := map[string]*Entry{}
+	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
 
 	addToResults := func (entry *Entry) {
 		if entry.IsValid() {
 			loadingQueue = append(loadingQueue, entry.Next...)
 			result = append(result, entry)
-			cache[entry.Hash.String()] = entry
+			cache.Set(entry.Hash.String(), entry)
 
 			if options.ProgressChan != nil {
 				options.ProgressChan <- entry
@@ -35,7 +35,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 	for _, e := range options.Exclude {
 		if e.IsValid() {
 			result = append(result, e)
-			cache[e.Hash.String()] = e
+			cache.Set(e.Hash.String(), e)
 		}
 	}
 
@@ -47,7 +47,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 		hash := loadingQueue[0]
 		loadingQueue = loadingQueue[1:]
 
-		if _, ok := cache[hash.String()]; ok {
+		if _, ok := cache.Get(hash.String()); ok {
 			return
 		}
 

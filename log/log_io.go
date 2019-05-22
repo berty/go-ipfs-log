@@ -20,7 +20,7 @@ type FetchOptions struct {
 
 
 func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
-	if len(log.Values()) < 1 {
+	if log.Values().Len() < 1 {
 		return cid.Cid{}, errors.New(`Can't serialize an empty log`)
 	}
 
@@ -181,21 +181,23 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 
 
 func entriesDiff (setA, setB []*entry.Entry) []*entry.Entry {
-	setAHashMap := map[string]*entry.Entry{}
-	setBHashMap := map[string]bool{}
+	setAHashMap := entry.NewOrderedMap()
+	setBHashMap := entry.NewOrderedMap()
 	ret := []*entry.Entry{}
 
 	for _, e := range setA {
-		setAHashMap[e.Hash.String()] = e
+		setAHashMap.Set(e.Hash.String(), e)
 	}
 
 	for _, e := range setB {
-		setBHashMap[e.Hash.String()] = true
+		setBHashMap.Set(e.Hash.String(), e)
 	}
 
-	for k := range setAHashMap {
-		if _, ok := setBHashMap[k]; !ok {
-			ret = append(ret, setAHashMap[k])
+	keys := setAHashMap.Keys()
+	for _, k := range keys {
+		e := setAHashMap.UnsafeGet(k)
+		if _, ok := setBHashMap.Get(k); !ok {
+			ret = append(ret, e)
 		}
 	}
 

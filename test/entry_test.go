@@ -33,9 +33,9 @@ func TestEntry(t *testing.T) {
 		panic(err)
 	}
 
-	Convey("Entry", t, FailureHalts, func(c C) {
-		c.Convey("create", FailureHalts, func(c C) {
-			c.Convey("creates a an empty entry", FailureHalts, func(c C) {
+	Convey("Entry", t, FailureContinues, func(c C) {
+		c.Convey("create", FailureContinues, func(c C) {
+			c.Convey("creates a an empty entry", FailureContinues, func(c C) {
 				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)

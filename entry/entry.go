@@ -115,7 +115,7 @@ func (e *Entry) Copy() *Entry {
 	return &Entry{
 		Payload: e.Payload,
 		LogID:   e.LogID,
-		Next:    e.Next,
+		Next:    uniqueCIDs(e.Next),
 
 		Key:      e.Key,
 		Sig:      e.Sig,
@@ -123,6 +123,23 @@ func (e *Entry) Copy() *Entry {
 		Hash:     e.Hash,
 		Clock:    e.Clock,
 	}
+}
+
+func uniqueCIDs(cids []cid.Cid) []cid.Cid {
+	foundCids := map[string]bool{}
+	out := []cid.Cid{}
+
+	for _, c := range cids {
+		if _, ok  := foundCids[c.String()]; ok {
+			continue
+		}
+
+
+		foundCids[c.String()] = true
+		out = append(out, c)
+	}
+
+	return out
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
@@ -299,11 +316,13 @@ func FindChildren(entry *Entry, values []*Entry) []*Entry {
 				parent = e
 				break
 			}
+
+			parent = nil
 		}
 	}
 
 	sort.SliceStable(stack, func(i, j int) bool {
-		return stack[i].Clock.Time < stack[j].Clock.Time
+		return stack[i].Clock.Time <= stack[j].Clock.Time
 	})
 
 	return stack

@@ -44,8 +44,8 @@ func TestEntryPersistency(t *testing.T) {
 		identities = append(identities, identity)
 	}
 
-	Convey("Entry - Persistency", t, FailureHalts, func(c C) {
-		c.Convey("log with 1 entry", FailureHalts, func(c C) {
+	Convey("Entry - Persistency", t, FailureContinues, func(c C) {
+		c.Convey("log with 1 entry", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			e, err := log1.Append([]byte("one"), 1)
@@ -56,7 +56,7 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(len(res), ShouldEqual, 1)
 		})
 
-		c.Convey("log with 2 entries", FailureHalts, func(c C) {
+		c.Convey("log with 2 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			_, err = log1.Append([]byte("one"), 1)
@@ -69,7 +69,7 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(len(res), ShouldEqual, 2)
 		})
 
-		c.Convey("loads max 1 entry from a log of 2 entries", FailureHalts, func(c C) {
+		c.Convey("loads max 1 entry from a log of 2 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			_, err = log1.Append([]byte("one"), 1)
@@ -82,7 +82,7 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(len(res), ShouldEqual, 1)
 		})
 
-		c.Convey("log with 100 entries", FailureHalts, func(c C) {
+		c.Convey("log with 100 entries", FailureContinues, func(c C) {
 			var e *entry.Entry
 			var err error
 
@@ -98,7 +98,7 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(len(res), ShouldEqual, 100)
 		})
 
-		c.Convey("load only 42 entries from a log with 100 entries", FailureHalts, func(c C) {
+		c.Convey("load only 42 entries from a log with 100 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
@@ -121,10 +121,10 @@ func TestEntryPersistency(t *testing.T) {
 
 			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 42})
 			c.So(err, ShouldBeNil)
-			c.So(len(res.Entries), ShouldEqual, 42)
+			c.So(res.Entries.Len(), ShouldEqual, 42)
 		})
 
-		c.Convey("load only 99 entries from a log with 100 entries", FailureHalts, func(c C) {
+		c.Convey("load only 99 entries from a log with 100 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
@@ -148,10 +148,10 @@ func TestEntryPersistency(t *testing.T) {
 
 			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 99})
 			c.So(err, ShouldBeNil)
-			c.So(len(res.Entries), ShouldEqual, 99)
+			c.So(res.Entries.Len(), ShouldEqual, 99)
 		})
 
-		c.Convey("load only 10 entries from a log with 100 entries", FailureHalts, func(c C) {
+		c.Convey("load only 10 entries from a log with 100 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
@@ -187,10 +187,10 @@ func TestEntryPersistency(t *testing.T) {
 
 			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 10})
 			c.So(err, ShouldBeNil)
-			c.So(len(res.Entries), ShouldEqual, 10)
+			c.So(res.Entries.Len(), ShouldEqual, 10)
 		})
 
-		c.Convey("load only 10 entries and then expand to max from a log with 100 entries", FailureHalts, func(c C) {
+		c.Convey("load only 10 entries and then expand to max from a log with 100 entries", FailureContinues, func(c C) {
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 			c.So(err, ShouldBeNil)
 			log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
@@ -227,10 +227,18 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(err, ShouldBeNil)
 
 			var values3, values4 [][]byte
-			for _, v := range log3.Values() {
+			log3Values := log3.Values()
+			log3Keys := log3Values.Keys()
+
+			log4Values := log4.Values()
+			log4Keys := log4Values.Keys()
+
+			for _, k := range log3Keys {
+				v, _ := log3Values.Get(k)
 				values3 = append(values3, v.Payload)
 			}
-			for _, v := range log4.Values() {
+			for _, k := range log4Keys {
+				v, _ := log4Values.Get(k)
 				values4 = append(values4, v.Payload)
 			}
 			c.So(reflect.DeepEqual(values3, values4), ShouldBeTrue)
