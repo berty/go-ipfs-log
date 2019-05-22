@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/berty/go-ipfs-log/entry"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
 )
@@ -78,7 +79,10 @@ func Sortable(compFunc func (a, b *entry.Entry) (int, error), values []*entry.En
 		b := values[j]
 
 		ret, err := compFunc(a, b)
-		return err == nil && ret > 0
+		if err != nil {
+			fmt.Printf("error while comparing: %v\n", err)
+		}
+		return ret <= 0
 	}
 }
 

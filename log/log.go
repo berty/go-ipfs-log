@@ -3,7 +3,7 @@ package log
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"github.com/iancoleman/orderedmap"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,16 +32,16 @@ type Log struct {
 	AccessController accesscontroler.Interface
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
 	Identity         *identityprovider.Identity
-	Entries          map[string]*entry.Entry
-	Heads            map[string]*entry.Entry
-	Next             map[string]*entry.Entry
+	Entries          *entry.OrderedMap
+	Heads            *entry.OrderedMap
+	Next             *entry.OrderedMap
 	Clock            *lamportclock.LamportClock
 }
 
 type NewLogOptions struct {
 	ID               string
 	AccessController accesscontroler.Interface
-	Entries          []*entry.Entry
+	Entries          *entry.OrderedMap
 	Heads            []*entry.Entry
 	Clock            *lamportclock.LamportClock
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
@@ -71,24 +71,27 @@ func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
 	return max
 }
 
-func entryMapToSlice(entries map[string]*entry.Entry) []*entry.Entry {
+func entryMapToSlice(entries *entry.OrderedMap) []*entry.Entry {
 	ret := []*entry.Entry{}
 
-	for _, e := range entries {
+	keys := entries.Keys()
+	for _, k := range keys {
+		e, _ := entries.Get(k)
 		ret = append(ret, e)
 	}
 
 	return ret
 }
 
-func mapUniqueEntries(entries []*entry.Entry) map[string]*entry.Entry {
-	res := map[string]*entry.Entry{}
+func mapUniqueEntries(entries []*entry.Entry) *entry.OrderedMap {
+	res := entry.NewOrderedMap()
+
 	for _, e := range entries {
 		if e == nil {
 			continue
 		}
 
-		res[e.Hash.String()] = e
+		res.Set(e.Hash.String(), e)
 	}
 
 	return res
@@ -125,10 +128,12 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		options.AccessController = &accesscontroler.Default{}
 	}
 
-	entries := mapUniqueEntries(options.Entries)
+	if options.Entries == nil {
+		options.Entries = entry.NewOrderedMap()
+	}
 
-	if len(options.Heads) == 0 && len(entries) > 0 {
-		options.Heads = FindHeads(entries)
+	if len(options.Heads) == 0 && len(options.Entries.Keys()) > 0 {
+		options.Heads = FindHeads(options.Entries)
 	}
 
 	return &Log{
@@ -137,17 +142,17 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		Identity:         identity,
 		AccessController: options.AccessController,
 		SortFn:           NoZeroes(options.SortFn),
-		Entries:          entries,
+		Entries:          options.Entries.Copy(),
 		Heads:            mapUniqueEntries(options.Heads),
-		Next:             map[string]*entry.Entry{},
+		Next:             entry.NewOrderedMap(),
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
 	}, nil
 }
 
 // addToStack Add an entry to the stack and traversed nodes index
-func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed map[string]bool) ([]*entry.Entry, map[string]bool) {
+func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed *orderedmap.OrderedMap) ([]*entry.Entry, *orderedmap.OrderedMap) {
 	// If we've already processed the entry, don't add it to the stack
-	if _, ok := traversed[e.Hash.String()]; ok {
+	if _, ok := traversed.Get(e.Hash.String()); ok {
 		return stack, traversed
 	}
 
@@ -157,12 +162,12 @@ func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed map[str
 	reverse(stack)
 
 	// Add to the cache of processed entries
-	traversed[e.Hash.String()] = true
+	traversed.Set(e.Hash.String(), true)
 
 	return stack, traversed
 }
 
-func (l *Log) Traverse(rootEntries map[string]*entry.Entry, amount int, endHash string) map[string]*entry.Entry {
+func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string) []*entry.Entry {
 	// Sort the given given root entries and use as the starting stack
 	stack := entryMapToSlice(rootEntries)
 
@@ -170,9 +175,9 @@ func (l *Log) Traverse(rootEntries map[string]*entry.Entry, amount int, endHash 
 	reverse(stack)
 
 	// Cache for checking if we've processed an entry already
-	traversed := map[string]bool{}
+	traversed := orderedmap.New()
 	// End result
-	result := map[string]*entry.Entry{}
+	result := []*entry.Entry{}
 	// We keep a counter to check if we have traversed requested amount of entries
 	count := 0
 
@@ -187,16 +192,16 @@ func (l *Log) Traverse(rootEntries map[string]*entry.Entry, amount int, endHash 
 
 		// Add to the result
 		count++
-		result[e.Hash.String()] = e
+		result = append(result, e)
 
 		// Add entry's next references to the stack
 		for _, next := range e.Next {
-			nextEntry, ok := l.Entries[next.String()]
+			nextEntry, ok := l.Entries.Get(next.String())
 			if !ok {
 				continue
 			}
 
-			l.addToStack(nextEntry, stack, traversed)
+			stack, traversed = l.addToStack(nextEntry, stack, traversed)
 		}
 
 		// If it is the specified end hash, break out of the while loop
@@ -216,10 +221,15 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	l.Clock = lamportclock.New(l.Clock.ID, newTime)
 
 	// Get the required amount of hashes to next entries (as per current state of the log)
-	l.Traverse(l.Heads, maxInt(pointerCount, len(l.Heads)), "")
+	references := l.Traverse(l.Heads, maxInt(pointerCount, l.Heads.Len()), "")
 	next := []cid.Cid{}
 
-	for _, e := range l.Heads {
+	keys := l.Heads.Keys()
+	for _, k := range keys {
+		e, _ := l.Heads.Get(k)
+		next = append(next, e.Hash)
+	}
+	for _, e := range references {
 		next = append(next, e.Hash)
 	}
 
@@ -240,12 +250,15 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 		return nil, errors.New("Could not append entry, key is not allowed to write to the log")
 	}
 
-	l.Entries[e.Hash.String()] = e
-	for _, nextEntry := range l.Heads {
-		l.Next[nextEntry.Hash.String()] = e
+	l.Entries.Set(e.Hash.String(), e)
+
+	for _, k := range keys {
+		nextEntry, _ := l.Heads.Get(k)
+		l.Next.Set(nextEntry.Hash.String(), e)
 	}
 
-	l.Heads = map[string]*entry.Entry{e.Hash.String(): e}
+	l.Heads = entry.NewOrderedMap()
+	l.Heads.Set(e.Hash.String(), e)
 
 	return e, nil
 }
@@ -287,7 +300,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 		count = amount
 	}
 
-	entries := entryMapToSlice(l.Traverse(mapUniqueEntries(start), count, endHash))
+	entries := l.Traverse(mapUniqueEntries(start), count, endHash)
 
 	if options.GT != nil {
 		entries = entries[:len(entries)-1]
@@ -316,7 +329,9 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	newItems := Difference(otherLog, l)
 
-	for _, e := range newItems {
+	keys := newItems.Keys()
+	for _, k := range keys {
+		e := newItems.UnsafeGet(k)
 		if err := l.AccessController.CanAppend(e, l.Identity); err != nil {
 			return nil, errors.Wrap(err, "could not append entry, key is not allowed to write to the log")
 		}
@@ -326,26 +341,28 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		}
 	}
 
-	for _, e := range newItems {
+	for _, k := range keys {
+		e := newItems.UnsafeGet(k)
 		for _, next := range e.Next {
-			l.Next[next.String()] = e
+			l.Next.Set(next.String(), e)
 		}
 
-		l.Entries[e.Hash.String()] = e
+		l.Entries.Set(e.Hash.String(), e)
 	}
 
-	nextsFromNewItems := map[string]bool{}
-	for _, e := range newItems {
+	nextsFromNewItems := orderedmap.New()
+	for _, k := range keys {
+		e := newItems.UnsafeGet(k)
 		for _, n := range e.Next {
-			nextsFromNewItems[n.String()] = true
+			nextsFromNewItems.Set(n.String(), true)
 		}
 	}
 
-	mergedHeads := FindHeads(concatEntryMaps(l.Heads, otherLog.Heads))
+	mergedHeads := FindHeads(l.Heads.Merge(otherLog.Heads))
 	for idx, e := range mergedHeads {
-		if _, ok := nextsFromNewItems[e.Hash.String()]; ok {
+		if _, ok := nextsFromNewItems.Get(e.Hash.String()); ok {
 			mergedHeads[idx] = nil
-		} else if _, ok := l.Next[e.Hash.String()]; ok {
+		} else if _, ok := l.Next.Get(e.Hash.String()); ok {
 			mergedHeads[idx] = nil
 		}
 	}
@@ -353,7 +370,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	l.Heads = mapUniqueEntries(mergedHeads)
 
 	if size > -1 {
-		tmp := l.Values()
+		tmp := l.Values().Slice()
 		tmp = tmp[len(tmp)-size:]
 		l.Entries = mapUniqueEntries(tmp)
 		l.Heads = mapUniqueEntries(FindHeads(mapUniqueEntries(tmp)))
@@ -366,12 +383,13 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	return l, nil
 }
 
-func Difference(logA, logB *Log) map[string]*entry.Entry {
+func Difference(logA, logB *Log) *entry.OrderedMap {
 	stack := []string{}
 	traversed := map[string]bool{}
-	res := map[string]*entry.Entry{}
+	res := entry.NewOrderedMap()
 
-	for k := range logA.Heads {
+	logAHeadKeys := logA.Heads.Keys()
+	for _, k := range logAHeadKeys {
 		stack = append(stack, k)
 	}
 
@@ -379,11 +397,11 @@ func Difference(logA, logB *Log) map[string]*entry.Entry {
 		hash := stack[0]
 		stack = stack[1:]
 
-		e, okA := logA.Entries[hash]
-		_, okB := logB.Entries[hash]
+		e, okA := logA.Entries.Get(hash)
+		_, okB := logB.Entries.Get(hash)
 
 		if okA && !okB && e.LogID == logB.ID {
-			res[e.Hash.String()] = e
+			res.Set(e.Hash.String(), e)
 			traversed[e.Hash.String()] = true
 
 			for _, next := range e.Next {
@@ -400,14 +418,13 @@ func Difference(logA, logB *Log) map[string]*entry.Entry {
 }
 
 func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
-	values := l.Values()
-	fmt.Printf("VALUES: %+v\n", values)
+	values := l.Values().Slice()
 	reverse(values)
 
 	lines := []string{}
 
 	for _, e := range values {
-		parents := entry.FindChildren(e, l.Values())
+		parents := entry.FindChildren(e, l.Values().Slice())
 		length := len(parents)
 		padding := strings.Repeat("  ", maxInt(length-1, 0))
 		if length > 0 {
@@ -418,7 +435,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 		if payloadMapper != nil {
 			payload = payloadMapper(e)
 		} else {
-			payload = fmt.Sprintf("%+v", e.Payload)
+			payload = string(e.Payload)
 		}
 
 		lines = append(lines, padding + payload)
@@ -431,7 +448,7 @@ func (l *Log) ToSnapshot() *Snapshot {
 	return &Snapshot{
 		ID:     l.ID,
 		Heads:  entrySliceToCids(entryMapToSlice(l.Heads)),
-		Values: l.Values(),
+		Values: l.Values().Slice(),
 	}
 }
 
@@ -477,7 +494,7 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               data.ID,
 		AccessController: logOptions.AccessController,
-		Entries:          data.Values,
+		Entries:          entry.NewOrderedMapFromEntries(data.Values),
 		Heads:            heads,
 		Clock:            lamportclock.New(data.Clock.ID, data.Clock.Time),
 		SortFn:           logOptions.SortFn,
@@ -495,7 +512,7 @@ func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Iden
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries:          entries,
+		Entries:          entry.NewOrderedMapFromEntries(entries),
 		SortFn:           logOptions.SortFn,
 	})
 }
@@ -513,7 +530,7 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries:          snapshot.Values,
+		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
 	})
 }
@@ -529,7 +546,7 @@ func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
 		AccessController: logOptions.AccessController,
-		Entries:          snapshot.Values,
+		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
 	})
 }
@@ -594,43 +611,54 @@ func FindTailHashes(entries []*entry.Entry) []string {
 	return res
 }
 
-func concatEntryMaps(sets ...map[string]*entry.Entry) map[string]*entry.Entry {
-	result := map[string]*entry.Entry{}
-
-	for _, set := range sets {
-		for k, e := range set {
-			result[k] = e
-		}
+func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
+	if entries == nil {
+		return nil
 	}
 
-	return result
-}
-
-func FindHeads(entries map[string]*entry.Entry) []*entry.Entry {
 	result := []*entry.Entry{}
-	items := map[string]*entry.Entry{}
+	entries = entries.Copy()
+	entryHashes := entries.Keys()
+	entriesWithParents := orderedmap.New()
 
-	for _, e := range entries {
-		items[e.Hash.String()] = e
-
-		for _, n := range e.Next {
-			if nEntry, ok := items[n.String()]; !ok && nEntry != nil {
-				items[n.String()] = nil
-			}
-		}
-	}
-
-	for _, e := range entries {
-		if _, ok := items[e.Hash.String()]; ok != true {
+	for _, h := range entryHashes {
+		e, ok := entries.Get(h)
+		if !ok || e == nil {
 			continue
 		}
 
-		result = append(result, e)
+		if _, ok := entriesWithParents.Get(h); !ok {
+			entriesWithParents.Set(h, false)
+		}
+
+		for _, n := range e.Next {
+			entriesWithParents.Set(n.String(), true)
+		}
+	}
+
+	keys := entriesWithParents.Keys()
+	for _, h := range keys {
+		val, ok := entriesWithParents.Get(h)
+		if !ok {
+			continue
+		}
+
+		hasParent, ok := val.(bool)
+		if !ok {
+			continue
+		}
+
+		if !hasParent {
+			result = append(result, entries.UnsafeGet(h))
+		}
 	}
 
 	sort.SliceStable(result, func(a, b int) bool {
-		bytesA, _ := entries[result[a].Hash.String()].Clock.ID.Bytes()
-		bytesB, _ := entries[result[b].Hash.String()].Clock.ID.Bytes()
+		eA, _ := entries.Get(result[a].Hash.String())
+		eB, _ := entries.Get(result[b].Hash.String())
+
+		bytesA, _ := eA.Clock.ID.Bytes()
+		bytesB, _ := eB.Clock.ID.Bytes()
 
 		return bytes.Compare(bytesA, bytesB) <= 0
 	})
@@ -638,12 +666,11 @@ func FindHeads(entries map[string]*entry.Entry) []*entry.Entry {
 	return result
 }
 
-func (l *Log) Values() []*entry.Entry {
-	entries := l.Traverse(l.Heads, -1, "")
-	stack := entryMapToSlice(entries)
-	reverse(stack)
+func (l *Log) Values() *entry.OrderedMap {
+	stack := l.Traverse(l.Heads, -1, "")
+	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 
-	return stack
+	return entry.NewOrderedMapFromEntries(stack)
 }
 
 func (l *Log) ToJSON() *JSONLog {

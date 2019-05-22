@@ -42,15 +42,19 @@ func TestLogAppend(t *testing.T) {
 				_, err = log1.Append([]byte("hello1"), 1)
 				c.So(err, ShouldBeNil)
 
-				c.So(len(log1.Entries), ShouldEqual, 1)
-				for _, v := range log1.Values() {
+				c.So(log1.Entries.Len(), ShouldEqual, 1)
+				values := log1.Values()
+				keys := values.Keys()
+
+				for _, k := range keys {
+					v := values.UnsafeGet(k)
 					c.So(string(v.Payload), ShouldEqual, "hello1")
 					c.So(len(v.Next), ShouldEqual, 0)
 					c.So(v.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
 					c.So(v.Clock.Time, ShouldEqual, 1)
 				}
 				for _, v := range log.FindHeads(log1.Entries) {
-					c.So(v.Hash.String(), ShouldEqual, log1.Values()[0].Hash.String())
+					c.So(v.Hash.String(), ShouldEqual, values.UnsafeGet(keys[0]).Hash.String())
 				}
 			})
 
@@ -64,13 +68,21 @@ func TestLogAppend(t *testing.T) {
 					c.So(err, ShouldBeNil)
 
 					values := log1.Values()
-					c.So(len(log.FindHeads(log1.Entries)), ShouldEqual, 1)
-					c.So(log.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, values[len(values)-1].Hash.String())
+					keys := values.Keys()
+					heads := log.FindHeads(log1.Entries)
+
+					c.So(len(heads), ShouldEqual, 1)
+					c.So(heads[0].Hash.String(), ShouldEqual, values.UnsafeGet(keys[len(keys) - 1]).Hash.String())
 				}
 
-				c.So(len(log1.Entries), ShouldEqual, 100)
+				c.So(log1.Entries.Len(), ShouldEqual, 100)
 
-				for i, v := range log1.Values() {
+				values := log1.Values()
+				keys := values.Keys()
+
+				for i, k := range keys {
+					v := values.UnsafeGet(k)
+
 					c.So(string(v.Payload), ShouldEqual, fmt.Sprintf("hello%d", i))
 					c.So(v.Clock.Time, ShouldEqual, i+1)
 					c.So(v.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)

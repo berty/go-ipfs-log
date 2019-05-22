@@ -94,13 +94,13 @@ func TestLogJoin(t *testing.T) {
 				logB, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &log.NewLogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
-				c.So(len(logA.Values()), ShouldEqual, len(items[0])+len(items[1]))
-				c.So(len(logB.Values()), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
+				c.So(logA.Values().Keys(), ShouldEqual, len(items[0])+len(items[1]))
+				c.So(logB.Values().Keys(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
 
 				_, err = logA.Join(logB, -1)
 				c.So(err, ShouldBeNil)
 
-				c.So(len(logA.Values()), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
+				c.So(logA.Values().Keys(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
 
 				// The last entry, 'entryC100', should be the only head
 				// (it points to entryB100, entryB100 and entryC99)
@@ -132,7 +132,10 @@ func TestLogJoin(t *testing.T) {
 				expected := [][]byte{[]byte("helloA1"), []byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
 
 				for i := 0; i < 2; i++ {
-					for _, v := range logs[i].Values() {
+					values := logs[i].Values()
+					keys := values.Keys()
+					for _, k := range keys {
+						v := values.UnsafeGet(k)
 						hashes[i] = append(hashes[i], v.Hash)
 						payloads[i] = append(payloads[i], v.Payload)
 					}
