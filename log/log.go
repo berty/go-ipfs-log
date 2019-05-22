@@ -306,6 +306,10 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 }
 
 func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
+	if otherLog == nil {
+		return nil, errors.New("log to join is not defined")
+	}
+
 	if l.ID != otherLog.ID {
 		return l, nil
 	}

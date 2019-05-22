@@ -142,5 +142,7 @@ func TestLog(t *testing.T) {
 				c.So(err.Error(), ShouldEqual, "identity is required")
 			})
 		})
+
+		// TODO: other tests
 	})
 }
