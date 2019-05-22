@@ -94,13 +94,13 @@ func TestLogJoin(t *testing.T) {
 				logB, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &log.NewLogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
-				c.So(logA.Values().Keys(), ShouldEqual, len(items[0])+len(items[1]))
-				c.So(logB.Values().Keys(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
+				c.So(logA.Values().Len(), ShouldEqual, len(items[0])+len(items[1]))
+				c.So(logB.Values().Len(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
 
 				_, err = logA.Join(logB, -1)
 				c.So(err, ShouldBeNil)
 
-				c.So(logA.Values().Keys(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
+				c.So(logA.Values().Len(), ShouldEqual, len(items[0])+len(items[1])+len(items[2]))
 
 				// The last entry, 'entryC100', should be the only head
 				// (it points to entryB100, entryB100 and entryC99)
@@ -113,6 +113,34 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only unique items", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 4)
+
+				expected := [][]byte{[]byte("helloA1"), []byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
+				var result [][]byte
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+				c.So(len(getLastEntry(logs[0].Values()).Next), ShouldEqual, 1)
+			})
+
+			c.Convey("joins logs two ways", FailureHalts, func() {
 				_, err := logs[0].Append([]byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Append([]byte("helloA2"), 1)
@@ -145,6 +173,212 @@ func TestLogJoin(t *testing.T) {
 				c.So(reflect.DeepEqual(payloads[0], expected), ShouldBeTrue)
 				c.So(reflect.DeepEqual(payloads[1], expected), ShouldBeTrue)
 			})
+
+			c.Convey("joins logs twice", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[1].Values().Len(), ShouldEqual, 4)
+
+				expected := [][]byte{[]byte("helloA1"), []byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
+				var result [][]byte
+
+				for _, v := range logs[1].Values().Keys() {
+					result = append(result, logs[1].Values().UnsafeGet(v).Payload)
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+			})
+
+			c.Convey("joins 2 logs two ways", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[1].Values().Len(), ShouldEqual, 4)
+
+				expected := [][]byte{[]byte("helloA1"), []byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
+				var result [][]byte
+
+				for _, v := range logs[1].Values().Keys() {
+					result = append(result, logs[1].Values().UnsafeGet(v).Payload)
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+			})
+
+			c.Convey("joins 2 logs two ways and has the right heads at every step", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[0].Entries)), ShouldEqual, 1)
+				c.So(string(log.FindHeads(logs[0].Entries)[0].Payload), ShouldEqual, "helloA1")
+
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[1].Entries)), ShouldEqual, 1)
+				c.So(string(log.FindHeads(logs[1].Entries)[0].Payload), ShouldEqual, "helloB1")
+
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[1].Entries)), ShouldEqual, 2)
+				c.So(string(log.FindHeads(logs[1].Entries)[0].Payload), ShouldEqual, "helloB1")
+				c.So(string(log.FindHeads(logs[1].Entries)[1].Payload), ShouldEqual, "helloA1")
+
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[0].Entries)), ShouldEqual, 2)
+				c.So(string(log.FindHeads(logs[0].Entries)[0].Payload), ShouldEqual, "helloB1")
+				c.So(string(log.FindHeads(logs[0].Entries)[1].Payload), ShouldEqual, "helloA1")
+
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[0].Entries)), ShouldEqual, 1)
+				c.So(string(log.FindHeads(logs[0].Entries)[0].Payload), ShouldEqual, "helloA2")
+
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[1].Entries)), ShouldEqual, 1)
+				c.So(string(log.FindHeads(logs[1].Entries)[0].Payload), ShouldEqual, "helloB1")
+
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				c.So(len(log.FindHeads(logs[1].Entries)), ShouldEqual, 2)
+				c.So(string(log.FindHeads(logs[1].Entries)[0].Payload), ShouldEqual, "helloB2")
+				c.So(string(log.FindHeads(logs[1].Entries)[1].Payload), ShouldEqual, "helloA2")
+			})
+
+			c.Convey("joins 4 logs to one", FailureHalts, func() {
+				// order determined by identity's publicKey
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[2].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[2].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[1].Append([]byte("helloC1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[3].Append([]byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[3], -1)
+				c.So(err, ShouldBeNil)
+
+				expected := [][]byte{
+					[]byte("helloA1"),
+					[]byte("helloB1"),
+					[]byte("helloC1"),
+					[]byte("helloD1"),
+					[]byte("helloA2"),
+					[]byte("helloB2"),
+					[]byte("helloC2"),
+					[]byte("helloD2"),
+				}
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 8)
+
+				var result [][]byte
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+			})
+
+			c.Convey("joins 4 logs to one is commutative", FailureHalts, func() {
+				// order determined by identity's publicKey
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[2].Append([]byte("helloC1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[2].Append([]byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[3].Append([]byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[3], -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[3], -1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 8)
+
+				var payloads [2][][]byte
+
+				for i := 0; i < 2; i++ {
+					for _, v := range logs[i].Values().Keys() {
+						payloads[i] = append(payloads[i], logs[i].Values().UnsafeGet(v).Payload)
+					}
+				}
+
+				c.So(reflect.DeepEqual(payloads[0], payloads[1]), ShouldBeTrue)
+			})
 		})
 	})
+}
+
+func getLastEntry(omap *entry.OrderedMap) *entry.Entry {
+	var key string
+
+	for _, v := range omap.Keys() {
+		key = v
+	}
+
+	return omap.UnsafeGet(key)
 }
