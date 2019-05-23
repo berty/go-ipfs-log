@@ -8,7 +8,7 @@ import (
 )
 
 type FetchOptions struct {
-	Length int
+	Length *int
 	Exclude []*Entry
 	Concurrency int
 	Timeout time.Duration
@@ -19,6 +19,10 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 	result := []*Entry{}
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
+	length := -1
+	if options.Length != nil {
+		length = *options.Length
+	}
 
 	addToResults := func (entry *Entry) {
 		if entry.IsValid() {
@@ -40,7 +44,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 	}
 
 	shouldFetchMore := func () bool {
-		return len(loadingQueue) > 0 && (len(result) < options.Length || options.Length <= 0)
+		return len(loadingQueue) > 0 && (len(result) < length || length <= 0)
 	}
 
 	fetchEntry := func () {

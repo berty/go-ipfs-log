@@ -19,7 +19,11 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestEntryPersistency(t *testing.T) {
+func intPtr(val int) *int {
+	return &val
+}
+
+func TestEntryPersistence(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -78,7 +82,7 @@ func TestEntryPersistency(t *testing.T) {
 			c.So(err, ShouldBeNil)
 
 			hash := e.Hash
-			res := entry.FetchAll(ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: 1})
+			res := entry.FetchAll(ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
 			c.So(len(res), ShouldEqual, 1)
 		})
 
@@ -119,7 +123,7 @@ func TestEntryPersistency(t *testing.T) {
 			hash, err := log1.ToMultihash()
 			c.So(err, ShouldBeNil)
 
-			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 42})
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(42)})
 			c.So(err, ShouldBeNil)
 			c.So(res.Entries.Len(), ShouldEqual, 42)
 		})
@@ -146,7 +150,7 @@ func TestEntryPersistency(t *testing.T) {
 			hash, err := log2.ToMultihash()
 			c.So(err, ShouldBeNil)
 
-			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 99})
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(99)})
 			c.So(err, ShouldBeNil)
 			c.So(res.Entries.Len(), ShouldEqual, 99)
 		})
@@ -185,7 +189,7 @@ func TestEntryPersistency(t *testing.T) {
 			hash, err := log3.ToMultihash()
 			c.So(err, ShouldBeNil)
 
-			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: 10})
+			res, err := log.NewFromMultihash(ipfs, identities[0], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(10)})
 			c.So(err, ShouldBeNil)
 			c.So(res.Entries.Len(), ShouldEqual, 10)
 		})

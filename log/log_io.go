@@ -7,12 +7,11 @@ import (
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/pkg/errors"
-	"sort"
 	"time"
 )
 
 type FetchOptions struct {
-	Length int
+	Length *int
 	Exclude []*entry.Entry
 	ProgressChan chan *entry.Entry
 	Timeout time.Duration
@@ -53,13 +52,7 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 		}
 	}
 
-	sort.SliceStable(entries, func (i, j int) bool {
-		ret, err := entry.Compare(entries[i], entries[j])
-		if err != nil {
-			return false
-		}
-		return ret > 0
-	})
+	entry.SortEntries(entries)
 
 	heads := []*entry.Entry{}
 	for _, e := range entries {
@@ -85,9 +78,9 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 
 func FromEntryHash (services *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*entry.Entry {
 	// Fetch given length, return size at least the given input entries
-	length := options.Length
-	if options.Length > -1 {
-		length = maxInt(options.Length, 1)
+	length := -1
+	if options.Length != nil && *options.Length > -1 {
+		length = maxInt(*options.Length, 1)
 	}
 
 	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
@@ -113,13 +106,7 @@ func FromJSON (services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchO
 		Timeout: options.Timeout,
 	})
 
-	sort.SliceStable(entries, func (i, j int) bool {
-		ret, err := entry.Compare(entries[i], entries[j])
-		if err != nil {
-			return false
-		}
-		return ret > 0
-	})
+	entry.SortEntries(entries)
 
 	return &Snapshot{
 		ID: jsonLog.ID,
@@ -130,9 +117,9 @@ func FromJSON (services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchO
 
 func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) *Snapshot {
 	// Fetch given length, return size at least the given input entries
-	length := options.Length
-	if length > -1 {
-		length = maxInt(length, len(sourceEntries))
+	length := -1
+	if options.Length != nil && *options.Length > -1 {
+		length = maxInt(*options.Length, len(sourceEntries))
 	}
 
 	// Make sure we pass hashes instead of objects to the fetcher function
@@ -143,63 +130,28 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 
 	// Fetch the entries
 	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
-		Length: length,
+		Length: &length,
 		Exclude: options.Exclude,
 		ProgressChan: options.ProgressChan,
 	})
 
 	// Combine the fetches with the source entries and take only uniques
 	combined := append(sourceEntries, entries...)
-	uniques := entryMapToSlice(mapUniqueEntries(combined))
-	sort.SliceStable(uniques, func (i, j int) bool {
-		ret, err := entry.Compare(uniques[i], uniques[j])
-		if err != nil {
-			return false
-		}
-		return ret > 0
-	})
+	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
+	entry.SortEntries(uniques)
 
 	// Cap the result at the right size by taking the last n entries
 	sliced := entries
+
 	if length > -1 {
-		entries = entries[:-length]
-	}
-
-	// Make sure that the given input entries are present in the result
-	// in order to not lose references
-	missingSourceEntries := entriesDiff(sliced, sourceEntries)
-
-	// Add the input entries at the beginning of the array and remove
-	// as many elements from the array before inserting the original entries
-	result := append(missingSourceEntries, sliced[len(missingSourceEntries):]...)
-
-	return &Snapshot{
-		ID: result[len(result)- 1].Hash.String(),
-		Values: result,
-	}
-}
-
-
-func entriesDiff (setA, setB []*entry.Entry) []*entry.Entry {
-	setAHashMap := entry.NewOrderedMap()
-	setBHashMap := entry.NewOrderedMap()
-	ret := []*entry.Entry{}
-
-	for _, e := range setA {
-		setAHashMap.Set(e.Hash.String(), e)
-	}
-
-	for _, e := range setB {
-		setBHashMap.Set(e.Hash.String(), e)
-	}
-
-	keys := setAHashMap.Keys()
-	for _, k := range keys {
-		e := setAHashMap.UnsafeGet(k)
-		if _, ok := setBHashMap.Get(k); !ok {
-			ret = append(ret, e)
+		sliceLength := len(entries)
+		entries = []*entry.Entry{}
+		for i := sliceLength - length; i < sliceLength; i++ {
+			entries = append(entries, sliced[i])
 		}
 	}
-
-	return ret
+	return &Snapshot{
+		ID: sliced[len(sliced)- 1].Hash.String(),
+		Values: sliced,
+	}
 }

@@ -71,32 +71,6 @@ func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
 	return max
 }
 
-func entryMapToSlice(entries *entry.OrderedMap) []*entry.Entry {
-	ret := []*entry.Entry{}
-
-	keys := entries.Keys()
-	for _, k := range keys {
-		e, _ := entries.Get(k)
-		ret = append(ret, e)
-	}
-
-	return ret
-}
-
-func mapUniqueEntries(entries []*entry.Entry) *entry.OrderedMap {
-	res := entry.NewOrderedMap()
-
-	for _, e := range entries {
-		if e == nil {
-			continue
-		}
-
-		res.Set(e.Hash.String(), e)
-	}
-
-	return res
-}
-
 func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) (*Log, error) {
 	if services == nil {
 		return nil, errors.New("ipfs instance not defined")
@@ -143,7 +117,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		AccessController: options.AccessController,
 		SortFn:           NoZeroes(options.SortFn),
 		Entries:          options.Entries.Copy(),
-		Heads:            mapUniqueEntries(options.Heads),
+		Heads:            entry.NewOrderedMapFromEntries(options.Heads),
 		Next:             entry.NewOrderedMap(),
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
 	}, nil
@@ -169,7 +143,7 @@ func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed *ordere
 
 func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string) []*entry.Entry {
 	// Sort the given given root entries and use as the starting stack
-	stack := entryMapToSlice(rootEntries)
+	stack := rootEntries.Slice()
 
 	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 	reverse(stack)
@@ -215,7 +189,7 @@ func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 
 func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	// Update the clock (find the latest clock)
-	newTime := maxClockTimeForEntries(entryMapToSlice(l.Heads), 0)
+	newTime := maxClockTimeForEntries(l.Heads.Slice(), 0)
 	newTime = maxInt(l.Clock.Time, newTime) + 1
 
 	l.Clock = lamportclock.New(l.Clock.ID, newTime)
@@ -281,7 +255,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 		}
 	}
 
-	start := entryMapToSlice(l.Heads)
+	start := l.Heads.Slice()
 	if options.LTE != nil {
 		start = []*entry.Entry{options.LTE}
 	} else if options.LT != nil {
@@ -300,7 +274,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 		count = amount
 	}
 
-	entries := l.Traverse(mapUniqueEntries(start), count, endHash)
+	entries := l.Traverse(entry.NewOrderedMapFromEntries(start), count, endHash)
 
 	if options.GT != nil {
 		entries = entries[:len(entries)-1]
@@ -327,7 +301,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		return l, nil
 	}
 
-	newItems := Difference(otherLog, l)
+	newItems := Difference(l.Values(), otherLog.Values())
 
 	keys := newItems.Keys()
 	for _, k := range keys {
@@ -360,61 +334,46 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	mergedHeads := FindHeads(l.Heads.Merge(otherLog.Heads))
 	for idx, e := range mergedHeads {
+		// notReferencedByNewItems
 		if _, ok := nextsFromNewItems.Get(e.Hash.String()); ok {
 			mergedHeads[idx] = nil
-		} else if _, ok := l.Next.Get(e.Hash.String()); ok {
+		}
+
+		// notInCurrentNexts
+		if _, ok := l.Next.Get(e.Hash.String()); ok {
 			mergedHeads[idx] = nil
 		}
 	}
 
-	l.Heads = mapUniqueEntries(mergedHeads)
+	l.Heads = entry.NewOrderedMapFromEntries(mergedHeads)
 
 	if size > -1 {
 		tmp := l.Values().Slice()
 		tmp = tmp[len(tmp)-size:]
-		l.Entries = mapUniqueEntries(tmp)
-		l.Heads = mapUniqueEntries(FindHeads(mapUniqueEntries(tmp)))
+		l.Entries = entry.NewOrderedMapFromEntries(tmp)
+		l.Heads = entry.NewOrderedMapFromEntries(FindHeads(entry.NewOrderedMapFromEntries(tmp)))
 	}
 
 	// Find the latest clock from the heads
-	maxClock := maxClockTimeForEntries(entryMapToSlice(l.Heads), 0)
+	maxClock := maxClockTimeForEntries(l.Heads.Slice(), 0)
 	l.Clock = lamportclock.New(l.Clock.ID, maxInt(l.Clock.Time, maxClock))
 
 	return l, nil
 }
 
-func Difference(logA, logB *Log) *entry.OrderedMap {
-	stack := []string{}
-	traversed := map[string]bool{}
-	res := entry.NewOrderedMap()
+func Difference (setA, setB *entry.OrderedMap) *entry.OrderedMap {
+	setAHashMap := setA.Copy()
 
-	logAHeadKeys := logA.Heads.Keys()
-	for _, k := range logAHeadKeys {
-		stack = append(stack, k)
-	}
-
-	for len(stack) > 0 {
-		hash := stack[0]
-		stack = stack[1:]
-
-		e, okA := logA.Entries.Get(hash)
-		_, okB := logB.Entries.Get(hash)
-
-		if okA && !okB && e.LogID == logB.ID {
-			res.Set(e.Hash.String(), e)
-			traversed[e.Hash.String()] = true
-
-			for _, next := range e.Next {
-				if _, ok := traversed[next.String()]; !ok {
-					stack = append(stack, next.String())
-					traversed[next.String()] = true
-				}
-			}
+	setBKey := setB.Keys()
+	for _, k := range setBKey {
+		if _, ok := setAHashMap.Get(k); ok {
+			setAHashMap.Delete(k)
+		} else {
+			setAHashMap.Set(k, setB.UnsafeGet(k))
 		}
-
 	}
 
-	return res
+	return setAHashMap
 }
 
 func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
@@ -447,7 +406,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 func (l *Log) ToSnapshot() *Snapshot {
 	return &Snapshot{
 		ID:     l.ID,
-		Heads:  entrySliceToCids(entryMapToSlice(l.Heads)),
+		Heads:  entrySliceToCids(l.Heads.Slice()),
 		Values: l.Values().Slice(),
 	}
 }
@@ -587,7 +546,7 @@ func FindTails(entries []*entry.Entry) []*entry.Entry {
 
 	tails = append(tails, nullIndex...)
 
-	return entryMapToSlice(mapUniqueEntries(tails))
+	return entry.NewOrderedMapFromEntries(tails).Slice()
 }
 
 func FindTailHashes(entries []*entry.Entry) []string {
@@ -674,7 +633,7 @@ func (l *Log) Values() *entry.OrderedMap {
 }
 
 func (l *Log) ToJSON() *JSONLog {
-	stack := entryMapToSlice(l.Heads)
+	stack := l.Heads.Slice()
 	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 	reverse(stack)
 

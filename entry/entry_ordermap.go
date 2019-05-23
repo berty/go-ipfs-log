@@ -18,6 +18,10 @@ func NewOrderedMapFromEntries(entries []*Entry) *OrderedMap {
 	orderedMap := NewOrderedMap()
 
 	for _, e := range entries {
+		if e == nil {
+			continue
+		}
+
 		orderedMap.Set(e.Hash.String(), e)
 	}
 
