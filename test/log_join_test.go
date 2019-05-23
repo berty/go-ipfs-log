@@ -12,7 +12,8 @@ import (
 	io "github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/berty/go-ipfs-log/log"
-	"github.com/ipfs/go-cid"
+	"github.com/berty/go-ipfs-log/utils/lamportclock"
+	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
@@ -324,7 +325,6 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins 4 logs to one is commutative", FailureHalts, func() {
-				// order determined by identity's publicKey
 				_, err := logs[0].Append([]byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Append([]byte("helloA2"), 1)
@@ -370,6 +370,290 @@ func TestLogJoin(t *testing.T) {
 				}
 
 				c.So(reflect.DeepEqual(payloads[0], payloads[1]), ShouldBeTrue)
+			})
+
+			c.Convey("joins logs and updates clocks", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[0].Clock.ID.Equals(identities[0].PublicKey), ShouldBeTrue)
+				c.So(logs[1].Clock.ID.Equals(identities[1].PublicKey), ShouldBeTrue)
+				c.So(logs[0].Clock.Time, ShouldEqual, 2)
+				c.So(logs[1].Clock.Time, ShouldEqual, 2)
+
+				_, err = logs[2].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				c.So(logs[2].ID, ShouldEqual, "X")
+				c.So(logs[2].Clock.ID.Equals(identities[2].PublicKey), ShouldBeTrue)
+				c.So(logs[2].Clock.Time, ShouldEqual, 2)
+
+				_, err = logs[2].Append([]byte("helloC1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[2].Append([]byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD3"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD4"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[3], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD5"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA5"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				c.So(logs[3].Clock.ID.Equals(identities[3].PublicKey), ShouldBeTrue)
+				c.So(logs[3].Clock.Time, ShouldEqual, 7)
+
+				_, err = logs[3].Append([]byte("helloD6"), 1)
+				c.So(err, ShouldBeNil)
+				c.So(logs[3].Clock.Time, ShouldEqual, 8)
+
+				expected := []entry.Entry{
+					entry.Entry{Payload: []byte("helloA1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 1}},
+					entry.Entry{Payload: []byte("helloB1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[1].PublicKey, Time: 1}},
+					entry.Entry{Payload: []byte("helloD1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 1}},
+					entry.Entry{Payload: []byte("helloA2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 2}},
+					entry.Entry{Payload: []byte("helloB2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[1].PublicKey, Time: 2}},
+					entry.Entry{Payload: []byte("helloD2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 2}},
+					entry.Entry{Payload: []byte("helloC1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[2].PublicKey, Time: 3}},
+					entry.Entry{Payload: []byte("helloC2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[2].PublicKey, Time: 4}},
+					entry.Entry{Payload: []byte("helloD3"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 5}},
+					entry.Entry{Payload: []byte("helloD4"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 6}},
+					entry.Entry{Payload: []byte("helloA5"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 7}},
+					entry.Entry{Payload: []byte("helloD5"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 7}},
+					entry.Entry{Payload: []byte("helloD6"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 8}},
+				}
+
+				c.So(logs[3].Values().Len(), ShouldEqual, 13)
+
+				var result []entry.Entry
+
+				for _, v := range logs[3].Values().Keys() {
+					e, exist := logs[3].Values().Get(v)
+					c.So(exist, ShouldBeTrue)
+					result = append(result, entry.Entry{Payload: e.Payload, LogID: e.LogID, Clock: e.Clock})
+				}
+
+				c.So(reflect.DeepEqual(result, expected), ShouldBeTrue)
+			})
+
+			c.Convey("joins logs from 4 logs", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				c.So(logs[0].ID, ShouldEqual, "X")
+				c.So(logs[0].Clock.ID.Equals(identities[0].PublicKey), ShouldBeTrue)
+				c.So(logs[0].Clock.Time, ShouldEqual, 2)
+
+				_, err = logs[2].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				c.So(logs[2].ID, ShouldEqual, "X")
+				c.So(logs[2].Clock.ID.Equals(identities[2].PublicKey), ShouldBeTrue)
+				c.So(logs[2].Clock.Time, ShouldEqual, 2)
+
+				_, err = logs[2].Append([]byte("helloC1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[2].Append([]byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[1], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[0], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Join(logs[2], -1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD3"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append([]byte("helloD4"), 1)
+				c.So(err, ShouldBeNil)
+
+				c.So(logs[3].Clock.ID.Equals(identities[3].PublicKey), ShouldBeTrue)
+				c.So(logs[3].Clock.Time, ShouldEqual, 6)
+
+				expected := [][]byte{
+					[]byte("helloA1"),
+					[]byte("helloB1"),
+					[]byte("helloD1"),
+					[]byte("helloA2"),
+					[]byte("helloB2"),
+					[]byte("helloD2"),
+					[]byte("helloC1"),
+					[]byte("helloC2"),
+					[]byte("helloD3"),
+					[]byte("helloD4"),
+				}
+
+				c.So(logs[3].Values().Len(), ShouldEqual, 10)
+
+				var result [][]byte
+
+				for _, v := range logs[3].Values().Keys() {
+					result = append(result, logs[3].Values().UnsafeGet(v).Payload)
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+			})
+
+			c.Convey("joins only specified amount of entries - one entry", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], 1)
+				c.So(err, ShouldBeNil)
+
+				expected := [][]byte{[]byte("helloB2")}
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 1)
+
+				var result [][]byte
+				var key string
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					key = v
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+			})
+
+			c.Convey("joins only specified amount of entries - two entries", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], 2)
+				c.So(err, ShouldBeNil)
+
+				expected := [][]byte{[]byte("helloA2"), []byte("helloB2")}
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 2)
+
+				var result [][]byte
+				var key string
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					key = v
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+			})
+
+			c.Convey("joins only specified amount of entries - three entries", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], 3)
+				c.So(err, ShouldBeNil)
+
+				expected := [][]byte{[]byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 3)
+
+				var result [][]byte
+				var key string
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					key = v
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+			})
+
+			c.Convey("joins only specified amount of entries - (all) four entries", FailureHalts, func() {
+				_, err := logs[0].Append([]byte("helloA1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[0].Append([]byte("helloA2"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[1].Append([]byte("helloB2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[0].Join(logs[1], 4)
+				c.So(err, ShouldBeNil)
+
+				expected := [][]byte{[]byte("helloA1"), []byte("helloB1"), []byte("helloA2"), []byte("helloB2")}
+
+				c.So(logs[0].Values().Len(), ShouldEqual, 4)
+
+				var result [][]byte
+				var key string
+
+				for _, v := range logs[0].Values().Keys() {
+					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					key = v
+				}
+
+				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
+				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
 			})
 		})
 	})
