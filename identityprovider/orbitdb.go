@@ -37,12 +37,17 @@ func (p *OrbitDBIdentityProvider) GetID(id string) (*Identity, error) {
 		return nil, err
 	}
 
+	secpPubKey, ok := pubKey.(*crypto.Secp256k1PublicKey)
+	if !ok {
+		return nil, errors.New("unable to cast public key")
+	}
+
 	return &Identity{
 		ID:        id,
-		PublicKey: pubKey.(*crypto.Secp256k1PublicKey),
+		PublicKey: secpPubKey,
 		Signatures: &IdentitySignature{
 			ID:        keySign,
-			PublicKey: pubKey.(*crypto.Secp256k1PublicKey),
+			PublicKey: secpPubKey,
 		},
 		PrivateKey: private,
 		Type:       private.Type(),

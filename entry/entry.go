@@ -58,6 +58,7 @@ func init() {
 		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
 		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
 		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
 		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
 		Complete()
@@ -116,7 +117,7 @@ func (e *Entry) Copy() *Entry {
 		Payload: e.Payload,
 		LogID:   e.LogID,
 		Next:    uniqueCIDs(e.Next),
-
+		V:        e.V,
 		Key:      e.Key,
 		Sig:      e.Sig,
 		Identity: e.Identity,
@@ -143,17 +144,6 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
-	//atl, err := atlas.Build(AtlasEntryToHash, lamportclock.AtlasLamportClock, identityprovider.AtlasPubKey)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//marshaller := encoding.NewMarshallerAtlased(atl)
-	//jsonBytes, err := marshaller.Marshal(e)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	clockBytes, err := e.Clock.ID.Bytes()
 	if err != nil {
 		return nil, err
@@ -193,7 +183,8 @@ func (e *Entry) IsValid() bool {
 }
 
 func Verify(identity identityprovider.Interface, entry *Entry) error {
-	//
+	// TODO: Check against trusted keys
+
 	jsonBytes, err := ToBuffer(entry.ToHashable())
 
 	ok, err := entry.Key.Verify(jsonBytes, entry.Sig)
@@ -251,6 +242,17 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
 
 	return obj, nil
 }
+
+func SortEntries(entries []*Entry) {
+	sort.SliceStable(entries, func(i, j int) bool {
+		ret, err := Compare(entries[i], entries[j])
+		if err != nil {
+			return false
+		}
+		return ret > 0
+	})
+}
+
 
 func Compare(a, b *Entry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
