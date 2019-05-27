@@ -28,12 +28,17 @@ func TestLogHeadsTails(t *testing.T) {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-
 	var identities []*idp.Identity
 
 	for i := 0; i < 4; i++ {
-		identity, err := idProvider.GetID(fmt.Sprintf("User%d", i))
+		char := 'A' + i
+
+		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+			Keystore: keystore,
+			ID: fmt.Sprintf("user%c", char),
+			Type: "orbitdb",
+		})
+
 		if err != nil {
 			panic(err)
 		}

@@ -2,14 +2,14 @@ package lamportclock
 
 import (
 	"bytes"
+	"encoding/hex"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/polydawn/refmt/obj/atlas"
 	"math"
 )
 
 type LamportClock struct {
-	ID   *ic.Secp256k1PublicKey
+	ID   []byte
 	Time int
 }
 
@@ -46,40 +46,56 @@ func Compare(a *LamportClock, b *LamportClock) (int, error) {
 
 	// If the sequence number is the same (concurrent events),
 	// and the IDs are different, take the one with a "lower" id
-	if dist == 0 && a.ID != b.ID {
-		aBytes, err := a.ID.Bytes()
-		if err != nil {
-			return 0, err
-		}
+	if dist == 0 {
+		comp := bytes.Compare(a.ID, b.ID)
 
-		bBytes, err := b.ID.Bytes()
-		if err != nil {
-			panic(err)
-		}
-
-		if bytes.Compare(aBytes, bBytes) < 0 {
+		if comp < 0 {
 			return -1, nil
+		} else if comp > 0 {
+			return 1, nil
 		}
-
-		return 1, nil
 	}
 
 	return int(dist), nil
 }
 
-func New(identity *ic.Secp256k1PublicKey, time int) *LamportClock {
+func New(identity []byte, time int) *LamportClock {
 	return &LamportClock{
 		ID:   identity,
 		Time: time,
 	}
 }
 
-var AtlasLamportClock = atlas.BuildEntry(LamportClock{}).
+type CborLamportClock struct {
+	ID   string
+	Time int
+}
+
+func (l *LamportClock) ToCborLamportClock() *CborLamportClock {
+	return &CborLamportClock{
+		ID: hex.EncodeToString(l.ID),
+		Time: l.Time,
+	}
+}
+
+func (c *CborLamportClock) ToLamportClock() (*LamportClock, error) {
+	id, err := hex.DecodeString(c.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LamportClock{
+		ID: id,
+		Time: c.Time,
+	}, nil
+}
+
+
+	var AtlasLamportClock = atlas.BuildEntry(CborLamportClock{}).
 	StructMap().
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
 	Complete()
-
 
 func init() {
 	cbornode.RegisterCborType(AtlasLamportClock)

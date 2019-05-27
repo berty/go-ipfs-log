@@ -7,10 +7,9 @@ import (
 	"time"
 
 	idp "github.com/berty/go-ipfs-log/identityprovider"
-	io "github.com/berty/go-ipfs-log/io"
+	"github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/berty/go-ipfs-log/log"
-	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -22,14 +21,18 @@ func TestLogAppend(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-	identity, err := idProvider.GetID("User1")
+	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		Keystore: keystore,
+		ID: fmt.Sprintf("userA"),
+		Type: "orbitdb",
+	})
+
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +53,7 @@ func TestLogAppend(t *testing.T) {
 					v := values.UnsafeGet(k)
 					c.So(string(v.Payload), ShouldEqual, "hello1")
 					c.So(len(v.Next), ShouldEqual, 0)
-					c.So(v.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
+					c.So(v.Clock.ID, ShouldResemble, identity.PublicKey)
 					c.So(v.Clock.Time, ShouldEqual, 1)
 				}
 				for _, v := range log.FindHeads(log1.Entries) {
@@ -85,7 +88,7 @@ func TestLogAppend(t *testing.T) {
 
 					c.So(string(v.Payload), ShouldEqual, fmt.Sprintf("hello%d", i))
 					c.So(v.Clock.Time, ShouldEqual, i+1)
-					c.So(v.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
+					c.So(v.Clock.ID, ShouldResemble, identity.PublicKey)
 					c.So(len(v.Next), ShouldEqual, minInt(i, nextPointerAmount))
 				}
 			})

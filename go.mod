@@ -3,6 +3,7 @@ module github.com/berty/go-ipfs-log
 go 1.12
 
 require (
+	github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32
 	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0
