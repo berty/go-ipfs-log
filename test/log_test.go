@@ -13,7 +13,6 @@ import (
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/berty/go-ipfs-log/log"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
-	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,18 +24,23 @@ func TestLog(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-
 	var identities []*idp.Identity
 
 	for i := 0; i < 4; i++ {
-		identity, err := idProvider.GetID(fmt.Sprintf("User%d", i))
+		char := 'A' + i
+
+		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+			Keystore: keystore,
+			ID: fmt.Sprintf("user%c", char),
+			Type: "orbitdb",
+		})
+
 		if err != nil {
 			panic(err)
 		}
@@ -44,16 +48,16 @@ func TestLog(t *testing.T) {
 		identities = append(identities, identity)
 	}
 
-	Convey("Log", t, FailureContinues, func(c C) {
-		c.Convey("constructor", FailureContinues, func(c C) {
-			c.Convey("sets an id and a clock id", FailureContinues, func(c C) {
+	Convey("Log", t, FailureHalts, func(c C) {
+		c.Convey("constructor", FailureHalts, func(c C) {
+			c.Convey("sets an id and a clock id", FailureHalts, func(c C) {
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
 				c.So(log1.ID, ShouldEqual, "A")
-				c.So(log1.Clock.ID.Equals(identities[0].PublicKey), ShouldBeTrue)
+				c.So(log1.Clock.ID, ShouldResemble, identities[0].PublicKey)
 			})
 
-			c.Convey("sets time.now as id string if id is not passed as an argument", FailureContinues, func(c C) {
+			c.Convey("sets time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
 				before := time.Now().Unix() / 1000
 				log1, err := log.NewLog(ipfs, identities[0], nil)
 				c.So(err, ShouldBeNil)
@@ -65,12 +69,24 @@ func TestLog(t *testing.T) {
 				c.So(logid, ShouldBeLessThanOrEqualTo, after)
 			})
 
-			c.Convey("sets items if given as params", FailureContinues, func(c C) {
-				id1, err := idProvider.GetID("A")
+			c.Convey("sets items if given as params", FailureHalts, func(c C) {
+				id1, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: "userA",
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
-				id2, err := idProvider.GetID("B")
+				id2, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: "userB",
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
-				id3, err := idProvider.GetID("C")
+				id3, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: "userC",
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries
 				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, lamportclock.New(id1.PublicKey, 0))
@@ -93,7 +109,7 @@ func TestLog(t *testing.T) {
 				c.So(string(values.UnsafeGet(keys[2]).Payload), ShouldEqual, "entryC")
 			})
 
-			c.Convey("sets heads if given as params", FailureContinues, func(c C) {
+			c.Convey("sets heads if given as params", FailureHalts, func(c C) {
 				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
@@ -109,7 +125,7 @@ func TestLog(t *testing.T) {
 				c.So(heads[0], ShouldEqual, e3.Hash.String())
 			})
 
-			c.Convey("finds heads if heads not given as params", FailureContinues, func(c C) {
+			c.Convey("finds heads if heads not given as params", FailureHalts, func(c C) {
 				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
@@ -127,7 +143,7 @@ func TestLog(t *testing.T) {
 				c.So(heads[0].Hash.String(), ShouldEqual, e3.Hash.String())
 			})
 
-			c.Convey("creates default public AccessController if not defined", FailureContinues, func(c C) {
+			c.Convey("creates default public AccessController if not defined", FailureHalts, func(c C) {
 				log1, err := log.NewLog(ipfs, identities[0], nil)
 				c.So(err, ShouldBeNil)
 
@@ -135,20 +151,20 @@ func TestLog(t *testing.T) {
 				c.So(err, ShouldBeNil)
 			})
 
-			c.Convey("returns an error if ipfs is not set", FailureContinues, func(c C) {
+			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
 				log1, err := log.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, "ipfs instance not defined")
 			})
 
-			c.Convey("returns an error if identity is not set", FailureContinues, func(c C) {
+			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
 				log1, err := log.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, "identity is required")
 			})
 		})
 
-		c.Convey("toString", FailureContinues, func(c C) {
+		c.Convey("toString", FailureHalts, func(c C) {
 			expectedData := "five\n└─four\n  └─three\n    └─two\n      └─one"
 			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)

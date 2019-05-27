@@ -2,15 +2,15 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/berty/go-ipfs-log/entry"
 	idp "github.com/berty/go-ipfs-log/identityprovider"
-	io "github.com/berty/go-ipfs-log/io"
+	"github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -22,28 +22,32 @@ func TestEntry(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-	identity, err := idProvider.GetID("User1")
+	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		Keystore: keystore,
+		ID: fmt.Sprintf("userA"),
+		Type: "orbitdb",
+	})
+
 	if err != nil {
 		panic(err)
 	}
 
-	Convey("Entry", t, FailureContinues, func(c C) {
-		c.Convey("create", FailureContinues, func(c C) {
-			c.Convey("creates an empty entry", FailureContinues, func(c C) {
+	Convey("Entry", t, FailureHalts, func(c C) {
+		c.Convey("create", FailureHalts, func(c C) {
+			c.Convey("creates an empty entry", FailureHalts, func(c C) {
 				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
 				c.So(e.LogID, ShouldEqual, "A")
-				c.So(e.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
+				c.So(e.Clock.ID, ShouldResemble, identity.PublicKey)
 				c.So(e.Clock.Time, ShouldEqual, 0)
 				c.So(e.V, ShouldEqual, 1)
 				c.So(string(e.Payload), ShouldEqual, "hello")
@@ -57,7 +61,7 @@ func TestEntry(t *testing.T) {
 
 				c.So(string(e.Payload), ShouldEqual, "hello world")
 				c.So(e.LogID, ShouldEqual, "A")
-				c.So(e.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
+				c.So(e.Clock.ID, ShouldResemble, identity.PublicKey)
 				c.So(e.Clock.Time, ShouldEqual, 0)
 				c.So(e.V, ShouldEqual, 1)
 				c.So(len(e.Next), ShouldEqual, 0)
@@ -77,8 +81,8 @@ func TestEntry(t *testing.T) {
 				c.So(string(e2.Payload), ShouldEqual, payload2)
 				c.So(len(e2.Next), ShouldEqual, 1)
 				c.So(e2.Hash.String(), ShouldEqual, expectedHash)
-				c.So(e2.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
-				c.So(e.Clock.Time, ShouldEqual, 1)
+				c.So(e2.Clock.ID, ShouldResemble, identity.PublicKey)
+				c.So(e2.Clock.Time, ShouldEqual, 1)
 			})
 
 			c.Convey("should return an entry interopable with older versions", FailureContinues, func(c C) {
