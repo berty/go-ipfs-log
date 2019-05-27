@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"math"
+	"sort"
+	"time"
+
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
@@ -14,9 +18,6 @@ import (
 	"github.com/pkg/errors"
 	_ "github.com/polydawn/refmt"
 	"github.com/polydawn/refmt/obj/atlas"
-	"math"
-	"sort"
-	"time"
 )
 
 type Entry struct {
@@ -68,7 +69,19 @@ func init() {
 
 func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *lamportclock.LamportClock) (*Entry, error) {
 	if ipfsInstance == nil {
-		return nil, errors.New("ipfs services must be provided")
+		return nil, errors.New("ipfs instance not defined")
+	}
+
+	if identity == nil {
+		return nil, errors.New("identity is required")
+	}
+
+	if data == nil {
+		return nil, errors.New("data is not defined")
+	}
+
+	if data.LogID == "" {
+		return nil, errors.New("LogID is required")
 	}
 
 	if clock == nil {
@@ -114,9 +127,9 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 
 func (e *Entry) Copy() *Entry {
 	return &Entry{
-		Payload: e.Payload,
-		LogID:   e.LogID,
-		Next:    uniqueCIDs(e.Next),
+		Payload:  e.Payload,
+		LogID:    e.LogID,
+		Next:     uniqueCIDs(e.Next),
 		V:        e.V,
 		Key:      e.Key,
 		Sig:      e.Sig,
@@ -131,10 +144,9 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	out := []cid.Cid{}
 
 	for _, c := range cids {
-		if _, ok  := foundCids[c.String()]; ok {
+		if _, ok := foundCids[c.String()]; ok {
 			continue
 		}
-
 
 		foundCids[c.String()] = true
 		out = append(out, c)
@@ -144,6 +156,10 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
+	if e == nil {
+		return nil, errors.New("entry is not defined")
+	}
+
 	clockBytes, err := e.Clock.ID.Bytes()
 	if err != nil {
 		return nil, err
@@ -183,6 +199,10 @@ func (e *Entry) IsValid() bool {
 }
 
 func Verify(identity identityprovider.Interface, entry *Entry) error {
+	if entry == nil {
+		return errors.New("entry is not defined")
+	}
+
 	// TODO: Check against trusted keys
 
 	jsonBytes, err := ToBuffer(entry.ToHashable())
@@ -200,6 +220,14 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 }
 
 func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
+	if entry == nil {
+		return cid.Cid{}, errors.New("entry is not defined")
+	}
+
+	if ipfsInstance == nil {
+		return cid.Cid{}, errors.New("ipfs instance not defined")
+	}
+
 	e := &Entry{
 		Hash:    cid.Cid{},
 		LogID:   entry.LogID,
@@ -227,6 +255,10 @@ func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
 }
 
 func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
+	if ipfs == nil {
+		return nil, errors.New("ipfs instance not defined")
+	}
+
 	result, err := io.ReadCBOR(ipfs, hash)
 	if err != nil {
 		return nil, err
@@ -253,9 +285,11 @@ func SortEntries(entries []*Entry) {
 	})
 }
 
-
 func Compare(a, b *Entry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
+	if a == nil || b == nil {
+		return 0, errors.New("entry is not defined")
+	}
 
 	distance, err := lamportclock.Compare(a.Clock, b.Clock)
 	if err != nil {

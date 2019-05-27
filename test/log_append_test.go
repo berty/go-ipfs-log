@@ -72,7 +72,7 @@ func TestLogAppend(t *testing.T) {
 					heads := log.FindHeads(log1.Entries)
 
 					c.So(len(heads), ShouldEqual, 1)
-					c.So(heads[0].Hash.String(), ShouldEqual, values.UnsafeGet(keys[len(keys) - 1]).Hash.String())
+					c.So(heads[0].Hash.String(), ShouldEqual, values.UnsafeGet(keys[len(keys)-1]).Hash.String())
 				}
 
 				c.So(log1.Entries.Len(), ShouldEqual, 100)
@@ -91,11 +91,4 @@ func TestLogAppend(t *testing.T) {
 			})
 		})
 	})
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

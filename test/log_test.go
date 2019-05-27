@@ -135,13 +135,13 @@ func TestLog(t *testing.T) {
 				c.So(err, ShouldBeNil)
 			})
 
-			c.Convey("returns an error if ipfs is not net", FailureContinues, func(c C) {
+			c.Convey("returns an error if ipfs is not set", FailureContinues, func(c C) {
 				log1, err := log.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, "ipfs instance not defined")
 			})
 
-			c.Convey("returns an error if identity is not net", FailureContinues, func(c C) {
+			c.Convey("returns an error if identity is not set", FailureContinues, func(c C) {
 				log1, err := log.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, "identity is required")
