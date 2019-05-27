@@ -658,13 +658,3 @@ func TestLogJoin(t *testing.T) {
 		})
 	})
 }
-
-func getLastEntry(omap *entry.OrderedMap) *entry.Entry {
-	var key string
-
-	for _, v := range omap.Keys() {
-		key = v
-	}
-
-	return omap.UnsafeGet(key)
-}
