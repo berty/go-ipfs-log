@@ -1,9 +1,9 @@
 package identityprovider
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/berty/go-ipfs-log/keystore"
-	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 )
 
@@ -11,48 +11,31 @@ type OrbitDBIdentityProvider struct {
 	keystore keystore.Interface
 }
 
-func NewOrbitDBIdentityProvider(keystore keystore.Interface) *OrbitDBIdentityProvider {
+func (p *OrbitDBIdentityProvider) VerifyIdentity(identity *Identity) error {
+	panic("implement me")
+}
+
+func NewOrbitDBIdentityProvider(options *CreateIdentityOptions) Interface {
 	return &OrbitDBIdentityProvider{
-		keystore: keystore,
+		keystore: options.Keystore,
 	}
 }
 
-func (p *OrbitDBIdentityProvider) GetID(id string) (*Identity, error) {
-	private, err := p.keystore.GetKey(id)
-	if err != nil {
-		private, err = p.keystore.CreateKey(id)
+func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string, error) {
+	private, err := p.keystore.GetKey(options.ID)
+	if err != nil || private == nil {
+		private, err = p.keystore.CreateKey(options.ID)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
-	pubKey := private.GetPublic()
-	pubKeyBytes, err := pubKey.Bytes()
+	pubBytes, err := private.GetPublic().Raw()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	keySign, err := private.Sign(pubKeyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	secpPubKey, ok := pubKey.(*crypto.Secp256k1PublicKey)
-	if !ok {
-		return nil, errors.New("unable to cast public key")
-	}
-
-	return &Identity{
-		ID:        id,
-		PublicKey: secpPubKey,
-		Signatures: &IdentitySignature{
-			ID:        keySign,
-			PublicKey: secpPubKey,
-		},
-		PrivateKey: private,
-		Type:       private.Type(),
-		Provider:   p,
-	}, nil
+	return hex.EncodeToString(pubBytes), nil
 }
 
 func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
@@ -61,11 +44,42 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 		return nil, errors.New(fmt.Sprintf("Signing key for %s not found", id))
 	}
 
-	return key.Sign(data)
+	//data, _ = hex.DecodeString(hex.EncodeToString(data))
+
+	signature, err := key.Sign(data)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Signing key for %s not found", id))
+	}
+
+	privKB, _ := key.Raw()
+
+	// TODO: fails here, not consistent with JS behaviour
+
+	fmt.Println("SignIdentity")
+	fmt.Println(data)
+	fmt.Println(hex.EncodeToString(privKB))
+	fmt.Println(hex.EncodeToString(signature))
+	fmt.Println("-------")
+
+	return signature, nil
+}
+
+func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
+	key, err := p.keystore.GetKey(identity.ID)
+	if err != nil {
+		return nil, errors.New("Private signing key not found from Keystore")
+	}
+
+	sig, err := key.Sign(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return sig, nil
 }
 
 func (*OrbitDBIdentityProvider) GetType() string {
-	return "OrbitDBIdentityProvider"
+	return "orbitdb"
 }
 
 var _ Interface = &OrbitDBIdentityProvider{}

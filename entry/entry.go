@@ -3,6 +3,7 @@ package entry
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
@@ -24,8 +25,8 @@ type Entry struct {
 	LogID    string
 	Next     []cid.Cid
 	V        uint64
-	Key      *ic.Secp256k1PublicKey
-	Sig      mh.Multihash
+	Key      []byte
+	Sig      []byte
 	Identity *identityprovider.Identity
 	Hash     cid.Cid
 	Clock    *lamportclock.LamportClock
@@ -38,6 +39,7 @@ type EntryToHash struct {
 	Next    []cid.Cid
 	V       uint64
 	Clock   *lamportclock.LamportClock
+	Key     []byte
 }
 
 var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
@@ -50,17 +52,78 @@ var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 	Complete()
 
+
+type CborEntry struct {
+	V        uint64
+	LogID    string
+	Key      string
+	Sig      string
+	Hash     interface{}
+	Next     []cid.Cid
+	Clock    *lamportclock.CborLamportClock
+	Payload  string
+	Identity *identityprovider.CborIdentity
+}
+
+func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
+	key, err := hex.DecodeString(c.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	sig, err := mh.FromHexString(c.Sig)
+	if err != nil {
+		return nil, err
+	}
+
+	clock, err := c.Clock.ToLamportClock()
+	if err != nil {
+		return nil, err
+	}
+
+	identity, err := c.Identity.ToIdentity(provider)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Entry{
+		V:        c.V,
+		LogID:    c.LogID,
+		Key:      key,
+		Sig:      sig,
+		Next:     c.Next,
+		Clock:    clock,
+		Payload:  []byte(c.Payload),
+		Identity: identity,
+	}, nil
+}
+
+func (e *Entry) ToCborEntry() *CborEntry {
+	return &CborEntry{
+		V:        e.V,
+		LogID:    e.LogID,
+		Key:      hex.EncodeToString(e.Key),
+		Sig:      hex.EncodeToString(e.Sig),
+		Hash:     nil,
+		Next:     e.Next,
+		Clock:    e.Clock.ToCborLamportClock(),
+		Payload:  string(e.Payload),
+		Identity: e.Identity.ToCborIdentity(),
+	}
+}
+
 func init() {
-	AtlasEntry := atlas.BuildEntry(Entry{}).
+	AtlasEntry := atlas.BuildEntry(CborEntry{}).
 		StructMap().
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
-		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
 		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
+		AddField("Key", atlas.StructMapEntry{SerialName: "key", }).
 		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
+		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
+		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
+		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
 		Complete()
 
 	cbornode.RegisterCborType(AtlasEntry)
@@ -84,7 +147,8 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 		return nil, err
 	}
 
-	signature, err := identity.PrivateKey.Sign(jsonBytes)
+	signature, err := identity.Provider.Sign(identity, jsonBytes)
+
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +178,9 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 
 func (e *Entry) Copy() *Entry {
 	return &Entry{
-		Payload: e.Payload,
-		LogID:   e.LogID,
-		Next:    uniqueCIDs(e.Next),
+		Payload:  e.Payload,
+		LogID:    e.LogID,
+		Next:     uniqueCIDs(e.Next),
 		V:        e.V,
 		Key:      e.Key,
 		Sig:      e.Sig,
@@ -131,10 +195,9 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	out := []cid.Cid{}
 
 	for _, c := range cids {
-		if _, ok  := foundCids[c.String()]; ok {
+		if _, ok := foundCids[c.String()]; ok {
 			continue
 		}
-
 
 		foundCids[c.String()] = true
 		out = append(out, c)
@@ -144,19 +207,14 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 }
 
 func ToBuffer(e *EntryToHash) ([]byte, error) {
-	clockBytes, err := e.Clock.ID.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
 	jsonBytes, err := json.Marshal(map[string]interface{}{
 		"hash":    nil,
 		"id":      e.ID,
-		"payload": e.Payload,
+		"payload": string(e.Payload),
 		"next":    e.Next,
 		"v":       e.V,
 		"clock": map[string]interface{}{
-			"id":   clockBytes,
+			"id":   hex.EncodeToString(e.Clock.ID),
 			"time": e.Clock.Time,
 		},
 	})
@@ -175,6 +233,7 @@ func (e *Entry) ToHashable() *EntryToHash {
 		Next:    e.Next,
 		V:       e.V,
 		Clock:   e.Clock,
+		Key:     e.Key,
 	}
 }
 
@@ -186,10 +245,18 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 	// TODO: Check against trusted keys
 
 	jsonBytes, err := ToBuffer(entry.ToHashable())
-
-	ok, err := entry.Key.Verify(jsonBytes, entry.Sig)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "unable to build string buffer")
+	}
+
+	pubKey, err := ic.UnmarshalSecp256k1PublicKey(entry.Key)
+	if err != nil {
+		return errors.Wrap(err, "unable to unmarshal public key")
+	}
+
+	ok, err := pubKey.Verify(jsonBytes, entry.Sig)
+	if err != nil {
+		return errors.Wrap(err, "error whild verifying signature")
 	}
 
 	if !ok {
@@ -221,18 +288,19 @@ func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
 		e.Sig = entry.Sig
 	}
 
-	entryCID, err := io.WriteCBOR(ipfsInstance, e)
+	io.SetDebug(true)
+	entryCID, err := io.WriteCBOR(ipfsInstance, e.ToCborEntry())
 
 	return entryCID, err
 }
 
-func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
+func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	result, err := io.ReadCBOR(ipfs, hash)
 	if err != nil {
 		return nil, err
 	}
 
-	obj := &Entry{}
+	obj := &CborEntry{}
 	err = cbornode.DecodeInto(result.RawData(), obj)
 	if err != nil {
 		return nil, err
@@ -240,7 +308,7 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid) (*Entry, error) {
 
 	obj.Hash = hash
 
-	return obj, nil
+	return obj.ToEntry(provider)
 }
 
 func SortEntries(entries []*Entry) {
@@ -253,7 +321,6 @@ func SortEntries(entries []*Entry) {
 	})
 }
 
-
 func Compare(a, b *Entry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
 
@@ -263,19 +330,11 @@ func Compare(a, b *Entry) (int, error) {
 	}
 
 	if distance == 0 {
-		aClockBytes, err := a.Clock.ID.Bytes()
-		if err != nil {
-			return 0, err
-		}
+		diff := bytes.Compare(a.Clock.ID, b.Clock.ID)
 
-		bClockBytes, err := b.Clock.ID.Bytes()
-		if err != nil {
-			return 0, err
-		}
-
-		if bytes.Compare(aClockBytes, bClockBytes) < 0 {
+		if diff < 0 {
 			return -1, nil
-		} else {
+		} else if diff > 0 {
 			return 1, nil
 		}
 	}

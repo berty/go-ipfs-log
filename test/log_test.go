@@ -13,7 +13,6 @@ import (
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/berty/go-ipfs-log/log"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
-	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,18 +24,23 @@ func TestLog(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-
 	var identities []*idp.Identity
 
 	for i := 0; i < 4; i++ {
-		identity, err := idProvider.GetID(fmt.Sprintf("User%d", i))
+		char := 'A' + i
+
+		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+			Keystore: keystore,
+			ID: fmt.Sprintf("user%c", char),
+			Type: "orbitdb",
+		})
+
 		if err != nil {
 			panic(err)
 		}
@@ -50,7 +54,7 @@ func TestLog(t *testing.T) {
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
 				c.So(log1.ID, ShouldEqual, "A")
-				c.So(log1.Clock.ID.Equals(identities[0].PublicKey), ShouldBeTrue)
+				c.So(log1.Clock.ID, ShouldResemble, identities[0].PublicKey)
 			})
 
 			c.Convey("sets time.now as id string if id is not passed as an argument", FailureContinues, func(c C) {
@@ -66,11 +70,23 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("sets items if given as params", FailureContinues, func(c C) {
-				id1, err := idProvider.GetID("A")
+				id1, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: fmt.Sprintf("User%d", 1),
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
-				id2, err := idProvider.GetID("B")
+				id2, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: fmt.Sprintf("User%d", 2),
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
-				id3, err := idProvider.GetID("C")
+				id3, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+					Keystore: keystore,
+					ID: fmt.Sprintf("User%d", 3),
+					Type: "orbitdb",
+				})
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries
 				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, lamportclock.New(id1.PublicKey, 0))

@@ -311,7 +311,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		}
 
 		if err := entry.Verify(l.Identity.Provider, e); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "unable to check signature")
 		}
 	}
 
@@ -616,10 +616,7 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 		eA, _ := entries.Get(result[a].Hash.String())
 		eB, _ := entries.Get(result[b].Hash.String())
 
-		bytesA, _ := eA.Clock.ID.Bytes()
-		bytesB, _ := eB.Clock.ID.Bytes()
-
-		return bytes.Compare(bytesA, bytesB) <= 0
+		return bytes.Compare(eA.Clock.ID, eB.Clock.ID) <= 0
 	})
 
 	return result

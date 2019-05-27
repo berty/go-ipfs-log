@@ -2,14 +2,14 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/berty/go-ipfs-log/entry"
 	idp "github.com/berty/go-ipfs-log/identityprovider"
-	io "github.com/berty/go-ipfs-log/io"
+	"github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
-	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -21,14 +21,18 @@ func TestEntry(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-	identity, err := idProvider.GetID("User1")
+	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		Keystore: keystore,
+		ID: fmt.Sprintf("userA"),
+		Type: "orbitdb",
+	})
+
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +46,7 @@ func TestEntry(t *testing.T) {
 
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
 				c.So(e.LogID, ShouldEqual, "A")
-				c.So(e.Clock.ID.Equals(identity.PublicKey), ShouldBeTrue)
+				c.So(e.Clock.ID, ShouldResemble, identity.PublicKey)
 				c.So(e.Clock.Time, ShouldEqual, 0)
 				c.So(e.V, ShouldEqual, 1)
 				c.So(string(e.Payload), ShouldEqual, "hello")

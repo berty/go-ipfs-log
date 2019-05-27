@@ -23,17 +23,7 @@ func SortByClocks(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *ent
 }
 
 func SortByClockId(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
-	aClockBytes, err := a.Clock.ID.Bytes()
-	if err != nil {
-		return 0, err
-	}
-
-	bClockBytes, err := b.Clock.ID.Bytes()
-	if err != nil {
-		return 0, err
-	}
-
-	comparedIDs := bytes.Compare(aClockBytes, bClockBytes)
+	comparedIDs := bytes.Compare(a.Clock.ID, b.Clock.ID)
 
 	if comparedIDs == 0 {
 		return resolveConflict(a, b)

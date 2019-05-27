@@ -2,6 +2,7 @@ package entry
 
 import (
 	"context"
+	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
 	"time"
@@ -13,6 +14,7 @@ type FetchOptions struct {
 	Concurrency int
 	Timeout time.Duration
 	ProgressChan chan *Entry
+	Provider identityprovider.Interface
 }
 
 func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
@@ -61,7 +63,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 			ctx, _ = context.WithTimeout(ctx, options.Timeout)
 		}
 
-		entry, err := FromMultihash(ipfs, hash)
+		entry, err := FromMultihash(ipfs, hash, options.Provider)
 		if err != nil {
 			return
 		}

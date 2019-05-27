@@ -9,11 +9,10 @@ import (
 
 	"github.com/berty/go-ipfs-log/entry"
 	idp "github.com/berty/go-ipfs-log/identityprovider"
-	io "github.com/berty/go-ipfs-log/io"
+	"github.com/berty/go-ipfs-log/io"
 	ks "github.com/berty/go-ipfs-log/keystore"
 	"github.com/berty/go-ipfs-log/log"
-	cid "github.com/ipfs/go-cid"
-	ds "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -29,18 +28,22 @@ func TestEntryPersistence(t *testing.T) {
 
 	ipfs := io.NewMemoryServices()
 
-	datastore := dssync.MutexWrap(ds.NewMapDatastore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	idProvider := idp.NewOrbitDBIdentityProvider(keystore)
-
 	var identities []*idp.Identity
 
 	for i := 0; i < 4; i++ {
-		identity, err := idProvider.GetID(fmt.Sprintf("User%d", i))
+		char := 'A' + i
+
+		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+			Keystore: keystore,
+			ID: fmt.Sprintf("user%c", char),
+			Type: "orbitdb",
+		})
 		if err != nil {
 			panic(err)
 		}
