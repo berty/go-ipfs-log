@@ -30,8 +30,8 @@ func TestEntry(t *testing.T) {
 
 	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 		Keystore: keystore,
-		ID: fmt.Sprintf("userA"),
-		Type: "orbitdb",
+		ID:       fmt.Sprintf("userA"),
+		Type:     "orbitdb",
 	})
 
 	if err != nil {
