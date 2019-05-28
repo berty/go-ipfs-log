@@ -1,22 +1,23 @@
 package log
 
 import (
+	"time"
+
 	"github.com/berty/go-ipfs-log/entry"
+	"github.com/berty/go-ipfs-log/errmsg"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/pkg/errors"
-	"time"
 )
 
 type FetchOptions struct {
-	Length *int
-	Exclude []*entry.Entry
+	Length       *int
+	Exclude      []*entry.Entry
 	ProgressChan chan *entry.Entry
-	Timeout time.Duration
+	Timeout      time.Duration
 }
-
 
 func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
@@ -39,8 +40,8 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 	}
 
 	entries := entry.FetchAll(services, logData.Heads, &entry.FetchOptions{
-		Length: options.Length,
-		Exclude: options.Exclude,
+		Length:       options.Length,
+		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
 	})
 
@@ -76,7 +77,15 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 	}, nil
 }
 
-func FromEntryHash (services *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*entry.Entry {
+func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
+	if services == nil {
+		return nil, errmsg.IPFSNotDefined
+	}
+
+	if options == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	// Fetch given length, return size at least the given input entries
 	length := -1
 	if options.Length != nil && *options.Length > -1 {
@@ -84,8 +93,8 @@ func FromEntryHash (services *io.IpfsServices, hashes []cid.Cid, options *FetchO
 	}
 
 	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
-		Length: options.Length,
-		Exclude: options.Exclude,
+		Length:       options.Length,
+		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
 	})
 
@@ -94,28 +103,44 @@ func FromEntryHash (services *io.IpfsServices, hashes []cid.Cid, options *FetchO
 		entries = entries[:-length]
 	}
 
-	return sliced
+	return sliced, nil
 }
 
-func FromJSON (services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchOptions) *Snapshot {
+func FromJSON(services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+	if services == nil {
+		return nil, errmsg.IPFSNotDefined
+	}
+
+	if options == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	entries := entry.FetchAll(services, jsonLog.Heads, &entry.FetchOptions{
-		Length: options.Length,
-		Exclude: []*entry.Entry{},
+		Length:       options.Length,
+		Exclude:      []*entry.Entry{},
 		ProgressChan: options.ProgressChan,
-		Concurrency: 16,
-		Timeout: options.Timeout,
+		Concurrency:  16,
+		Timeout:      options.Timeout,
 	})
 
 	entry.SortEntries(entries)
 
 	return &Snapshot{
-		ID: jsonLog.ID,
-		Heads: jsonLog.Heads,
+		ID:     jsonLog.ID,
+		Heads:  jsonLog.Heads,
 		Values: entries,
-	}
+	}, nil
 }
 
-func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) *Snapshot {
+func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
+	if services == nil {
+		return nil, errmsg.IPFSNotDefined
+	}
+
+	if options == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	// Fetch given length, return size at least the given input entries
 	length := -1
 	if options.Length != nil && *options.Length > -1 {
@@ -130,8 +155,8 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 
 	// Fetch the entries
 	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
-		Length: &length,
-		Exclude: options.Exclude,
+		Length:       &length,
+		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
 	})
 
@@ -151,7 +176,7 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 		}
 	}
 	return &Snapshot{
-		ID: sliced[len(sliced)- 1].Hash.String(),
+		ID:     sliced[len(sliced)-1].Hash.String(),
 		Values: sliced,
-	}
+	}, nil
 }
