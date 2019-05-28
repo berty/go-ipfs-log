@@ -3,17 +3,19 @@ package log
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/iancoleman/orderedmap"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/iancoleman/orderedmap"
 
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/polydawn/refmt/obj/atlas"
 
 	"github.com/berty/go-ipfs-log/accesscontroler"
 	"github.com/berty/go-ipfs-log/entry"
+	"github.com/berty/go-ipfs-log/errmsg"
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
@@ -73,11 +75,11 @@ func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
 
 func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) (*Log, error) {
 	if services == nil {
-		return nil, errors.New("ipfs instance not defined")
+		return nil, errmsg.IPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errors.New("identity is required")
+		return nil, errmsg.IdentityNotDefined
 	}
 
 	if options == nil {
@@ -141,7 +143,11 @@ func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed *ordere
 	return stack, traversed
 }
 
-func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string) []*entry.Entry {
+func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string) ([]*entry.Entry, error) {
+	if rootEntries == nil {
+		return nil, errmsg.EntriesNotDefined
+	}
+
 	// Sort the given given root entries and use as the starting stack
 	stack := rootEntries.Slice()
 
@@ -184,7 +190,7 @@ func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
@@ -195,7 +201,11 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	l.Clock = lamportclock.New(l.Clock.ID, newTime)
 
 	// Get the required amount of hashes to next entries (as per current state of the log)
-	references := l.Traverse(l.Heads, maxInt(pointerCount, l.Heads.Len()), "")
+	references, err := l.Traverse(l.Heads, maxInt(pointerCount, l.Heads.Len()), "")
+	if err != nil {
+		return nil, errors.Wrap(err, "append failed")
+	}
+
 	next := []cid.Cid{}
 
 	keys := l.Heads.Keys()
@@ -217,11 +227,11 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 		Next:    next,
 	}, l.Clock)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "append failed")
 	}
 
 	if err := l.AccessController.CanAppend(e, l.Identity); err != nil {
-		return nil, errors.New("Could not append entry, key is not allowed to write to the log")
+		return nil, errors.Wrap(err, "append failed")
 	}
 
 	l.Entries.Set(e.Hash.String(), e)
@@ -274,7 +284,10 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 		count = amount
 	}
 
-	entries := l.Traverse(entry.NewOrderedMapFromEntries(start), count, endHash)
+	entries, err := l.Traverse(entry.NewOrderedMapFromEntries(start), count, endHash)
+	if err != nil {
+		return errors.Wrap(err, "iterator failed")
+	}
 
 	if options.GT != nil {
 		entries = entries[:len(entries)-1]
@@ -294,7 +307,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 
 func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	if otherLog == nil {
-		return nil, errors.New("log to join is not defined")
+		return nil, errmsg.LogJoinNotDefined
 	}
 
 	if l.ID != otherLog.ID {
@@ -303,11 +316,10 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	newItems := Difference(l.Values(), otherLog.Values())
 
-	keys := newItems.Keys()
-	for _, k := range keys {
+	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
 		if err := l.AccessController.CanAppend(e, l.Identity); err != nil {
-			return nil, errors.Wrap(err, "could not append entry, key is not allowed to write to the log")
+			return nil, errors.Wrap(err, "join failed")
 		}
 
 		if err := entry.Verify(l.Identity.Provider, e); err != nil {
@@ -315,7 +327,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		}
 	}
 
-	for _, k := range keys {
+	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
 		for _, next := range e.Next {
 			l.Next.Set(next.String(), e)
@@ -325,7 +337,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	}
 
 	nextsFromNewItems := orderedmap.New()
-	for _, k := range keys {
+	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
 		for _, n := range e.Next {
 			nextsFromNewItems.Set(n.String(), true)
@@ -361,11 +373,16 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	return l, nil
 }
 
-func Difference (setA, setB *entry.OrderedMap) *entry.OrderedMap {
+func Difference(setA, setB *entry.OrderedMap) *entry.OrderedMap {
+	if setA == nil {
+		return setB
+	} else if setB == nil {
+		return setA
+	}
+
 	setAHashMap := setA.Copy()
 
-	setBKey := setB.Keys()
-	for _, k := range setBKey {
+	for _, k := range setB.Keys() {
 		if _, ok := setAHashMap.Get(k); ok {
 			setAHashMap.Delete(k)
 		} else {
@@ -397,7 +414,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 			payload = string(e.Payload)
 		}
 
-		lines = append(lines, padding + payload)
+		lines = append(lines, padding+payload)
 	}
 
 	return strings.Join(lines, "\n")
@@ -430,6 +447,22 @@ func (l *Log) ToMultihash() (cid.Cid, error) {
 }
 
 func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
+	if services == nil {
+		return nil, errmsg.IPFSNotDefined
+	}
+
+	if identity == nil {
+		return nil, errmsg.IdentityNotDefined
+	}
+
+	if logOptions == nil {
+		return nil, errmsg.LogOptionsNotDefined
+	}
+
+	if fetchOptions == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	data, err := FromMultihash(services, hash, &FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
@@ -437,7 +470,7 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "newfrommultihash failed")
 	}
 
 	heads := []*entry.Entry{}
@@ -461,12 +494,23 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 }
 
 func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
+	if logOptions == nil {
+		return nil, errmsg.LogOptionsNotDefined
+	}
+
+	if fetchOptions == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	// TODO: need to verify the entries with 'key'
-	entries := FromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
+	entries, err := FromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "newfromentryhash failed")
+	}
 
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
@@ -477,14 +521,25 @@ func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Iden
 }
 
 func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+	if logOptions == nil {
+		return nil, errmsg.LogOptionsNotDefined
+	}
+
+	if fetchOptions == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	// TODO: need to verify the entries with 'key'
 	jsonLog := JSONLog{}
 
-	snapshot := FromJSON(services, jsonLog, &entry.FetchOptions{
+	snapshot, err := FromJSON(services, jsonLog, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
 		Timeout:      fetchOptions.Timeout,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "newfromjson failed")
+	}
 
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
@@ -495,12 +550,23 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 }
 
 func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+	if logOptions == nil {
+		return nil, errmsg.LogOptionsNotDefined
+	}
+
+	if fetchOptions == nil {
+		return nil, errmsg.FetchOptionsNotDefined
+	}
+
 	// TODO: need to verify the entries with 'key'
-	snapshot := FromEntry(services, sourceEntries, &entry.FetchOptions{
+	snapshot, err := FromEntry(services, sourceEntries, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
 	})
+	if err != nil {
+		return nil, errors.Wrap(err, "newfromentry failed")
+	}
 
 	return NewLog(services, identity, &NewLogOptions{
 		ID:               logOptions.ID,
@@ -576,11 +642,9 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 	}
 
 	result := []*entry.Entry{}
-	entries = entries.Copy()
-	entryHashes := entries.Keys()
 	entriesWithParents := orderedmap.New()
 
-	for _, h := range entryHashes {
+	for _, h := range entries.Keys() {
 		e, ok := entries.Get(h)
 		if !ok || e == nil {
 			continue
@@ -623,7 +687,10 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 }
 
 func (l *Log) Values() *entry.OrderedMap {
-	stack := l.Traverse(l.Heads, -1, "")
+	if l.Heads == nil {
+		return entry.NewOrderedMap()
+	}
+	stack, _ := l.Traverse(l.Heads, -1, "")
 	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 
 	return entry.NewOrderedMapFromEntries(stack)
