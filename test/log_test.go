@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/berty/go-ipfs-log/errmsg"
 	"strconv"
 	"testing"
 	"time"
@@ -154,13 +155,13 @@ func TestLog(t *testing.T) {
 			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
 				log1, err := log.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "ipfs instance not defined")
+				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined.Error())
 			})
 
 			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
 				log1, err := log.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "identity is required")
+				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined.Error())
 			})
 		})
 
