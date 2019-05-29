@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/berty/go-ipfs-log/errmsg"
 	"reflect"
 	"testing"
 	"time"
@@ -114,7 +115,7 @@ func TestLogJoin(t *testing.T) {
 
 			c.Convey("returns error if log parameter is not defined", FailureHalts, func() {
 				_, err := logs[0].Join(nil, -1)
-				c.So(err.Error(), ShouldEqual, "log to join is not defined")
+				c.So(err.Error(), ShouldEqual, errmsg.LogJoinNotDefined.Error())
 			})
 
 			c.Convey("joins only unique items", FailureHalts, func() {
