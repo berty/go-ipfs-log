@@ -2,7 +2,9 @@ package log
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -314,7 +316,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		return l, nil
 	}
 
-	newItems := Difference(l.Values(), otherLog.Values())
+	newItems := Difference(otherLog, l)
 
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
@@ -373,24 +375,66 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	return l, nil
 }
 
-func Difference(setA, setB *entry.OrderedMap) *entry.OrderedMap {
-	if setA == nil {
-		return setB
-	} else if setB == nil {
-		return setA
+// TODO DELETE THIS
+func printEntries(entries *entry.OrderedMap) {
+	for _, k := range entries.Keys() {
+		entry := entries.UnsafeGet(k)
+		printEntry(entry)
+	}
+}
+
+// TODO DELETE THIS
+func printEntry(entry *entry.Entry) {
+	fmt.Println("Hash:", entry.Hash.String())
+	fmt.Println("LogID:", entry.LogID)
+	fmt.Println("Payload:", string(entry.Payload))
+	fmt.Println("Next size:", len(entry.Next))
+	fmt.Println("V:", entry.V)
+	fmt.Println("Key:", hex.EncodeToString(entry.Key))
+	fmt.Println("Sig:", hex.EncodeToString(entry.Sig))
+	fmt.Println("Clock time:", entry.Clock.Time)
+	fmt.Println("")
+}
+
+func Difference(logA, logB *Log) *entry.OrderedMap {
+	if logA == nil || logA.Entries == nil || len(logA.Entries.Keys()) == 0 {
+		return logB.Entries
+	} else if logB == nil || logB.Entries == nil || len(logB.Entries.Keys()) == 0 {
+		return logA.Entries
 	}
 
-	setAHashMap := setA.Copy()
+	stack := logA.Heads.Keys()
+	traversed := map[string]bool{}
+	res := entry.NewOrderedMap()
 
-	for _, k := range setB.Keys() {
-		if _, ok := setAHashMap.Get(k); ok {
-			setAHashMap.Delete(k)
-		} else {
-			setAHashMap.Set(k, setB.UnsafeGet(k))
+	for {
+		hash := stack[0]
+		eA, okA := logA.Entries.Get(hash)
+		_, okB := logB.Entries.Get(hash)
+
+		if okA && !okB && eA.LogID == logA.ID {
+			res.Set(hash, eA)
+			traversed[hash] = true
+			if eA.Next != nil {
+				for _, h := range eA.Next {
+					hash := h.String()
+					_, okB := logB.Entries.Get(hash)
+					_, okT := traversed[hash]
+					if !okT && !okB {
+						stack = append(stack, hash)
+						traversed[hash] = true
+					}
+				}
+			}
 		}
+
+		if len(stack) == 1 {
+			break
+		}
+		stack = stack[1:]
 	}
 
-	return setAHashMap
+	return res
 }
 
 func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
