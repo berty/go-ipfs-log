@@ -36,7 +36,7 @@ type EntryToHash struct {
 	Hash    interface{}
 	ID      string
 	Payload []byte
-	Next    []cid.Cid
+	Next    []string
 	V       uint64
 	Clock   *lamportclock.LamportClock
 	Key     []byte
@@ -242,11 +242,17 @@ func ToBuffer(e *EntryToHash) ([]byte, error) {
 }
 
 func (e *Entry) ToHashable() *EntryToHash {
+	nexts := []string{}
+
+	for _, n := range e.Next {
+		nexts = append(nexts, n.String())
+	}
+
 	return &EntryToHash{
 		Hash:    nil,
 		ID:      e.LogID,
 		Payload: e.Payload,
-		Next:    e.Next,
+		Next:    nexts,
 		V:       e.V,
 		Clock:   e.Clock,
 		Key:     e.Key,
