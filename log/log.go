@@ -376,15 +376,22 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 }
 
 // TODO DELETE THIS
-func printEntries(entries *entry.OrderedMap) {
+func PrintEntriesMap(entries *entry.OrderedMap) {
 	for _, k := range entries.Keys() {
 		entry := entries.UnsafeGet(k)
-		printEntry(entry)
+		PrintEntry(entry)
 	}
 }
 
 // TODO DELETE THIS
-func printEntry(entry *entry.Entry) {
+func PrintEntriesSlice(entries []*entry.Entry) {
+	for _, entry := range entries {
+		PrintEntry(entry)
+	}
+}
+
+// TODO DELETE THIS
+func PrintEntry(entry *entry.Entry) {
 	fmt.Println("Hash:", entry.Hash.String())
 	fmt.Println("LogID:", entry.LogID)
 	fmt.Println("Payload:", string(entry.Payload))
