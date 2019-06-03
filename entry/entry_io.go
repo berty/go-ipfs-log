@@ -2,7 +2,9 @@ package entry
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/berty/go-ipfs-log/errmsg"
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
@@ -10,15 +12,15 @@ import (
 )
 
 type FetchOptions struct {
-	Length *int
-	Exclude []*Entry
-	Concurrency int
-	Timeout time.Duration
+	Length       *int
+	Exclude      []*Entry
+	Concurrency  int
+	Timeout      time.Duration
 	ProgressChan chan *Entry
-	Provider identityprovider.Interface
+	Provider     identityprovider.Interface
 }
 
-func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
@@ -27,7 +29,7 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 		length = *options.Length
 	}
 
-	addToResults := func (entry *Entry) {
+	addToResults := func(entry *Entry) {
 		if entry.IsValid() {
 			loadingQueue = append(loadingQueue, entry.Next...)
 			result = append(result, entry)
@@ -46,11 +48,11 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 		}
 	}
 
-	shouldFetchMore := func () bool {
+	shouldFetchMore := func() bool {
 		return len(loadingQueue) > 0 && (len(result) < length || length <= 0)
 	}
 
-	fetchEntry := func () {
+	fetchEntry := func() {
 		hash := loadingQueue[0]
 		loadingQueue = loadingQueue[1:]
 
@@ -83,3 +85,20 @@ func FetchAll (ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) [
 
 	return result
 }
+
+func Slice(entries []*Entry, index int) []*Entry {
+	if len(entries) == 0 || index >= len(entries) {
+		return []*Entry{}
+	}
+
+	if index == 0 || (index < 0 && -index >= len(entries)) {
+		return entries
+	}
+
+	if index > 0 {
+		return entries[index:]
+	}
+
+	return entries[(len(entries) + index):]
+}
+
