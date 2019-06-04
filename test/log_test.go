@@ -120,10 +120,11 @@ func TestLog(t *testing.T) {
 
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "B", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3}), Heads: []*entry.Entry{e3}})
 				c.So(err, ShouldBeNil)
-				heads := log1.Heads.Keys()
+				heads := log1.Heads()
+				headsKeys := heads.Keys()
 
-				c.So(len(heads), ShouldEqual, 1)
-				c.So(heads[0], ShouldEqual, e3.Hash.String())
+				c.So(heads.Len(), ShouldEqual, 1)
+				c.So(heads.UnsafeGet(headsKeys[0]).Hash.String(), ShouldEqual, e3.Hash.String())
 			})
 
 			c.Convey("finds heads if heads not given as params", FailureHalts, func(c C) {
@@ -136,12 +137,14 @@ func TestLog(t *testing.T) {
 
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
 				c.So(err, ShouldBeNil)
-				heads := log.FindHeads(log1.Values())
+				heads := log1.Heads()
 
-				c.So(len(heads), ShouldEqual, 3)
-				c.So(heads[2].Hash.String(), ShouldEqual, e1.Hash.String())
-				c.So(heads[1].Hash.String(), ShouldEqual, e2.Hash.String())
-				c.So(heads[0].Hash.String(), ShouldEqual, e3.Hash.String())
+				headsKeys := heads.Keys()
+
+				c.So(heads.Len(), ShouldEqual, 3)
+				c.So(heads.UnsafeGet(headsKeys[2]).Hash.String(), ShouldEqual, e1.Hash.String())
+				c.So(heads.UnsafeGet(headsKeys[1]).Hash.String(), ShouldEqual, e2.Hash.String())
+				c.So(heads.UnsafeGet(headsKeys[0]).Hash.String(), ShouldEqual, e3.Hash.String())
 			})
 
 			c.Convey("creates default public AccessController if not defined", FailureHalts, func(c C) {
