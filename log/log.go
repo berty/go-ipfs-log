@@ -37,7 +37,7 @@ type Log struct {
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
 	Identity         *identityprovider.Identity
 	Entries          *entry.OrderedMap
-	Heads            *entry.OrderedMap
+	heads            *entry.OrderedMap
 	Next             *entry.OrderedMap
 	Clock            *lamportclock.LamportClock
 }
@@ -129,7 +129,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		AccessController: options.AccessController,
 		SortFn:           NoZeroes(options.SortFn),
 		Entries:          options.Entries.Copy(),
-		Heads:            entry.NewOrderedMapFromEntries(options.Heads),
+		heads:            entry.NewOrderedMapFromEntries(options.Heads),
 		Next:             next,
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
 	}, nil
@@ -205,22 +205,22 @@ func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 
 func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	// Update the clock (find the latest clock)
-	newTime := maxClockTimeForEntries(l.Heads.Slice(), 0)
+	newTime := maxClockTimeForEntries(l.heads.Slice(), 0)
 	newTime = maxInt(l.Clock.Time, newTime) + 1
 
 	l.Clock = lamportclock.New(l.Clock.ID, newTime)
 
 	// Get the required amount of hashes to next entries (as per current state of the log)
-	references, err := l.Traverse(l.Heads, maxInt(pointerCount, l.Heads.Len()), "")
+	references, err := l.Traverse(l.heads, maxInt(pointerCount, l.heads.Len()), "")
 	if err != nil {
 		return nil, errors.Wrap(err, "append failed")
 	}
 
 	next := []cid.Cid{}
 
-	keys := l.Heads.Keys()
+	keys := l.heads.Keys()
 	for _, k := range keys {
-		e, _ := l.Heads.Get(k)
+		e, _ := l.heads.Get(k)
 		next = append(next, e.Hash)
 	}
 	for _, e := range references {
@@ -247,12 +247,12 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 	l.Entries.Set(e.Hash.String(), e)
 
 	for _, k := range keys {
-		nextEntry, _ := l.Heads.Get(k)
+		nextEntry, _ := l.heads.Get(k)
 		l.Next.Set(nextEntry.Hash.String(), e)
 	}
 
-	l.Heads = entry.NewOrderedMap()
-	l.Heads.Set(e.Hash.String(), e)
+	l.heads = entry.NewOrderedMap()
+	l.heads.Set(e.Hash.String(), e)
 
 	return e, nil
 }
@@ -275,7 +275,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 		}
 	}
 
-	start := l.Heads.Slice()
+	start := l.heads.Slice()
 	if options.LTE != nil {
 		start = []*entry.Entry{options.LTE}
 	} else if options.LT != nil {
@@ -354,7 +354,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		}
 	}
 
-	mergedHeads := FindHeads(l.Heads.Merge(otherLog.Heads))
+	mergedHeads := FindHeads(l.heads.Merge(otherLog.heads))
 	for idx, e := range mergedHeads {
 		// notReferencedByNewItems
 		if _, ok := nextsFromNewItems.Get(e.Hash.String()); ok {
@@ -367,17 +367,17 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 		}
 	}
 
-	l.Heads = entry.NewOrderedMapFromEntries(mergedHeads)
+	l.heads = entry.NewOrderedMapFromEntries(mergedHeads)
 
 	if size > -1 {
 		tmp := l.Values().Slice()
 		tmp = tmp[len(tmp)-size:]
 		l.Entries = entry.NewOrderedMapFromEntries(tmp)
-		l.Heads = entry.NewOrderedMapFromEntries(FindHeads(entry.NewOrderedMapFromEntries(tmp)))
+		l.heads = entry.NewOrderedMapFromEntries(FindHeads(entry.NewOrderedMapFromEntries(tmp)))
 	}
 
 	// Find the latest clock from the heads
-	maxClock := maxClockTimeForEntries(l.Heads.Slice(), 0)
+	maxClock := maxClockTimeForEntries(l.heads.Slice(), 0)
 	l.Clock = lamportclock.New(l.Clock.ID, maxInt(l.Clock.Time, maxClock))
 
 	return l, nil
@@ -418,7 +418,7 @@ func Difference(logA, logB *Log) *entry.OrderedMap {
 		return logA.Entries
 	}
 
-	stack := logA.Heads.Keys()
+	stack := logA.heads.Keys()
 	traversed := map[string]bool{}
 	res := entry.NewOrderedMap()
 
@@ -482,7 +482,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 func (l *Log) ToSnapshot() *Snapshot {
 	return &Snapshot{
 		ID:     l.ID,
-		Heads:  entrySliceToCids(l.Heads.Slice()),
+		Heads:  entrySliceToCids(l.heads.Slice()),
 		Values: l.Values().Slice(),
 	}
 }
@@ -727,17 +727,17 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 }
 
 func (l *Log) Values() *entry.OrderedMap {
-	if l.Heads == nil {
+	if l.heads == nil {
 		return entry.NewOrderedMap()
 	}
-	stack, _ := l.Traverse(l.Heads, -1, "")
+	stack, _ := l.Traverse(l.heads, -1, "")
 	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 
 	return entry.NewOrderedMapFromEntries(stack)
 }
 
 func (l *Log) ToJSON() *JSONLog {
-	stack := l.Heads.Slice()
+	stack := l.heads.Slice()
 	sort.SliceStable(stack, Sortable(l.SortFn, stack))
 	reverse(stack)
 
@@ -750,6 +750,14 @@ func (l *Log) ToJSON() *JSONLog {
 		ID:    l.ID,
 		Heads: hashes,
 	}
+}
+
+func (l *Log) Heads() *entry.OrderedMap {
+	heads := l.heads.Slice()
+	sort.SliceStable(heads, Sortable(l.SortFn, heads))
+	reverse(heads)
+
+	return entry.NewOrderedMapFromEntries(heads)
 }
 
 var AtlasJSONLog = atlas.BuildEntry(JSONLog{}).

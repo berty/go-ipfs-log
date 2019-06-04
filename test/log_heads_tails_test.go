@@ -46,7 +46,7 @@ func TestLogHeadsTails(t *testing.T) {
 		identities = append(identities, identity)
 	}
 
-	Convey("Log - Heads and Tails", t, FailureContinues, func(c C) {
+	Convey("Log - heads and Tails", t, FailureContinues, func(c C) {
 		c.Convey("heads", FailureContinues, func(c C) {
 			c.Convey("finds one head after one entry", FailureContinues, func(c C) {
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
