@@ -2,9 +2,7 @@ package entry
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/berty/go-ipfs-log/errmsg"
 	"github.com/berty/go-ipfs-log/identityprovider"
 	"github.com/berty/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
@@ -85,20 +83,3 @@ func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []
 
 	return result
 }
-
-func Slice(entries []*Entry, index int) []*Entry {
-	if len(entries) == 0 || index >= len(entries) {
-		return []*Entry{}
-	}
-
-	if index == 0 || (index < 0 && -index >= len(entries)) {
-		return entries
-	}
-
-	if index > 0 {
-		return entries[index:]
-	}
-
-	return entries[(len(entries) + index):]
-}
-
