@@ -701,45 +701,26 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 	}
 
 	result := []*entry.Entry{}
-	entriesWithParents := orderedmap.New()
+	items := orderedmap.New()
 
-	for _, h := range entries.Keys() {
-		e, ok := entries.Get(h)
-		if !ok || e == nil {
-			continue
-		}
-
-		if _, ok := entriesWithParents.Get(h); !ok {
-			entriesWithParents.Set(h, false)
-		}
-
+	for _, k := range entries.Keys() {
+		e := entries.UnsafeGet(k)
 		for _, n := range e.Next {
-			entriesWithParents.Set(n.String(), true)
+			items.Set(n.String(), e.Hash.String())
 		}
 	}
 
-	keys := entriesWithParents.Keys()
-	for _, h := range keys {
-		val, ok := entriesWithParents.Get(h)
-		if !ok {
+	for _, h := range entries.Keys() {
+		e, ok := items.Get(h)
+		if ok || e != nil {
 			continue
 		}
 
-		hasParent, ok := val.(bool)
-		if !ok {
-			continue
-		}
-
-		if !hasParent {
-			result = append(result, entries.UnsafeGet(h))
-		}
+		result = append(result, entries.UnsafeGet(h))
 	}
 
 	sort.SliceStable(result, func(a, b int) bool {
-		eA, _ := entries.Get(result[a].Hash.String())
-		eB, _ := entries.Get(result[b].Hash.String())
-
-		return bytes.Compare(eA.Clock.ID, eB.Clock.ID) <= 0
+		return bytes.Compare(result[a].Clock.ID, result[b].Clock.ID) > 0
 	})
 
 	return result

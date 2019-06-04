@@ -136,7 +136,7 @@ func TestLog(t *testing.T) {
 
 				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
 				c.So(err, ShouldBeNil)
-				heads := log.FindHeads(log1.Entries)
+				heads := log.FindHeads(log1.Values())
 
 				c.So(len(heads), ShouldEqual, 3)
 				c.So(heads[2].Hash.String(), ShouldEqual, e1.Hash.String())
