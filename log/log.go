@@ -114,6 +114,14 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		options.Heads = FindHeads(options.Entries)
 	}
 
+	next := entry.NewOrderedMap()
+	for _, key := range options.Entries.Keys() {
+		entry := options.Entries.UnsafeGet(key)
+		for _, n := range entry.Next {
+			next.Set(n.String(), entry)
+		}
+	}
+
 	return &Log{
 		Storage:          services,
 		ID:               options.ID,
@@ -122,7 +130,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 		SortFn:           NoZeroes(options.SortFn),
 		Entries:          options.Entries.Copy(),
 		Heads:            entry.NewOrderedMapFromEntries(options.Heads),
-		Next:             entry.NewOrderedMap(),
+		Next:             next,
 		Clock:            lamportclock.New(identity.PublicKey, maxTime),
 	}, nil
 }

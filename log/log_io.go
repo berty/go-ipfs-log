@@ -166,17 +166,19 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 	entry.SortEntries(uniques)
 
 	// Cap the result at the right size by taking the last n entries
-	sliced := entries
+	var sliced []*entry.Entry
 
 	if length > -1 {
-		sliceLength := len(entries)
-		entries = []*entry.Entry{}
-		for i := sliceLength - length; i < sliceLength; i++ {
-			entries = append(entries, sliced[i])
-		}
+		sliced = entry.Slice(uniques, -length)
+	} else {
+		sliced = uniques
 	}
+
+	missingSourceEntries := entry.Difference(sliced, sourceEntries)
+	result := append(missingSourceEntries, entry.SliceRange(sliced, len(missingSourceEntries), len(sliced))...)
+
 	return &Snapshot{
-		ID:     sliced[len(sliced)-1].Hash.String(),
-		Values: sliced,
+		ID:     result[len(result)-1].Hash.String(),
+		Values: result,
 	}, nil
 }
