@@ -204,6 +204,7 @@ func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 }
 
 func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
+	// INFO: JS default value for pointerCount is 1
 	// Update the clock (find the latest clock)
 	newTime := maxClockTimeForEntries(l.heads.Slice(), 0)
 	newTime = maxInt(l.Clock.Time, newTime) + 1
@@ -316,6 +317,7 @@ func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 }
 
 func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
+	// INFO: JS default size is -1
 	if otherLog == nil {
 		return nil, errmsg.LogJoinNotDefined
 	}

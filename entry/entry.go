@@ -268,6 +268,14 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 		return errors.New("entry is not defined")
 	}
 
+	if len(entry.Key) == 0 {
+		return errors.New("Entry doesn't have a key")
+	}
+
+	if len(entry.Sig) == 0 {
+		return errors.New("Entry doesn't have a signature")
+	}
+
 	// TODO: Check against trusted keys
 
 	jsonBytes, err := ToBuffer(entry.ToHashable())
