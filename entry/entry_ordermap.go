@@ -104,3 +104,13 @@ func (o *OrderedMap) Sort(lessFunc func(a *orderedmap.Pair, b *orderedmap.Pair) 
 func (o *OrderedMap) Len() int {
 	return len(o.orderedMap.Keys())
 }
+
+func (o *OrderedMap) At(index uint) *Entry {
+	keys := o.Keys()
+
+	if uint(len(keys)) < index {
+		return nil
+	}
+
+	return o.UnsafeGet(keys[index])
+}
