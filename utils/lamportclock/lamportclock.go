@@ -39,24 +39,17 @@ func (l *LamportClock) Clone() *LamportClock {
 }
 
 // Compare Calculate the "distance" based on the clock, ie. lower or greater
-func Compare(a *LamportClock, b *LamportClock) (int, error) {
+func Compare(a *LamportClock, b *LamportClock) int {
 	// TODO: Make it a Golang slice-compatible sort function
-
-	var dist = a.Time - b.Time
+	dist := a.Time - b.Time
 
 	// If the sequence number is the same (concurrent events),
-	// and the IDs are different, take the one with a "lower" id
+	// return the comparison between IDs
 	if dist == 0 {
-		comp := bytes.Compare(a.ID, b.ID)
-
-		if comp < 0 {
-			return -1, nil
-		} else if comp > 0 {
-			return 1, nil
-		}
+		return bytes.Compare(a.ID, b.ID)
 	}
 
-	return int(dist), nil
+	return dist
 }
 
 func New(identity []byte, time int) *LamportClock {

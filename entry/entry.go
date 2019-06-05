@@ -1,7 +1,6 @@
 package entry
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -51,7 +50,6 @@ var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
 	AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 	Complete()
-
 
 type CborEntry struct {
 	V        uint64
@@ -117,7 +115,7 @@ func init() {
 		StructMap().
 		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key", }).
+		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
 		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
 		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
 		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
@@ -336,9 +334,9 @@ func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
 }
 
 func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
-		if ipfs == nil {
-			return nil, errors.New("ipfs instance not defined")
-		}
+	if ipfs == nil {
+		return nil, errors.New("ipfs instance not defined")
+	}
 
 	result, err := io.ReadCBOR(ipfs, hash)
 	if err != nil {
@@ -367,7 +365,7 @@ func SortEntries(entries []*Entry) {
 		if err != nil {
 			return false
 		}
-		return ret > 0
+		return ret < 0
 	})
 }
 
@@ -377,22 +375,7 @@ func Compare(a, b *Entry) (int, error) {
 		return 0, errors.New("entry is not defined")
 	}
 
-	distance, err := lamportclock.Compare(a.Clock, b.Clock)
-	if err != nil {
-		return 0, err
-	}
-
-	if distance == 0 {
-		diff := bytes.Compare(a.Clock.ID, b.Clock.ID)
-
-		if diff < 0 {
-			return -1, nil
-		} else if diff > 0 {
-			return 1, nil
-		}
-	}
-
-	return distance, nil
+	return lamportclock.Compare(a.Clock, b.Clock), nil
 }
 
 func IsEqual(a, b *Entry) bool {
