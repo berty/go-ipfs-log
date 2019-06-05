@@ -66,22 +66,22 @@ func TestLogJoin(t *testing.T) {
 				var curr [3]*entry.Entry
 				var err error
 
-				curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("EntryA0"), LogID: "X"}, nil)
+				curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
 				c.So(err, ShouldBeNil)
-				curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte("EntryB0"), LogID: "X", Next: []cid.Cid{curr[0].Hash}}, nil)
+				curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].Hash}}, nil)
 				c.So(err, ShouldBeNil)
-				curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte("EntryC0"), LogID: "X", Next: []cid.Cid{curr[0].Hash, curr[1].Hash}}, nil)
+				curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].Hash, curr[1].Hash}}, nil)
 				c.So(err, ShouldBeNil)
-				for i := 0; i < 100; i++ {
-					if i > 0 {
+				for i := 1; i <= 100; i++ {
+					if i > 1 {
 						for j := 0; j < 3; j++ {
 							prev[j] = items[j][len(items[j])-1]
 						}
-						curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("EntryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].Hash}}, nil)
+						curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].Hash}}, nil)
 						c.So(err, ShouldBeNil)
-						curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("EntryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].Hash, curr[0].Hash}}, nil)
+						curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].Hash, curr[0].Hash}}, nil)
 						c.So(err, ShouldBeNil)
-						curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("EntryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].Hash, curr[0].Hash, curr[1].Hash}}, nil)
+						curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].Hash, curr[0].Hash, curr[1].Hash}}, nil)
 						c.So(err, ShouldBeNil)
 					}
 
