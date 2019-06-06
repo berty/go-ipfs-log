@@ -2,9 +2,7 @@ package log
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -386,10 +384,12 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 }
 
 func Difference(logA, logB *Log) *entry.OrderedMap {
-	if logA == nil || logA.Entries == nil || len(logA.Entries.Keys()) == 0 {
-		return logB.Entries
-	} else if logB == nil || logB.Entries == nil || len(logB.Entries.Keys()) == 0 {
-		return logA.Entries
+	if logA == nil || logA.Entries == nil || logA.Entries.Len() == 0 || logB == nil {
+		return entry.NewOrderedMap()
+	}
+
+	if logB.Entries == nil {
+		logB.Entries = entry.NewOrderedMap()
 	}
 
 	stack := logA.heads.Keys()

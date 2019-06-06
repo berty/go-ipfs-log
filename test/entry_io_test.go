@@ -19,10 +19,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func intPtr(val int) *int {
-	return &val
-}
-
 func TestEntryPersistence(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
