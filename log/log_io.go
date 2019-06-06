@@ -178,7 +178,7 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 	result := append(missingSourceEntries, entry.SliceRange(sliced, len(missingSourceEntries), len(sliced))...)
 
 	return &Snapshot{
-		ID:     result[len(result)-1].Hash.String(),
+		ID:     result[len(result)-1].LogID,
 		Values: result,
 	}, nil
 }
