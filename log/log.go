@@ -551,7 +551,7 @@ func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Iden
 	})
 }
 
-func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonData []byte, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -561,7 +561,6 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 	}
 
 	// TODO: need to verify the entries with 'key'
-	jsonLog := JSONLog{}
 
 	snapshot, err := FromJSON(services, jsonLog, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
@@ -573,7 +572,7 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 	}
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID:               logOptions.ID,
+		ID:               snapshot.ID,
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
