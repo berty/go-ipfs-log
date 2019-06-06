@@ -14,3 +14,7 @@ func minInt(a, b int) int {
 	}
 	return b
 }
+
+func intPtr(val int) *int {
+	return &val
+}
