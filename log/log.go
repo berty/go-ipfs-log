@@ -385,34 +385,6 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 	return l, nil
 }
 
-// TODO DELETE THIS
-func PrintEntriesMap(entries *entry.OrderedMap) {
-	for _, k := range entries.Keys() {
-		entry := entries.UnsafeGet(k)
-		PrintEntry(entry)
-	}
-}
-
-// TODO DELETE THIS
-func PrintEntriesSlice(entries []*entry.Entry) {
-	for _, entry := range entries {
-		PrintEntry(entry)
-	}
-}
-
-// TODO DELETE THIS
-func PrintEntry(entry *entry.Entry) {
-	fmt.Println("Hash:", entry.Hash.String())
-	fmt.Println("LogID:", entry.LogID)
-	fmt.Println("Payload:", string(entry.Payload))
-	fmt.Println("Next size:", len(entry.Next))
-	fmt.Println("V:", entry.V)
-	fmt.Println("Key:", hex.EncodeToString(entry.Key))
-	fmt.Println("Sig:", hex.EncodeToString(entry.Sig))
-	fmt.Println("Clock time:", entry.Clock.Time)
-	fmt.Println("")
-}
-
 func Difference(logA, logB *Log) *entry.OrderedMap {
 	if logA == nil || logA.Entries == nil || len(logA.Entries.Keys()) == 0 {
 		return logB.Entries
