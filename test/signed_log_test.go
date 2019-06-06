@@ -45,7 +45,7 @@ func (t *TestACL) CanAppend(e *entry.Entry, i *idp.Identity) error {
 	return nil
 }
 
-func TestLogCRDT(t *testing.T) {
+func TestSignedLog(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -74,7 +74,7 @@ func TestLogCRDT(t *testing.T) {
 		identities[i] = identity
 	}
 
-	Convey("creates a signed log", t, FailureHalts, func(c C) {
+	Convey("Signed Log", t, FailureHalts, func(c C) {
 		c.Convey("creates a signed log", FailureHalts, func(c C) {
 			logID := "A"
 			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: logID})

@@ -35,6 +35,12 @@ func First (a, b *entry.Entry) (int, error) {
 	return 1, nil
 }
 
+func FirstWriteWins(a, b *entry.Entry) (int, error) {
+	res, err := LastWriteWins(a, b)
+
+	return res * -1, err
+}
+
 func LastWriteWins(a, b *entry.Entry) (int, error) {
 	sortByID := func(a *entry.Entry, b *entry.Entry) (int, error) {
 		return SortByClockId(a, b, First)

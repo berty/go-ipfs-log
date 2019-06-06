@@ -106,7 +106,7 @@ func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOp
 	return sliced, nil
 }
 
-func FromJSON(services *io.IpfsServices, jsonLog JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+func FromJSON(services *io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
