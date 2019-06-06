@@ -691,7 +691,7 @@ func FindHeads(entries *entry.OrderedMap) []*entry.Entry {
 	}
 
 	sort.SliceStable(result, func(a, b int) bool {
-		return bytes.Compare(result[a].Clock.ID, result[b].Clock.ID) > 0
+		return bytes.Compare(result[a].Clock.ID, result[b].Clock.ID) < 0
 	})
 
 	return result
