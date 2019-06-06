@@ -425,30 +425,28 @@ func Difference(logA, logB *Log) *entry.OrderedMap {
 	res := entry.NewOrderedMap()
 
 	for {
+		if len(stack) == 0 {
+			break
+		}
 		hash := stack[0]
+		stack = stack[1:]
+
 		eA, okA := logA.Entries.Get(hash)
 		_, okB := logB.Entries.Get(hash)
 
-		if okA && !okB && eA.LogID == logA.ID {
+		if okA && !okB && eA.LogID == logB.ID {
 			res.Set(hash, eA)
 			traversed[hash] = true
-			if eA.Next != nil {
-				for _, h := range eA.Next {
-					hash := h.String()
-					_, okB := logB.Entries.Get(hash)
-					_, okT := traversed[hash]
-					if !okT && !okB {
-						stack = append(stack, hash)
-						traversed[hash] = true
-					}
+			for _, h := range eA.Next {
+				hash := h.String()
+				_, okB := logB.Entries.Get(hash)
+				_, okT := traversed[hash]
+				if !okT && !okB {
+					stack = append(stack, hash)
+					traversed[hash] = true
 				}
 			}
 		}
-
-		if len(stack) == 1 {
-			break
-		}
-		stack = stack[1:]
 	}
 
 	return res
@@ -630,7 +628,7 @@ func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity
 	}
 
 	return NewLog(services, identity, &NewLogOptions{
-		ID:               logOptions.ID,
+		ID:               snapshot.ID,
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
