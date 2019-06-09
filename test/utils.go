@@ -2,6 +2,25 @@ package test
 
 import "github.com/berty/go-ipfs-log/entry"
 
+
+func lastEntry(entries []*entry.Entry) *entry.Entry {
+	length := len(entries)
+	if length > 0 {
+		return entries[len(entries)-1]
+	}
+
+	return nil
+}
+
+func entriesAsStrings(values *entry.OrderedMap) []string {
+	var foundEntries []string
+	for _, k := range values.Keys() {
+		foundEntries = append(foundEntries, string(values.UnsafeGet(k).Payload))
+	}
+
+	return foundEntries
+}
+
 func getLastEntry(omap *entry.OrderedMap) *entry.Entry {
 	lastKey := omap.Keys()[len(omap.Keys())-1]
 

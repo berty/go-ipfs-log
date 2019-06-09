@@ -702,7 +702,7 @@ func (l *Log) Values() *entry.OrderedMap {
 		return entry.NewOrderedMap()
 	}
 	stack, _ := l.Traverse(l.heads, -1, "")
-	sort.SliceStable(stack, Sortable(l.SortFn, stack))
+	reverse(stack)
 
 	return entry.NewOrderedMapFromEntries(stack)
 }

@@ -92,7 +92,7 @@ func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOp
 		length = maxInt(*options.Length, 1)
 	}
 
-	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(services, hashes, &entry.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
@@ -115,7 +115,7 @@ func FromJSON(services *io.IpfsServices, jsonLog *JSONLog, options *entry.FetchO
 		return nil, errmsg.FetchOptionsNotDefined
 	}
 
-	entries := entry.FetchAll(services, jsonLog.Heads, &entry.FetchOptions{
+	entries := entry.FetchParallel(services, jsonLog.Heads, &entry.FetchOptions{
 		Length:       options.Length,
 		Exclude:      []*entry.Entry{},
 		ProgressChan: options.ProgressChan,
@@ -154,7 +154,7 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 	}
 
 	// Fetch the entries
-	entries := entry.FetchAll(services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(services, hashes, &entry.FetchOptions{
 		Length:       &length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,

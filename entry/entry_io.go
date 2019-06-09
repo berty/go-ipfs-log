@@ -18,6 +18,19 @@ type FetchOptions struct {
 	Provider     identityprovider.Interface
 }
 
+func FetchParallel(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+	var entries []*Entry
+
+	for _, h := range hashes {
+		entries = append(entries, FetchAll(ipfs, []cid.Cid{h}, options)...)
+	}
+
+	// TODO: parallelize things
+
+	// Flatten the results and get unique vals
+	return NewOrderedMapFromEntries(entries).Slice()
+}
+
 func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
 	cache := NewOrderedMap()
@@ -51,6 +64,11 @@ func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []
 	}
 
 	fetchEntry := func() {
+		var loadingQueueStrings []string
+		for _, c := range loadingQueue {
+			loadingQueueStrings = append(loadingQueueStrings, c.String())
+		}
+
 		hash := loadingQueue[0]
 		loadingQueue = loadingQueue[1:]
 
