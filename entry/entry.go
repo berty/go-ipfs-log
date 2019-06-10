@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"sort"
 	"time"
@@ -359,10 +360,11 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid, provider identityprovide
 	return entry, nil
 }
 
-func SortEntries(entries []*Entry) {
-	sort.SliceStable(entries, func(i, j int) bool {
-		ret, err := Compare(entries[i], entries[j])
+func Sort(compFunc func (a, b *Entry) (int, error), values []*Entry) {
+	sort.SliceStable(values, func (i, j int) bool {
+		ret, err := compFunc(values[i], values[j])
 		if err != nil {
+			fmt.Printf("error while comparing: %v\n", err)
 			return false
 		}
 		return ret < 0

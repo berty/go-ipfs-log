@@ -142,8 +142,8 @@ func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed *ordere
 
 	// Add the entry in front of the stack and sort
 	stack = append([]*entry.Entry{e}, stack...)
-	sort.SliceStable(stack, Sortable(l.SortFn, stack))
-	reverse(stack)
+	entry.Sort(l.SortFn, stack)
+	Reverse(stack)
 
 	// Add to the cache of processed entries
 	traversed.Set(e.Hash.String(), true)
@@ -159,8 +159,8 @@ func (l *Log) Traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 	// Sort the given given root entries and use as the starting stack
 	stack := rootEntries.Slice()
 
-	sort.SliceStable(stack, Sortable(l.SortFn, stack))
-	reverse(stack)
+	entry.Sort(l.SortFn, stack)
+	Reverse(stack)
 
 	// Cache for checking if we've processed an entry already
 	traversed := orderedmap.New()
@@ -426,7 +426,7 @@ func Difference(logA, logB *Log) *entry.OrderedMap {
 
 func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 	values := l.Values().Slice()
-	reverse(values)
+	Reverse(values)
 
 	lines := []string{}
 
@@ -702,15 +702,15 @@ func (l *Log) Values() *entry.OrderedMap {
 		return entry.NewOrderedMap()
 	}
 	stack, _ := l.Traverse(l.heads, -1, "")
-	reverse(stack)
+	Reverse(stack)
 
 	return entry.NewOrderedMapFromEntries(stack)
 }
 
 func (l *Log) ToJSON() *JSONLog {
 	stack := l.heads.Slice()
-	sort.SliceStable(stack, Sortable(l.SortFn, stack))
-	reverse(stack)
+	entry.Sort(l.SortFn, stack)
+	Reverse(stack)
 
 	hashes := []cid.Cid{}
 	for _, e := range stack {
@@ -725,8 +725,8 @@ func (l *Log) ToJSON() *JSONLog {
 
 func (l *Log) Heads() *entry.OrderedMap {
 	heads := l.heads.Slice()
-	sort.SliceStable(heads, Sortable(l.SortFn, heads))
-	reverse(heads)
+	entry.Sort(l.SortFn, heads)
+	Reverse(heads)
 
 	return entry.NewOrderedMapFromEntries(heads)
 }

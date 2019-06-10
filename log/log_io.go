@@ -53,7 +53,7 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 		}
 	}
 
-	entry.SortEntries(entries)
+	entry.Sort(entry.Compare, entries)
 
 	heads := []*entry.Entry{}
 	for _, e := range entries {
@@ -123,7 +123,7 @@ func FromJSON(services *io.IpfsServices, jsonLog *JSONLog, options *entry.FetchO
 		Timeout:      options.Timeout,
 	})
 
-	entry.SortEntries(entries)
+	entry.Sort(entry.Compare, entries)
 
 	return &Snapshot{
 		ID:     jsonLog.ID,
@@ -163,7 +163,7 @@ func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options 
 	// Combine the fetches with the source entries and take only uniques
 	combined := append(sourceEntries, entries...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
-	entry.SortEntries(uniques)
+	entry.Sort(entry.Compare, uniques)
 
 	// Cap the result at the right size by taking the last n entries
 	var sliced []*entry.Entry

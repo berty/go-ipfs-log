@@ -3,7 +3,6 @@ package log
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/berty/go-ipfs-log/entry"
 	"github.com/berty/go-ipfs-log/utils/lamportclock"
 )
@@ -65,20 +64,7 @@ func NoZeroes (compFunc func (a, b *entry.Entry) (int, error)) func (a, b *entry
 	}
 }
 
-func Sortable(compFunc func (a, b *entry.Entry) (int, error), values []*entry.Entry) func (i, j int) bool {
-	return func (i, j int) bool {
-		a := values[i]
-		b := values[j]
-
-		ret, err := compFunc(a, b)
-		if err != nil {
-			fmt.Printf("error while comparing: %v\n", err)
-		}
-		return ret <= 0
-	}
-}
-
-func reverse (a []*entry.Entry) {
+func Reverse(a []*entry.Entry) {
 	for i := len(a)/2-1; i >= 0; i-- {
 		opp := len(a)-1-i
 		a[i], a[opp] = a[opp], a[i]

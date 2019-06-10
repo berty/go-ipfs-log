@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/berty/go-ipfs-log/entry"
@@ -12,15 +13,18 @@ import (
 	"github.com/ipfs/go-cid"
 	_ "github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"sort"
+	"math/rand"
 	_ "sort"
+	"strings"
 	"testing"
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-//const BadComparatorReturnsZero = (a, b) => 0
+func BadComparatorReturnsZero (a *entry.Entry, b *entry.Entry) (int, error) {
+	return 0, nil
+}
 
 func TestLogLoad(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -712,15 +716,170 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				fetchOrder := l.Values().Slice()
-				sort.SliceStable(fetchOrder, log.Sortable(entry.Compare, fetchOrder))
-
+				entry.Sort(entry.Compare, fetchOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
 
-				_ = expectedData2
-				_ = expectedData3
-				_ = expectedData4
+				reverseOrder := l.Values().Slice()
+				log.Reverse(reverseOrder)
+				entry.Sort(entry.Compare, reverseOrder)
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), ShouldResemble, expectedData)
 
-				// TODO: to complete
+				hashOrder := l.Values().Slice()
+				entry.Sort(func (a, b *entry.Entry) (int, error) {
+					return strings.Compare(a.Hash.String(), b.Hash.String()), nil
+				}, hashOrder)
+				entry.Sort(entry.Compare, hashOrder)
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), ShouldResemble, expectedData)
+
+				var partialLog []*entry.Entry
+				for _, item := range l.Values().Slice() {
+					if bytes.Compare(item.Payload, []byte("entryC0")) != 0 {
+						partialLog = append(partialLog, item)
+					}
+				}
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog)), ShouldResemble, expectedData2)
+
+				var partialLog2 []*entry.Entry
+				for _, item := range l.Values().Slice() {
+					if bytes.Compare(item.Payload, []byte("entryA10")) != 0 {
+						partialLog2 = append(partialLog2, item)
+					}
+				}
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog2)), ShouldResemble, expectedData3)
+
+				var partialLog3 []*entry.Entry
+				for _, item := range l.Values().Slice() {
+					if bytes.Compare(item.Payload, []byte("entryB5")) != 0 {
+						partialLog3 = append(partialLog3, item)
+					}
+				}
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog3)), ShouldResemble, expectedData4)
+			})
+
+			c.Convey("sorts deterministically from random order", FailureHalts, func(c C) {
+				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				c.So(err, ShouldBeNil)
+
+				l := testLog.Log
+				expectedData := testLog.ExpectedData
+
+				fetchOrder := l.Values().Slice()
+				entry.Sort(entry.Compare, fetchOrder)
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
+
+				for i := 0; i < 1000; i++ {
+					randomOrder := l.Values().Slice()
+					entry.Sort(func (a, b *entry.Entry) (int, error) {
+						return rand.Int(), nil
+					}, randomOrder)
+					entry.Sort(entry.Compare, randomOrder)
+
+					c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(randomOrder)), ShouldResemble, expectedData)
+				}
+			})
+
+			c.Convey("sorts entries correctly", FailureHalts, func(c C) {
+				testLog, err := logcreator.CreateLogWithHundredEntries(ipfs, resortedIdentities)
+				c.So(err, ShouldBeNil)
+
+				l := testLog.Log
+				expectedData := testLog.ExpectedData
+
+				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(l.Values().Slice())), ShouldResemble, expectedData)
+			})
+
+			c.Convey("sorts entries according to custom tiebreaker function", FailureHalts, func(c C) {
+				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				c.So(err, ShouldBeNil)
+
+				firstWriteWinsLog, err := log.NewLog(ipfs, resortedIdentities[0], &log.NewLogOptions{ ID: "X", SortFn: BadComparatorReturnsZero })
+				c.So(err, ShouldBeNil)
+
+				_, err = firstWriteWinsLog.Join(testLog.Log, -1)
+				// TODO: the error is only thrown silently when calling .Values(), should we handle it properly
+				//firstWriteWinsLog.Values()
+				//c.So(err, ShouldNotBeNil)
+			})
+
+			c.Convey("retrieves partially joined log deterministically - single next pointer", FailureHalts, func(c C) {
+				nextPointersAmount := 1
+
+				logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ ID:"X" })
+				c.So(err, ShouldBeNil)
+				logB, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ ID:"X" })
+				c.So(err, ShouldBeNil)
+				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+				l, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+
+
+				for i := 1; i <= 5; i++ {
+					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+
+					_, err = logB.Append([]byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+				}
+
+				_, err = log3.Join(logA, -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = log3.Join(logB, -1)
+				c.So(err, ShouldBeNil)
+
+				for i := 6; i <= 10; i++ {
+					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+				}
+
+				_, err = l.Join(log3, -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = l.Append([]byte("entryC0"), nextPointersAmount)
+				c.So(err, ShouldBeNil)
+
+				_, err = l.Join(logA, -1)
+				c.So(err, ShouldBeNil)
+
+				hash, err := l.ToMultihash()
+
+				// First 5
+				res, err := log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(5) })
+				c.So(err, ShouldBeNil)
+
+				first5 := []string{
+					"entryA5", "entryB5", "entryC0", "entryA9", "entryA10",
+				}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
+
+				// First 11
+				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(11) })
+				c.So(err, ShouldBeNil)
+
+				first11 := []string{
+					"entryA3", "entryB3", "entryA4", "entryB4",
+					"entryA5", "entryB5",
+					"entryC0",
+					"entryA7", "entryA8", "entryA9", "entryA10",
+        		}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
+
+				// All but one
+				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(16-1) })
+				c.So(err, ShouldBeNil)
+
+				all := []string{
+					"entryA1", /* excl */ "entryA2", "entryB2", "entryA3", "entryB3",
+					"entryA4", "entryB4", "entryA5", "entryB5",
+					"entryA6",
+					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+				}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, all)
+
 			})
 		})
 	})
