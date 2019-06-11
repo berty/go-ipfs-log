@@ -1,4 +1,4 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
-	ks "berty.tech/go-ipfs-log/keystore"
+	log_io "berty.tech/go-ipfs-log/io"
+	keystore "berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/log"
 	dssync "github.com/ipfs/go-datastore/sync"
 
@@ -19,10 +19,10 @@ func TestLogAppend(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	ipfs := io.NewMemoryServices()
+	ipfs := log_io.NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := keystore.NewKeystore(datastore)
 	if err != nil {
 		panic(err)
 	}
