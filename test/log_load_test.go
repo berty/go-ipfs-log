@@ -881,6 +881,176 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, all)
 
 			})
+
+			c.Convey("retrieves partially joined log deterministically - multiple next pointers", FailureHalts, func(c C) {
+				nextPointersAmount := 64
+
+				logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ ID:"X" })
+				c.So(err, ShouldBeNil)
+				logB, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ ID:"X" })
+				c.So(err, ShouldBeNil)
+				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+				l, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+
+				for i := 1; i <= 5; i++ {
+					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+
+					_, err = logB.Append([]byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+				}
+
+				_, err = log3.Join(logA, -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = log3.Join(logB, -1)
+				c.So(err, ShouldBeNil)
+
+				for i := 6; i <= 10; i++ {
+					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					c.So(err, ShouldBeNil)
+				}
+
+				_, err = l.Join(log3, -1)
+				c.So(err, ShouldBeNil)
+
+				_, err = l.Append([]byte("entryC0"), nextPointersAmount)
+				c.So(err, ShouldBeNil)
+
+				_, err = l.Join(logA, -1)
+				c.So(err, ShouldBeNil)
+
+				hash, err := l.ToMultihash()
+
+				// First 5
+				res, err := log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(5) })
+				c.So(err, ShouldBeNil)
+
+				first5 := []string{
+					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+				}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
+
+				// First 11
+				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(11) })
+				c.So(err, ShouldBeNil)
+
+				first11 := []string{
+					"entryA1", "entryA2", "entryA3", "entryA4",
+					"entryA5", "entryA6",
+					"entryC0",
+					"entryA7", "entryA8", "entryA9", "entryA10",
+				}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
+
+				// All but one
+				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{ Length: intPtr(16-1) })
+				c.So(err, ShouldBeNil)
+
+				all := []string{
+					"entryA1", /* excl */ "entryA2", "entryB2", "entryA3", "entryB3",
+					"entryA4", "entryB4", "entryA5", "entryB5",
+					"entryA6",
+					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+				}
+
+				c.So(entriesAsStrings(res.Values()), ShouldResemble, all)
+			})
+
+			c.Convey("throws an error if ipfs is not defined", FailureHalts, func(c C) {
+				_, err := log.NewFromEntry(nil, identities[0], []*entry.Entry{}, &log.NewLogOptions{ID: "X"}, &entry.FetchOptions{})
+				c.So(err, ShouldNotBeNil)
+				c.So(err.Error(), ShouldContainSubstring, "ipfs instance not defined")
+			})
+
+			c.Convey("fetches a log", FailureHalts, func (c C) {
+				const amount = 100
+
+				ts := time.Now().UnixNano() / 1000
+				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+
+				log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+
+				log3, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ ID: "X" })
+				c.So(err, ShouldBeNil)
+
+				var items1 []*entry.Entry
+				var items2 []*entry.Entry
+				var items3 []*entry.Entry
+
+				for i := 1; i <= amount; i++ {
+					var nexts []cid.Cid
+					prev1 := lastEntry(items1)
+					prev2 := lastEntry(items2)
+					prev3 := lastEntry(items3)
+
+					if prev1 != nil {
+						nexts = []cid.Cid{prev1.Hash}
+					}
+
+					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts}, log1.Clock)
+					c.So(err, ShouldBeNil)
+
+					nexts = []cid.Cid{n1.Hash}
+					if prev2 != nil {
+						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+					}
+
+					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts}, log2.Clock)
+					c.So(err, ShouldBeNil)
+
+					nexts = []cid.Cid{n1.Hash, n2.Hash}
+					if prev2 != nil {
+						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
+					}
+
+					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts}, log3.Clock)
+					c.So(err, ShouldBeNil)
+
+					log1.Clock.Tick()
+					log2.Clock.Tick()
+					log3.Clock.Tick()
+					log1.Clock.Merge(log2.Clock)
+					log1.Clock.Merge(log3.Clock)
+					log2.Clock.Merge(log1.Clock)
+					log2.Clock.Merge(log3.Clock)
+					log3.Clock.Merge(log1.Clock)
+					log3.Clock.Merge(log2.Clock)
+					items1 = append(items1, n1)
+					items2 = append(items2, n2)
+					items3 = append(items3, n3)
+				}
+
+				c.Convey("returns all entries - no excluded entries", FailureHalts, func (c C) {
+					a, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{ Length: intPtr(-1) })
+					c.So(err, ShouldBeNil)
+
+					c.So(a.Values().Len(), ShouldEqual, amount)
+					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+				})
+
+				c.Convey("returns all entries - including excluded entries", FailureHalts, func (c C) {
+					// One entry
+					a, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{ Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1) })
+					c.So(err, ShouldBeNil)
+
+					c.So(a.Values().Len(), ShouldEqual, amount)
+					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+
+					// All entries
+					b, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{ Exclude: items1, Length: intPtr(-1) })
+					c.So(err, ShouldBeNil)
+
+					c.So(b.Values().Len(), ShouldEqual, amount)
+					c.So(b.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+				})
+			})
 		})
 	})
 }
