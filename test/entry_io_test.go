@@ -1,19 +1,18 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"context"
 	"fmt"
-	"github.com/berty/go-ipfs-log/entry"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/ipfs/go-cid"
-
-	idp "github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	ks "github.com/berty/go-ipfs-log/keystore"
-	"github.com/berty/go-ipfs-log/log"
+	"berty.tech/go-ipfs-log/entry"
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	ks "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/log"
+	cid "github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"

@@ -1,7 +1,6 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
-import "github.com/berty/go-ipfs-log/entry"
-
+import "berty.tech/go-ipfs-log/entry"
 
 func lastEntry(entries []*entry.Entry) *entry.Entry {
 	length := len(entries)
@@ -37,7 +36,6 @@ func minInt(a, b int) int {
 func intPtr(val int) *int {
 	return &val
 }
-
 
 var bigLogString = `DONE
 └─EOF

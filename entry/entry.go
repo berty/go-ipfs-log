@@ -1,4 +1,4 @@
-package entry
+package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	"github.com/berty/go-ipfs-log/utils/lamportclock"
-	"github.com/ipfs/go-cid"
+	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/utils/lamportclock"
+	cid "github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
@@ -360,8 +360,8 @@ func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid, provider identityprovide
 	return entry, nil
 }
 
-func Sort(compFunc func (a, b *Entry) (int, error), values []*Entry) {
-	sort.SliceStable(values, func (i, j int) bool {
+func Sort(compFunc func(a, b *Entry) (int, error), values []*Entry) {
+	sort.SliceStable(values, func(i, j int) bool {
 		ret, err := compFunc(values[i], values[j])
 		if err != nil {
 			fmt.Printf("error while comparing: %v\n", err)

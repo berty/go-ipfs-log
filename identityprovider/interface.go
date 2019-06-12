@@ -1,6 +1,6 @@
-package identityprovider
+package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
-import "github.com/berty/go-ipfs-log/keystore"
+import "berty.tech/go-ipfs-log/keystore"
 
 type CreateIdentityOptions struct {
 	IdentityKeysPath string
@@ -9,7 +9,6 @@ type CreateIdentityOptions struct {
 	Migrate          func(*MigrateOptions) error
 	ID               string
 }
-
 
 type Interface interface {
 	/* GetID Return id of identity (to be signed by orbit-db public key) */

@@ -1,10 +1,11 @@
-package logcreator
+package logcreator // import "berty.tech/go-ipfs-log/logcreator"
 
 import (
 	"fmt"
-	idp "github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	"github.com/berty/go-ipfs-log/log"
+
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/log"
 )
 
 type CreatedLog struct {

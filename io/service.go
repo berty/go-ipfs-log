@@ -1,4 +1,4 @@
-package io
+package io // import "berty.tech/go-ipfs-log/io"
 
 import (
 	bserv "github.com/ipfs/go-blockservice"

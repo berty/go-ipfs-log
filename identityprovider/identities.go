@@ -1,15 +1,16 @@
-package identityprovider
+package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/berty/go-ipfs-log/keystore"
+
+	"berty.tech/go-ipfs-log/keystore"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 )
 
-var supportedTypes = map[string]func (*CreateIdentityOptions) Interface{
+var supportedTypes = map[string]func(*CreateIdentityOptions) Interface{
 	"orbitdb": NewOrbitDBIdentityProvider,
 }
 var identityKeysPath = "./orbitdb/identity/identitykeys"
@@ -18,14 +19,13 @@ type Identities struct {
 	keyStore keystore.Interface
 }
 
-func GetHandlerFor (typeName string) (func (*CreateIdentityOptions) Interface, error) {
+func GetHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, error) {
 	if !IsSupported(typeName) {
 		return nil, errors.New(fmt.Sprintf("IdentityProvider type '%s' is not supported", typeName))
 	}
 
 	return supportedTypes[typeName], nil
 }
-
 
 func NewIdentities(keyStore keystore.Interface) *Identities {
 	return &Identities{
@@ -47,13 +47,13 @@ func (i *Identities) Sign(identity *Identity, data []byte) ([]byte, error) {
 	return sig, nil
 }
 
-func (i *Identities) Verify (signature []byte, publicKey crypto.PubKey, data []byte) (bool, error) {
+func (i *Identities) Verify(signature []byte, publicKey crypto.PubKey, data []byte) (bool, error) {
 	return publicKey.Verify(data, signature)
 }
 
 type MigrateOptions struct {
 	TargetPath string
-	TargetId string
+	TargetId   string
 }
 
 func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
@@ -69,7 +69,7 @@ func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 	return pubKey.SerializeUncompressed(), nil
 }
 
-func (i *Identities) CreateIdentity (options *CreateIdentityOptions) (*Identity, error) {
+func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	NewIdentityProvider, err := GetHandlerFor(options.Type)
 	if err != nil {
 		return nil, err
@@ -109,18 +109,18 @@ func (i *Identities) CreateIdentity (options *CreateIdentityOptions) (*Identity,
 	}
 
 	return &Identity{
-		ID: id,
+		ID:        id,
 		PublicKey: publicKeyBytes,
 		Signatures: &IdentitySignature{
-			ID: idSignature,
+			ID:        idSignature,
 			PublicKey: pubKeyIdSignature,
 		},
-		Type: identityProvider.GetType(),
+		Type:     identityProvider.GetType(),
 		Provider: identityProvider,
 	}, nil
 }
 
-func (i *Identities) SignID (id string) (crypto.PubKey, []byte, error) {
+func (i *Identities) SignID(id string) (crypto.PubKey, []byte, error) {
 	privKey, err := i.keyStore.GetKey(id)
 	if err != nil {
 		privKey, err = i.keyStore.CreateKey(id)
@@ -138,7 +138,7 @@ func (i *Identities) SignID (id string) (crypto.PubKey, []byte, error) {
 	return privKey.GetPublic(), idSignature, nil
 }
 
-func (i *Identities) VerifyIdentity (identity *Identity) error {
+func (i *Identities) VerifyIdentity(identity *Identity) error {
 	pubKey, err := identity.GetPublicKey()
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func (i *Identities) VerifyIdentity (identity *Identity) error {
 	return VerifyIdentity(identity)
 }
 
-func VerifyIdentity (identity *Identity) error {
+func VerifyIdentity(identity *Identity) error {
 	identityProvider, err := GetHandlerFor(identity.Type)
 	if err != nil {
 		return err
@@ -168,7 +168,7 @@ func VerifyIdentity (identity *Identity) error {
 	return identityProvider(nil).VerifyIdentity(identity)
 }
 
-func CreateIdentity (options *CreateIdentityOptions) (*Identity, error) {
+func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	ks := options.Keystore
 	if ks == nil {
 		return nil, errors.New("a keystore is required")
@@ -179,13 +179,13 @@ func CreateIdentity (options *CreateIdentityOptions) (*Identity, error) {
 	return identities.CreateIdentity(options)
 }
 
-func IsSupported (typeName string) bool {
+func IsSupported(typeName string) bool {
 	_, ok := supportedTypes[typeName]
 
 	return ok
 }
 
-func AddIdentityProvider (identityProvider func (*CreateIdentityOptions) Interface) error {
+func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface) error {
 	if identityProvider == nil {
 		return errors.New("IdentityProvider class needs to be given as an option")
 	}
@@ -195,6 +195,6 @@ func AddIdentityProvider (identityProvider func (*CreateIdentityOptions) Interfa
 	return nil
 }
 
-func RemoveIdentityProvider (name string) {
+func RemoveIdentityProvider(name string) {
 	delete(supportedTypes, name)
 }

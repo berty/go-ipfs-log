@@ -1,10 +1,11 @@
-package log
+package log // import "berty.tech/go-ipfs-log/log"
 
 import (
 	"bytes"
 	"errors"
-	"github.com/berty/go-ipfs-log/entry"
-	"github.com/berty/go-ipfs-log/utils/lamportclock"
+
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/utils/lamportclock"
 )
 
 func SortByClocks(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
@@ -30,7 +31,7 @@ func SortByClockId(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *en
 	return 1, nil
 }
 
-func First (a, b *entry.Entry) (int, error) {
+func First(a, b *entry.Entry) (int, error) {
 	return 1, nil
 }
 
@@ -52,9 +53,8 @@ func LastWriteWins(a, b *entry.Entry) (int, error) {
 	return sortByEntryClocks(a, b)
 }
 
-
-func NoZeroes (compFunc func (a, b *entry.Entry) (int, error)) func (a, b *entry.Entry) (int, error) {
-	return func (a, b *entry.Entry) (int, error) {
+func NoZeroes(compFunc func(a, b *entry.Entry) (int, error)) func(a, b *entry.Entry) (int, error) {
+	return func(a, b *entry.Entry) (int, error) {
 		ret, err := compFunc(a, b)
 		if ret != 0 || err != nil {
 			return ret, err
@@ -65,8 +65,8 @@ func NoZeroes (compFunc func (a, b *entry.Entry) (int, error)) func (a, b *entry
 }
 
 func Reverse(a []*entry.Entry) {
-	for i := len(a)/2-1; i >= 0; i-- {
-		opp := len(a)-1-i
+	for i := len(a)/2 - 1; i >= 0; i-- {
+		opp := len(a) - 1 - i
 		a[i], a[opp] = a[opp], a[i]
 	}
 }
