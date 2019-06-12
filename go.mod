@@ -3,7 +3,6 @@ module berty.tech/go-ipfs-log
 go 1.12
 
 require (
-	github.com/berty/go-ipfs-log v0.0.0-20190611082712-13c57636b017
 	github.com/btcsuite/btcd v0.0.0-20190213025234-306aecffea32
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0
