@@ -1,4 +1,4 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"context"

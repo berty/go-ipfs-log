@@ -61,7 +61,7 @@ func buildNode(ctx context.Context) (*ipfs_core.IpfsNode, error) {
 	return ipfs_core.NewNode(ctx, cfg)
 }
 
-func ExampleLogAppend() {
+func Example_logAppend() {
 	ctx := context.Background()
 
 	// Build Ipfs Node A
