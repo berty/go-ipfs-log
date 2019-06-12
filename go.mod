@@ -47,12 +47,11 @@ require (
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pty v1.1.4 // indirect
 	github.com/libp2p/go-libp2p v0.0.28
-	github.com/libp2p/go-libp2p-core v0.0.3
+	github.com/libp2p/go-libp2p-core v0.0.3 // indirect
 	github.com/libp2p/go-libp2p-crypto v0.0.2
 	github.com/libp2p/go-libp2p-host v0.0.3
 	github.com/libp2p/go-libp2p-peer v0.1.1
 	github.com/libp2p/go-libp2p-peerstore v0.0.6
-	github.com/libp2p/go-libp2p-record v0.0.1
 	github.com/libp2p/go-libp2p-testing v0.0.4 // indirect
 	github.com/logrusorgru/aurora v0.0.0-20190428105938-cea283e61946 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect

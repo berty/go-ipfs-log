@@ -41,7 +41,7 @@ func TestEntry(t *testing.T) {
 	Convey("Entry", t, FailureHalts, func(c C) {
 		c.Convey("create", FailureHalts, func(c C) {
 			c.Convey("creates an empty entry", FailureHalts, func(c C) {
-				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
+				expectedHash := "bafyreidbxpymnb357glm2cujnjcfmg7rge4ybpurgllpvp57kvk7xrmf2e"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
@@ -55,7 +55,7 @@ func TestEntry(t *testing.T) {
 			})
 
 			c.Convey("creates an entry with payload", FailureContinues, func(c C) {
-				expectedHash := "zdpuAtjiCZSrHRjnxHJkWP6zXYbZnNDv799AZXUkTgdFLfTho"
+				expectedHash := "bafyreid3ro4ojhyvyajvfjhpyldkvyerio5lji6cys26uidscjt73dawiy"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello world"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
@@ -69,7 +69,7 @@ func TestEntry(t *testing.T) {
 			})
 
 			c.Convey("creates an entry with payload and next", FailureContinues, func(c C) {
-				expectedHash := "zdpuAsTdJiUff2ymap5cTdLn1yBTWHLoceJ9ikksB2wxrvTPt"
+				expectedHash := "bafyreiek7jfqe2zkmqeme7h2ftvv6twfsobwzam43o2i5zcy5al3v7asom"
 				payload1 := "hello world"
 				payload2 := "hello again"
 				e1, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
@@ -86,7 +86,7 @@ func TestEntry(t *testing.T) {
 			})
 
 			c.Convey("should return an entry interopable with older versions", FailureContinues, func(c C) {
-				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
+				expectedHash := "bafyreidbxpymnb357glm2cujnjcfmg7rge4ybpurgllpvp57kvk7xrmf2e"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
@@ -121,7 +121,7 @@ func TestEntry(t *testing.T) {
 
 		c.Convey("toMultihash", FailureContinues, func(c C) {
 			c.Convey("returns an ipfs hash", FailureContinues, func(c C) {
-				expectedHash := "zdpuArzxF8fqM5E1zE9TgENc6fHqPXBgMKexM4SfoworsKYnt"
+				expectedHash := "bafyreidbxpymnb357glm2cujnjcfmg7rge4ybpurgllpvp57kvk7xrmf2e"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 				hash, err := entry.ToMultihash(ipfs, e)
