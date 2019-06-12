@@ -1,4 +1,4 @@
-package logcreator // import "berty.tech/go-ipfs-log/logcreator"
+package logcreator // import "berty.tech/go-ipfs-log/test/logcreator"
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package lamportclock // import "berty.tech/go-ipfs-log/lamportclock"
+package lamportclock // import "berty.tech/go-ipfs-log/utils/lamportclock"
 
 import (
 	"bytes"
