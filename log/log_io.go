@@ -1,13 +1,13 @@
-package log
+package log // import "berty.tech/go-ipfs-log/log"
 
 import (
 	"time"
 
-	"github.com/berty/go-ipfs-log/entry"
-	"github.com/berty/go-ipfs-log/errmsg"
-	"github.com/berty/go-ipfs-log/io"
-	"github.com/berty/go-ipfs-log/utils/lamportclock"
-	"github.com/ipfs/go-cid"
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
+	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/utils/lamportclock"
+	cid "github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/pkg/errors"
 )

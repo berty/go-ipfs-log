@@ -1,4 +1,4 @@
-package log
+package log // import "berty.tech/go-ipfs-log/log"
 
 import (
 	"bytes"
@@ -8,19 +8,17 @@ import (
 	"strings"
 	"time"
 
+	"berty.tech/go-ipfs-log/accesscontroller"
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
+	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/utils/lamportclock"
 	"github.com/iancoleman/orderedmap"
-
+	cid "github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/polydawn/refmt/obj/atlas"
-
-	"github.com/berty/go-ipfs-log/accesscontroler"
-	"github.com/berty/go-ipfs-log/entry"
-	"github.com/berty/go-ipfs-log/errmsg"
-	"github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	"github.com/berty/go-ipfs-log/utils/lamportclock"
-	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
+	"github.com/polydawn/refmt/obj/atlas"
 )
 
 type JSONLog struct {
@@ -31,7 +29,7 @@ type JSONLog struct {
 type Log struct {
 	Storage          *io.IpfsServices
 	ID               string
-	AccessController accesscontroler.Interface
+	AccessController accesscontroller.Interface
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
 	Identity         *identityprovider.Identity
 	Entries          *entry.OrderedMap
@@ -42,7 +40,7 @@ type Log struct {
 
 type NewLogOptions struct {
 	ID               string
-	AccessController accesscontroler.Interface
+	AccessController accesscontroller.Interface
 	Entries          *entry.OrderedMap
 	Heads            []*entry.Entry
 	Clock            *lamportclock.LamportClock
@@ -101,7 +99,7 @@ func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, opti
 	maxTime = maxClockTimeForEntries(options.Heads, maxTime)
 
 	if options.AccessController == nil {
-		options.AccessController = &accesscontroler.Default{}
+		options.AccessController = &accesscontroller.Default{}
 	}
 
 	if options.Entries == nil {

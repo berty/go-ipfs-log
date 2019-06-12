@@ -1,11 +1,12 @@
-package lamportclock
+package lamportclock // import "berty.tech/go-ipfs-log/lamportclock"
 
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
+
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/polydawn/refmt/obj/atlas"
-	"math"
 )
 
 type LamportClock struct {
@@ -66,7 +67,7 @@ type CborLamportClock struct {
 
 func (l *LamportClock) ToCborLamportClock() *CborLamportClock {
 	return &CborLamportClock{
-		ID: hex.EncodeToString(l.ID),
+		ID:   hex.EncodeToString(l.ID),
 		Time: l.Time,
 	}
 }
@@ -78,13 +79,12 @@ func (c *CborLamportClock) ToLamportClock() (*LamportClock, error) {
 	}
 
 	return &LamportClock{
-		ID: id,
+		ID:   id,
 		Time: c.Time,
 	}, nil
 }
 
-
-	var AtlasLamportClock = atlas.BuildEntry(CborLamportClock{}).
+var AtlasLamportClock = atlas.BuildEntry(CborLamportClock{}).
 	StructMap().
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("Time", atlas.StructMapEntry{SerialName: "time"}).

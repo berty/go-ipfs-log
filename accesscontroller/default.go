@@ -1,8 +1,8 @@
-package accesscontroler
+package accesscontroller // import "berty.tech/go-ipfs-log/accesscontroller"
 
 import (
-	"github.com/berty/go-ipfs-log/entry"
-	"github.com/berty/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/identityprovider"
 )
 
 type Default struct {

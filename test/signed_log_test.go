@@ -1,24 +1,25 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/berty/go-ipfs-log/entry"
-	"github.com/berty/go-ipfs-log/errmsg"
-	idp "github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	ks "github.com/berty/go-ipfs-log/keystore"
-	"github.com/berty/go-ipfs-log/log"
-	dssync "github.com/ipfs/go-datastore/sync"
 	"testing"
 	"time"
+
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	ks "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/log"
+	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func mustBytes (data []byte, err error) []byte {
+func mustBytes(data []byte, err error) []byte {
 	if err != nil {
 		panic(err)
 	}
@@ -173,7 +174,6 @@ func TestSignedLog(t *testing.T) {
 			c.So(err, ShouldNotBeNil)
 			c.So(err.Error(), ShouldContainSubstring, "Entry doesn't have a key")
 		})
-
 
 		c.Convey("throws an error if log is signed but trying to merge an entry that doesn't have a signature", FailureHalts, func(c C) {
 			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
