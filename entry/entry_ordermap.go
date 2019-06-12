@@ -1,4 +1,4 @@
-package entry
+package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"github.com/iancoleman/orderedmap"

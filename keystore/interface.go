@@ -1,6 +1,6 @@
-package keystore
+package keystore // import "berty.tech/go-ipfs-log/keystore"
 
-import "github.com/libp2p/go-libp2p-crypto"
+import crypto "github.com/libp2p/go-libp2p-crypto"
 
 type Interface interface {
 	HasKey(id string) (bool, error)

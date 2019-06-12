@@ -1,9 +1,10 @@
-package identityprovider
+package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/berty/go-ipfs-log/keystore"
+
+	"berty.tech/go-ipfs-log/keystore"
 	"github.com/pkg/errors"
 )
 

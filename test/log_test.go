@@ -1,19 +1,20 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"context"
 	"fmt"
-	"github.com/berty/go-ipfs-log/errmsg"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/berty/go-ipfs-log/entry"
-	idp "github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	ks "github.com/berty/go-ipfs-log/keystore"
-	"github.com/berty/go-ipfs-log/log"
-	"github.com/berty/go-ipfs-log/utils/lamportclock"
+	"berty.tech/go-ipfs-log/errmsg"
+
+	"berty.tech/go-ipfs-log/entry"
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	ks "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/log"
+	"berty.tech/go-ipfs-log/utils/lamportclock"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -38,8 +39,8 @@ func TestLog(t *testing.T) {
 
 		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 			Keystore: keystore,
-			ID: fmt.Sprintf("user%c", char),
-			Type: "orbitdb",
+			ID:       fmt.Sprintf("user%c", char),
+			Type:     "orbitdb",
 		})
 
 		if err != nil {
@@ -73,20 +74,20 @@ func TestLog(t *testing.T) {
 			c.Convey("sets items if given as params", FailureHalts, func(c C) {
 				id1, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 					Keystore: keystore,
-					ID: "userA",
-					Type: "orbitdb",
+					ID:       "userA",
+					Type:     "orbitdb",
 				})
 				c.So(err, ShouldBeNil)
 				id2, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 					Keystore: keystore,
-					ID: "userB",
-					Type: "orbitdb",
+					ID:       "userB",
+					Type:     "orbitdb",
 				})
 				c.So(err, ShouldBeNil)
 				id3, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 					Keystore: keystore,
-					ID: "userC",
-					Type: "orbitdb",
+					ID:       "userC",
+					Type:     "orbitdb",
 				})
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries

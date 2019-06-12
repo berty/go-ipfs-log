@@ -1,8 +1,9 @@
-package identityprovider
+package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"encoding/base64"
 	"encoding/hex"
+
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
@@ -10,12 +11,12 @@ import (
 )
 
 type IdentitySignature struct {
-	ID []byte
+	ID        []byte
 	PublicKey []byte
 }
 
 type CborIdentitySignature struct {
-	ID string
+	ID        string
 	PublicKey string
 }
 
@@ -34,12 +35,12 @@ type CborIdentity struct {
 	Type       string
 }
 
-func (i *Identity) Filtered() * Identity {
+func (i *Identity) Filtered() *Identity {
 	return &Identity{
-		ID: i.ID,
-		PublicKey: i.PublicKey,
+		ID:         i.ID,
+		PublicKey:  i.PublicKey,
 		Signatures: i.Signatures,
-		Type: i.Type,
+		Type:       i.Type,
 	}
 }
 
@@ -95,12 +96,11 @@ func init() {
 	cbornode.RegisterCborType(AtlasPubKey)
 }
 
-
 func (i *Identity) ToCborIdentity() *CborIdentity {
 	return &CborIdentity{
-		ID: i.ID,
-		PublicKey: hex.EncodeToString(i.PublicKey),
-		Type: i.Type,
+		ID:         i.ID,
+		PublicKey:  hex.EncodeToString(i.PublicKey),
+		Type:       i.Type,
 		Signatures: i.Signatures.ToCborIdentitySignatures(),
 	}
 }
@@ -118,17 +118,16 @@ func (c *CborIdentity) ToIdentity(provider Interface) (*Identity, error) {
 
 	return &Identity{
 		Signatures: idSignatures,
-		PublicKey: publicKey,
-		Type: c.Type,
-		ID: c.ID,
-		Provider: provider,
+		PublicKey:  publicKey,
+		Type:       c.Type,
+		ID:         c.ID,
+		Provider:   provider,
 	}, nil
 }
 
-
 func (i *IdentitySignature) ToCborIdentitySignatures() *CborIdentitySignature {
 	return &CborIdentitySignature{
-		ID: hex.EncodeToString(i.ID),
+		ID:        hex.EncodeToString(i.ID),
 		PublicKey: hex.EncodeToString(i.PublicKey),
 	}
 }
@@ -146,8 +145,6 @@ func (c *CborIdentitySignature) ToIdentitySignatures() (*IdentitySignature, erro
 
 	return &IdentitySignature{
 		PublicKey: publicKey,
-		ID: id,
+		ID:        id,
 	}, nil
 }
-
-

@@ -1,17 +1,18 @@
-package io
+package io // import "berty.tech/go-ipfs-log/io"
 
 import (
 	"context"
 	"fmt"
-	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipld-cbor"
-	format "github.com/ipfs/go-ipld-format"
 	"math"
+
+	cid "github.com/ipfs/go-cid"
+	cbornode "github.com/ipfs/go-ipld-cbor"
+	format "github.com/ipfs/go-ipld-format"
 )
 
 var debug = false
 
-func SetDebug (val bool) {
+func SetDebug(val bool) {
 	debug = val
 }
 
@@ -36,4 +37,3 @@ func WriteCBOR(ipfs *IpfsServices, obj interface{}) (cid.Cid, error) {
 func ReadCBOR(ipfs *IpfsServices, contentIdentifier cid.Cid) (format.Node, error) {
 	return ipfs.DAG.Get(context.Background(), contentIdentifier)
 }
-

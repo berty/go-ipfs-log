@@ -1,9 +1,9 @@
-package io_test
-//
+package io_test // import "berty.tech/go-ipfs-log/io"
+
 //import (
 //	"fmt"
-//	"github.com/berty/go-ipfs-log/entry"
-//	"github.com/berty/go-ipfs-log/io"
+//	"berty.tech/go-ipfs-log/entry"
+//	"berty.tech/go-ipfs-log/io"
 //	"github.com/ipfs/go-cid"
 //	"testing"
 //)

@@ -1,12 +1,13 @@
-package entry
+package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"context"
 	"fmt"
-	"github.com/berty/go-ipfs-log/identityprovider"
-	"github.com/berty/go-ipfs-log/io"
-	"github.com/ipfs/go-cid"
 	"time"
+
+	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
+	cid "github.com/ipfs/go-cid"
 )
 
 type FetchOptions struct {

@@ -1,7 +1,8 @@
-package test
+package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"encoding/hex"
+
 	ds "github.com/ipfs/go-datastore"
 )
 

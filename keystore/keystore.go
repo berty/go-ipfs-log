@@ -1,11 +1,12 @@
-package keystore
+package keystore // import "berty.tech/go-ipfs-log/keystore"
 
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/hashicorp/golang-lru"
-	"github.com/ipfs/go-datastore"
-	"github.com/libp2p/go-libp2p-crypto"
+
+	lru "github.com/hashicorp/golang-lru"
+	datastore "github.com/ipfs/go-datastore"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 )
 
@@ -101,7 +102,7 @@ func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 	} else {
 		keyBytes, err = base64.StdEncoding.DecodeString(cachedKey.(string))
 		if err != nil {
-			return nil, errors.Wrap(err,"unable to cast private key to bytes")
+			return nil, errors.Wrap(err, "unable to cast private key to bytes")
 		}
 	}
 
