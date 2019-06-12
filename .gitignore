@@ -7,6 +7,9 @@
 [._]ss[a-gi-z]
 [._]sw[a-p]
 
+# osx
+.DS_Store
+
 # Session
 Session.vim
 
