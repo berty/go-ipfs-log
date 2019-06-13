@@ -19,7 +19,7 @@ type FetchOptions struct {
 	Provider     identityprovider.Interface
 }
 
-func FetchParallel(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+func FetchParallel(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	var entries []*Entry
 
 	for _, h := range hashes {
@@ -32,7 +32,7 @@ func FetchParallel(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOption
 	return NewOrderedMapFromEntries(entries).Slice()
 }
 
-func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)

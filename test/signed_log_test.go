@@ -11,7 +11,6 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
 	ks "berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/log"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -50,7 +49,7 @@ func TestSignedLog(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	ipfs := io.NewMemoryServices()
+	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := ks.NewKeystore(datastore)

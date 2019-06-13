@@ -27,7 +27,7 @@ type JSONLog struct {
 }
 
 type Log struct {
-	Storage          *io.IpfsServices
+	Storage          io.IpfsServices
 	ID               string
 	AccessController accesscontroller.Interface
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
@@ -71,7 +71,7 @@ func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
 	return max
 }
 
-func NewLog(services *io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) (*Log, error) {
+func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *NewLogOptions) (*Log, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -475,7 +475,7 @@ func (l *Log) ToMultihash() (cid.Cid, error) {
 	return ToMultihash(l.Storage, l)
 }
 
-func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromMultihash(services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -522,7 +522,7 @@ func NewFromMultihash(services *io.IpfsServices, identity *identityprovider.Iden
 	})
 }
 
-func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromEntryHash(services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *NewLogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -549,7 +549,7 @@ func NewFromEntryHash(services *io.IpfsServices, identity *identityprovider.Iden
 	})
 }
 
-func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromJSON(services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -577,7 +577,7 @@ func NewFromJSON(services *io.IpfsServices, identity *identityprovider.Identity,
 	})
 }
 
-func NewFromEntry(services *io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromEntry(services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *NewLogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}

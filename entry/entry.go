@@ -128,7 +128,7 @@ func init() {
 	cbornode.RegisterCborType(AtlasEntry)
 }
 
-func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *lamportclock.LamportClock) (*Entry, error) {
+func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *lamportclock.LamportClock) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
@@ -179,7 +179,7 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 	}
 
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	err = ipfsInstance.DAG.Add(ctx, nd)
+	err = ipfsInstance.Dag().Add(ctx, nd)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 	return nil
 }
 
-func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
+func ToMultihash(ipfsInstance io.IpfsServices, entry *Entry) (cid.Cid, error) {
 	if entry == nil {
 		return cid.Cid{}, errors.New("entry is not defined")
 	}
@@ -334,7 +334,7 @@ func ToMultihash(ipfsInstance *io.IpfsServices, entry *Entry) (cid.Cid, error) {
 	return entryCID, err
 }
 
-func FromMultihash(ipfs *io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+func FromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
