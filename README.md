@@ -1,13 +1,10 @@
 <h1 align="center">
   <br>
-  <img src="https://berty.tech/img/logo.svg" alt="The Berty Project" height="300px">
-  <br>
-  <br>
-  Berty
+  go-ipfs-log
   <br>
 </h1>
 
-<h3 align="center">🤝 Distributed communication for everyone.</h3>
+<h3 align="center">🤝 Go version of append-only log CRDT on IPFS.</h3>
 
 <p align="center">
   <a href="https://circleci.com/gh/berty/go-ipfs-log">
