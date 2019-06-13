@@ -36,3 +36,18 @@
     <a href="https://berty.tech">berty.tech</a> •
     <a href="https://github.com/berty">GitHub</a>
 </b></p>
+
+> An append-only log on IPFS.
+
+[ipfs-log](https://github.com/orbitdb/ipfs-log/) was originally created for [orbit-db](https://github.com/orbitdb/orbit-db) - a distributed peer-to-peer database on [IPFS](https://github.com/ipfs/ipfs). This library intends to provide a fully compatible port of the JavaScript version in Go.
+
+The majority of this code was vastly derived from the JavaScript's [ipfs-log](https://github.com/orbitdb/ipfs-log) library.
+
+## Usage
+
+See the `example` package on [GoDoc](https://godoc.org/berty.tech/go-ipfs-log/example#example-package--LogAppend)
+
+## Licensing
+
+*go-ipfs-log* is licensed under the Apache License, Version 2.0.
+See [LICENSE](LICENSE) for the full license text.
