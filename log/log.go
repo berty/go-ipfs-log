@@ -262,14 +262,13 @@ type IteratorOptions struct {
 	Amount *int
 }
 
-func (l *Log) iterator(options IteratorOptions, output chan<- *entry.Entry) error {
+func (l *Log) Iterator(options IteratorOptions, output chan<- *entry.Entry) error {
 	amount := -1
 	if options.Amount != nil {
 		if *options.Amount == 0 {
 			return nil
-		} else {
-			amount = *options.Amount
 		}
+		amount = *options.Amount
 	}
 
 	start := l.heads.Slice()

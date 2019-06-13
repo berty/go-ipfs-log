@@ -13,7 +13,6 @@ import (
 var supportedTypes = map[string]func(*CreateIdentityOptions) Interface{
 	"orbitdb": NewOrbitDBIdentityProvider,
 }
-var identityKeysPath = "./orbitdb/identity/identitykeys"
 
 type Identities struct {
 	keyStore keystore.Interface
@@ -53,7 +52,7 @@ func (i *Identities) Verify(signature []byte, publicKey crypto.PubKey, data []by
 
 type MigrateOptions struct {
 	TargetPath string
-	TargetId   string
+	TargetID   string
 }
 
 func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
@@ -83,7 +82,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 
 	// FIXME ?
 	//if options.Migrate != nil {
-	//	if err := options.Migrate(&MigrateOptions{ TargetPath: i.keyStore.Path, TargetId: id }); err != nil {
+	//	if err := options.Migrate(&MigrateOptions{ TargetPath: i.keyStore.Path, TargetID: id }); err != nil {
 	//		return nil, err
 	//	}
 	//}
@@ -103,7 +102,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 		return nil, err
 	}
 
-	pubKeyIdSignature, err := identityProvider.SignIdentity(append(publicKeyBytes, idSignature...), options.ID)
+	pubKeyIDSignature, err := identityProvider.SignIdentity(append(publicKeyBytes, idSignature...), options.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +112,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 		PublicKey: publicKeyBytes,
 		Signatures: &IdentitySignature{
 			ID:        idSignature,
-			PublicKey: pubKeyIdSignature,
+			PublicKey: pubKeyIDSignature,
 		},
 		Type:     identityProvider.GetType(),
 		Provider: identityProvider,
@@ -145,13 +144,15 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 	}
 
 	idBytes, err := hex.DecodeString(identity.ID)
+	if err != nil {
+		return err
+	}
 
 	err = i.keyStore.Verify(
 		identity.Signatures.ID,
 		pubKey,
 		idBytes,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -187,7 +188,7 @@ func IsSupported(typeName string) bool {
 
 func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface) error {
 	if identityProvider == nil {
-		return errors.New("IdentityProvider class needs to be given as an option")
+		return errors.New("'IdentityProvider' class needs to be given as an option")
 	}
 
 	supportedTypes[identityProvider(nil).GetType()] = identityProvider

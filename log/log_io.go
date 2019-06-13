@@ -21,7 +21,7 @@ type FetchOptions struct {
 
 func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
-		return cid.Cid{}, errors.New(`Can't serialize an empty log`)
+		return cid.Cid{}, errors.New(`can't serialize an empty log`)
 	}
 
 	return io.WriteCBOR(services, log.ToJSON())
@@ -100,7 +100,7 @@ func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOp
 
 	sliced := entries
 	if length > -1 {
-		entries = entries[:-length]
+		sliced = sliced[:-length]
 	}
 
 	return sliced, nil

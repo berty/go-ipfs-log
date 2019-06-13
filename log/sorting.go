@@ -18,7 +18,7 @@ func SortByClocks(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *ent
 	return diff, nil
 }
 
-func SortByClockId(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
+func SortByClockID(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
 	comparedIDs := bytes.Compare(a.Clock.ID, b.Clock.ID)
 
 	if comparedIDs == 0 {
@@ -43,7 +43,7 @@ func FirstWriteWins(a, b *entry.Entry) (int, error) {
 
 func LastWriteWins(a, b *entry.Entry) (int, error) {
 	sortByID := func(a *entry.Entry, b *entry.Entry) (int, error) {
-		return SortByClockId(a, b, First)
+		return SortByClockID(a, b, First)
 	}
 
 	sortByEntryClocks := func(a *entry.Entry, b *entry.Entry) (int, error) {

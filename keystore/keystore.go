@@ -94,11 +94,9 @@ func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 		keyBytes, err = k.store.Get(datastore.NewKey(id))
 
 		if err != nil {
-			cachedKey = nil
-			return nil, errors.New("unable to fetch a private key from keystore")
-		} else {
-			k.cache.Add(id, base64.StdEncoding.EncodeToString(keyBytes))
+			return nil, errors.Wrap(err, "unable to fetch a private key from keystore")
 		}
+		k.cache.Add(id, base64.StdEncoding.EncodeToString(keyBytes))
 	} else {
 		keyBytes, err = base64.StdEncoding.DecodeString(cachedKey.(string))
 		if err != nil {

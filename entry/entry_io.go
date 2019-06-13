@@ -1,7 +1,6 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -65,22 +64,11 @@ func FetchAll(ipfs *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []
 	}
 
 	fetchEntry := func() {
-		var loadingQueueStrings []string
-		for _, c := range loadingQueue {
-			loadingQueueStrings = append(loadingQueueStrings, c.String())
-		}
-
 		hash := loadingQueue[0]
 		loadingQueue = loadingQueue[1:]
 
 		if _, ok := cache.Get(hash.String()); ok {
 			return
-		}
-
-		ctx := context.Background()
-
-		if options.Timeout != 0 {
-			ctx, _ = context.WithTimeout(ctx, options.Timeout)
 		}
 
 		entry, err := FromMultihash(ipfs, hash, options.Provider)

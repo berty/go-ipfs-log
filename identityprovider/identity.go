@@ -81,6 +81,9 @@ var AtlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
 			}
 
 			key, err := ic.UnmarshalSecp256k1PublicKey(keyBytes)
+			if err != nil {
+				return ic.Secp256k1PublicKey{}, errors.Wrap(err, "failed to unmarshal public key")
+			}
 			secpKey, ok := key.(*ic.Secp256k1PublicKey)
 			if !ok {
 				return ic.Secp256k1PublicKey{}, errors.New("invalid public key")

@@ -115,7 +115,7 @@ func TestEntry(t *testing.T) {
 			c.Convey("returns an error if LogID is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello")}, nil)
 				c.So(e, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "LogID is required")
+				c.So(err.Error(), ShouldEqual, "'LogID' is required")
 			})
 		})
 

@@ -172,7 +172,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "Entry doesn't have a key")
+			c.So(err.Error(), ShouldContainSubstring, "entry doesn't have a key")
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge an entry that doesn't have a signature", FailureHalts, func(c C) {
@@ -192,7 +192,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "Entry doesn't have a signature")
+			c.So(err.Error(), ShouldContainSubstring, "entry doesn't have a signature")
 		})
 
 		c.Convey("throws an error if log is signed but the signature doesn't verify", FailureHalts, func(c C) {
