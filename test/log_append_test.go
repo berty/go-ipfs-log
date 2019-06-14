@@ -7,8 +7,7 @@ import (
 	"time"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	log_io "berty.tech/go-ipfs-log/io"
-	keystore "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/log"
 	dssync "github.com/ipfs/go-datastore/sync"
 
@@ -19,7 +18,7 @@ func TestLogAppend(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	ipfs := log_io.NewMemoryServices()
+	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
 	keystore, err := keystore.NewKeystore(datastore)

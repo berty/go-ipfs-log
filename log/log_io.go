@@ -19,7 +19,7 @@ type FetchOptions struct {
 	Timeout      time.Duration
 }
 
-func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
+func ToMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
 		return cid.Cid{}, errors.New(`can't serialize an empty log`)
 	}
@@ -27,7 +27,7 @@ func ToMultihash(services *io.IpfsServices, log *Log) (cid.Cid, error) {
 	return io.WriteCBOR(services, log.ToJSON())
 }
 
-func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
+func FromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
 	result, err := io.ReadCBOR(services, hash)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func FromMultihash(services *io.IpfsServices, hash cid.Cid, options *FetchOption
 	}, nil
 }
 
-func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
+func FromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -106,7 +106,7 @@ func FromEntryHash(services *io.IpfsServices, hashes []cid.Cid, options *FetchOp
 	return sliced, nil
 }
 
-func FromJSON(services *io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+func FromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -132,7 +132,7 @@ func FromJSON(services *io.IpfsServices, jsonLog *JSONLog, options *entry.FetchO
 	}, nil
 }
 
-func FromEntry(services *io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
+func FromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}

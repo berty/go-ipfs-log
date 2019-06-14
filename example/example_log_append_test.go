@@ -6,16 +6,16 @@ import (
 	"io/ioutil"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	log_io "berty.tech/go-ipfs-log/io"
-	keystore "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/log"
-	datastore "github.com/ipfs/go-datastore"
+	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	config "github.com/ipfs/go-ipfs-config"
 	ipfs_core "github.com/ipfs/go-ipfs/core"
+	"github.com/ipfs/go-ipfs/core/coreapi"
 	ipfs_libp2p "github.com/ipfs/go-ipfs/core/node/libp2p"
 	ipfs_repo "github.com/ipfs/go-ipfs/repo"
-	libp2p "github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p"
 	host "github.com/libp2p/go-libp2p-host"
 	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -86,11 +86,15 @@ func Example_logAppend() {
 		panic(fmt.Errorf("connect error: %s", err))
 	}
 
-	mdsA := datastore.NewMapDatastore()
-	serviceA := log_io.FromIpfsNode(nodeA, mdsA)
+	serviceA, err := coreapi.NewCoreAPI(nodeA)
+	if err != nil {
+		panic(fmt.Errorf("coreapi error: %s", err))
+	}
 
-	mdsB := datastore.NewMapDatastore()
-	serviceB := log_io.FromIpfsNode(nodeB, mdsB)
+	serviceB, err := coreapi.NewCoreAPI(nodeB)
+	if err != nil {
+		panic(fmt.Errorf("coreapi error: %s", err))
+	}
 
 	// Fill up datastore with identities
 	ds := dssync.MutexWrap(datastore.NewMapDatastore())

@@ -14,7 +14,7 @@ type CreatedLog struct {
 	JSON         *log.JSONLog
 }
 
-func createLogsFor16Entries(ipfs *io.IpfsServices, identities [4]*idp.Identity) (*log.Log, error) {
+func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*log.Log, error) {
 	logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func createLogsFor16Entries(ipfs *io.IpfsServices, identities [4]*idp.Identity) 
 	return l, nil
 }
 
-func CreateLogWithSixteenEntries(ipfs *io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithSixteenEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
 	expectedData := []string{
 		"entryA1", "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
 		"entryA4", "entryB4", "entryA5", "entryB5",
@@ -101,7 +101,7 @@ func CreateLogWithSixteenEntries(ipfs *io.IpfsServices, identities [4]*idp.Ident
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ipfs *io.IpfsServices, identities [4]*idp.Identity) (*log.Log, []string, error) {
+func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*log.Log, []string, error) {
 	var expectedData []string
 	const amount = 100
 
@@ -144,7 +144,7 @@ func createLogWithHundredEntries(ipfs *io.IpfsServices, identities [4]*idp.Ident
 	return logA, expectedData, nil
 }
 
-func CreateLogWithHundredEntries(ipfs *io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
 	l, expectedData, err := createLogWithHundredEntries(ipfs, identities)
 	if err != nil {
 		return nil, err

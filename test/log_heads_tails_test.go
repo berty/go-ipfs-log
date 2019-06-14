@@ -7,7 +7,6 @@ import (
 	"time"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
 	ks "berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/log"
 	ds "github.com/ipfs/go-datastore"
@@ -20,7 +19,7 @@ func TestLogHeadsTails(t *testing.T) {
 	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	ipfs := io.NewMemoryServices()
+	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(ds.NewMapDatastore())
 	keystore, err := ks.NewKeystore(datastore)
