@@ -61,7 +61,7 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
 	key, err := p.keystore.GetKey(identity.ID)
 	if err != nil {
-		return nil, errors.New("Private signing key not found from Keystore")
+		return nil, errors.Wrap(err, "private signing key not found from Keystore")
 	}
 
 	sig, err := key.Sign(data)

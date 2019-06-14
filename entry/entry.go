@@ -16,7 +16,6 @@ import (
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
-	_ "github.com/polydawn/refmt"
 	"github.com/polydawn/refmt/obj/atlas"
 )
 
@@ -32,7 +31,7 @@ type Entry struct {
 	Clock    *lamportclock.LamportClock
 }
 
-type EntryToHash struct {
+type Hashable struct {
 	Hash    interface{}
 	ID      string
 	Payload []byte
@@ -42,7 +41,7 @@ type EntryToHash struct {
 	Key     []byte
 }
 
-var AtlasEntryToHash = atlas.BuildEntry(EntryToHash{}).
+var AtlasHashable = atlas.BuildEntry(Hashable{}).
 	StructMap().
 	AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
@@ -142,7 +141,7 @@ func CreateEntry(ipfsInstance *io.IpfsServices, identity *identityprovider.Ident
 	}
 
 	if data.LogID == "" {
-		return nil, errors.New("LogID is required")
+		return nil, errors.New("'LogID' is required")
 	}
 
 	if clock == nil {
@@ -217,7 +216,7 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	return out
 }
 
-func ToBuffer(e *EntryToHash) ([]byte, error) {
+func ToBuffer(e *Hashable) ([]byte, error) {
 	if e == nil {
 		return nil, errors.New("entry is not defined")
 	}
@@ -240,14 +239,14 @@ func ToBuffer(e *EntryToHash) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (e *Entry) ToHashable() *EntryToHash {
+func (e *Entry) ToHashable() *Hashable {
 	nexts := []string{}
 
 	for _, n := range e.Next {
 		nexts = append(nexts, n.String())
 	}
 
-	return &EntryToHash{
+	return &Hashable{
 		Hash:    nil,
 		ID:      e.LogID,
 		Payload: e.Payload,
@@ -259,7 +258,7 @@ func (e *Entry) ToHashable() *EntryToHash {
 }
 
 func (e *Entry) IsValid() bool {
-	return e.LogID != "" && len(e.Payload) > 0 && e.V >= 0 && e.V <= 1
+	return e.LogID != "" && len(e.Payload) > 0 && e.V <= 1
 }
 
 func Verify(identity identityprovider.Interface, entry *Entry) error {
@@ -268,11 +267,11 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 	}
 
 	if len(entry.Key) == 0 {
-		return errors.New("Entry doesn't have a key")
+		return errors.New("entry doesn't have a key")
 	}
 
 	if len(entry.Sig) == 0 {
-		return errors.New("Entry doesn't have a signature")
+		return errors.New("entry doesn't have a signature")
 	}
 
 	// TODO: Check against trusted keys
@@ -405,10 +404,9 @@ func FindChildren(entry *Entry, values []*Entry) []*Entry {
 		}
 	}
 
-	prev := entry
 	for parent != nil {
 		stack = append(stack, parent)
-		prev = parent
+		prev := parent
 
 		for _, e := range values {
 			if IsParent(prev, e) {
