@@ -6,7 +6,7 @@ import (
 
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/io"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 )
 
 type FetchOptions struct {
@@ -18,6 +18,7 @@ type FetchOptions struct {
 	Provider     identityprovider.Interface
 }
 
+// FetchParallel retrieves IPFS log entries.
 func FetchParallel(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	var entries []*Entry
 
@@ -31,6 +32,7 @@ func FetchParallel(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions
 	return NewOrderedMapFromEntries(entries).Slice()
 }
 
+// FetchAll gets entries from their CIDs.
 func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
 	cache := NewOrderedMap()
@@ -41,7 +43,7 @@ func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*
 	}
 
 	addToResults := func(entry *Entry) {
-		if entry.IsValid() {
+		if entry.isValid() {
 			loadingQueue = append(loadingQueue, entry.Next...)
 			result = append(result, entry)
 			cache.Set(entry.Hash.String(), entry)
@@ -53,7 +55,7 @@ func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*
 	}
 
 	for _, e := range options.Exclude {
-		if e.IsValid() {
+		if e.isValid() {
 			result = append(result, e)
 			cache.Set(e.Hash.String(), e)
 		}
@@ -71,7 +73,7 @@ func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*
 			return
 		}
 
-		entry, err := FromMultihash(ipfs, hash, options.Provider)
+		entry, err := fromMultihash(ipfs, hash, options.Provider)
 		if err != nil {
 			fmt.Printf("unable to fetch entry %s, %+v\n", hash, err)
 			return
@@ -79,7 +81,7 @@ func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*
 
 		entry.Hash = hash
 
-		if entry.IsValid() {
+		if entry.isValid() {
 			addToResults(entry)
 		}
 	}

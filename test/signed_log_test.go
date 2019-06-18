@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -77,14 +77,14 @@ func TestSignedLog(t *testing.T) {
 	Convey("Signed Log", t, FailureHalts, func(c C) {
 		c.Convey("creates a signed log", FailureHalts, func(c C) {
 			logID := "A"
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: logID})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: logID})
 			c.So(err, ShouldBeNil)
 			c.So(l.ID, ShouldNotBeNil)
 			c.So(l.ID, ShouldEqual, logID)
 		})
 
 		c.Convey("has the correct identity", FailureHalts, func(c C) {
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 			c.So(l.ID, ShouldNotBeNil)
 			c.So(l.Identity.ID, ShouldEqual, "03e0480538c2a39951d054e17ff31fde487cb1031d0044a037b53ad2e028a3e77c")
@@ -94,28 +94,28 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("has the correct public key", FailureHalts, func(c C) {
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			c.So(l.Identity.PublicKey, ShouldResemble, identities[0].PublicKey)
 		})
 
 		c.Convey("has the correct pkSignature", FailureHalts, func(c C) {
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			c.So(l.Identity.Signatures.ID, ShouldResemble, identities[0].Signatures.ID)
 		})
 
 		c.Convey("has the correct signature", FailureHalts, func(c C) {
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			c.So(l.Identity.Signatures.PublicKey, ShouldResemble, identities[0].Signatures.PublicKey)
 		})
 
 		c.Convey("entries contain an identity", FailureHalts, func(c C) {
-			l, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l.Append([]byte("one"), 1)
@@ -126,15 +126,15 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("doesn't sign entries when identity is not defined", FailureHalts, func(c C) {
-			_, err := log.NewLog(ipfs, nil, nil)
+			_, err := ipfslog.NewLog(ipfs, nil, nil)
 			c.So(err, ShouldEqual, errmsg.IdentityNotDefined)
 		})
 
 		c.Convey("doesn't join logs with different IDs", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "B"})
+			l2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "B"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)
@@ -155,10 +155,10 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge with an entry that doesn't have public signing key", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "A"})
+			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)
@@ -175,10 +175,10 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge an entry that doesn't have a signature", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "A"})
+			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)
@@ -195,10 +195,10 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("throws an error if log is signed but the signature doesn't verify", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "A"})
+			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)
@@ -218,10 +218,10 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("throws an error if entry doesn't have append access", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "A", AccessController: &DenyAll{}})
+			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A", AccessController: &DenyAll{}})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)
@@ -233,10 +233,10 @@ func TestSignedLog(t *testing.T) {
 		})
 
 		c.Convey("throws an error upon join if entry doesn't have append access", FailureHalts, func(c C) {
-			l1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", AccessController: &TestACL{refIdentity: identities[1]}})
+			l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", AccessController: &TestACL{refIdentity: identities[1]}})
 			c.So(err, ShouldBeNil)
 
-			l2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "A"})
+			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Append([]byte("one"), 1)

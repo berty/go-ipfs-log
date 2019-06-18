@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	log "berty.tech/go-ipfs-log"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	config "github.com/ipfs/go-ipfs-config"
@@ -126,7 +126,7 @@ func Example_logAppend() {
 	}
 
 	// creating log
-	logA, err := log.NewLog(serviceA, identityA, &log.NewLogOptions{ID: "A"})
+	logA, err := log.NewLog(serviceA, identityA, &log.LogOptions{ID: "A"})
 	if err != nil {
 		panic(err)
 	}
@@ -142,7 +142,7 @@ func Example_logAppend() {
 		panic(fmt.Errorf("ToMultihash error: %s", err))
 	}
 
-	res, err := log.NewFromMultihash(serviceB, identityB, h, &log.NewLogOptions{}, &log.FetchOptions{})
+	res, err := log.NewFromMultihash(serviceB, identityB, h, &log.LogOptions{}, &log.FetchOptions{})
 	if err != nil {
 		panic(fmt.Errorf("NewFromMultihash error: %s", err))
 	}

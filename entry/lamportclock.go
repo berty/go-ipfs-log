@@ -1,12 +1,13 @@
-package lamportclock // import "berty.tech/go-ipfs-log/utils/lamportclock"
+package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"bytes"
 	"encoding/hex"
 	"math"
 
-	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/polydawn/refmt/obj/atlas"
+
+	cbornode "github.com/ipfs/go-ipld-cbor"
 )
 
 type LamportClock struct {
@@ -14,6 +15,7 @@ type LamportClock struct {
 	Time int
 }
 
+// Tick increments the time value, returns a new instance of LamportClock.
 func (l *LamportClock) Tick() *LamportClock {
 	l.Time++
 
@@ -23,6 +25,7 @@ func (l *LamportClock) Tick() *LamportClock {
 	}
 }
 
+// Merge fusion two LamportClocks.
 func (l *LamportClock) Merge(clock *LamportClock) *LamportClock {
 	l.Time = int(math.Max(float64(l.Time), float64(clock.Time)))
 
@@ -32,47 +35,41 @@ func (l *LamportClock) Merge(clock *LamportClock) *LamportClock {
 	}
 }
 
-func (l *LamportClock) Clone() *LamportClock {
-	return &LamportClock{
-		ID:   l.ID,
-		Time: l.Time,
-	}
-}
-
-// Compare Calculate the "distance" based on the clock, ie. lower or greater
-func Compare(a *LamportClock, b *LamportClock) int {
+// Compare calculate the "distance" based on the clock, ie. lower or greater.
+func (l *LamportClock) Compare(b *LamportClock) int {
 	// TODO: Make it a Golang slice-compatible sort function
-	dist := a.Time - b.Time
+	dist := l.Time - b.Time
 
 	// If the sequence number is the same (concurrent events),
 	// return the comparison between IDs
 	if dist == 0 {
-		return bytes.Compare(a.ID, b.ID)
+		return bytes.Compare(l.ID, b.ID)
 	}
 
 	return dist
 }
 
-func New(identity []byte, time int) *LamportClock {
+// NewLamportClock creates a new LamportClock instance.
+func NewLamportClock(identity []byte, time int) *LamportClock {
 	return &LamportClock{
 		ID:   identity,
 		Time: time,
 	}
 }
 
-type CborLamportClock struct {
+type cborLamportClock struct {
 	ID   string
 	Time int
 }
 
-func (l *LamportClock) ToCborLamportClock() *CborLamportClock {
-	return &CborLamportClock{
+func (l *LamportClock) toCborLamportClock() *cborLamportClock {
+	return &cborLamportClock{
 		ID:   hex.EncodeToString(l.ID),
 		Time: l.Time,
 	}
 }
 
-func (c *CborLamportClock) ToLamportClock() (*LamportClock, error) {
+func (c *cborLamportClock) toLamportClock() (*LamportClock, error) {
 	id, err := hex.DecodeString(c.ID)
 	if err != nil {
 		return nil, err
@@ -84,12 +81,12 @@ func (c *CborLamportClock) ToLamportClock() (*LamportClock, error) {
 	}, nil
 }
 
-var AtlasLamportClock = atlas.BuildEntry(CborLamportClock{}).
-	StructMap().
-	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-	AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
-	Complete()
-
 func init() {
+	var AtlasLamportClock = atlas.BuildEntry(cborLamportClock{}).
+		StructMap().
+		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+		AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
+		Complete()
+
 	cbornode.RegisterCborType(AtlasLamportClock)
 }

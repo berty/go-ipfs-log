@@ -12,16 +12,19 @@ type OrbitDBIdentityProvider struct {
 	keystore keystore.Interface
 }
 
+// VerifyIdentity checks an OrbitDB identity.
 func (p *OrbitDBIdentityProvider) VerifyIdentity(identity *Identity) error {
 	panic("implement me")
 }
 
+// NewOrbitDBIdentityProvider creates a new identity for use with OrbitDB.
 func NewOrbitDBIdentityProvider(options *CreateIdentityOptions) Interface {
 	return &OrbitDBIdentityProvider{
 		keystore: options.Keystore,
 	}
 }
 
+// GetID returns the identity's ID.
 func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string, error) {
 	private, err := p.keystore.GetKey(options.ID)
 	if err != nil || private == nil {
@@ -39,6 +42,7 @@ func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string,
 	return hex.EncodeToString(pubBytes), nil
 }
 
+// SignIdentity signs an OrbitDB identity.
 func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
 	key, err := p.keystore.GetKey(id)
 	if err != nil {
@@ -58,6 +62,7 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 	return signature, nil
 }
 
+// Sign signs a value using the current.
 func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
 	key, err := p.keystore.GetKey(identity.ID)
 	if err != nil {
@@ -72,6 +77,7 @@ func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte,
 	return sig, nil
 }
 
+// GetType returns the current identity type.
 func (*OrbitDBIdentityProvider) GetType() string {
 	return "orbitdb"
 }

@@ -123,7 +123,7 @@ func TestEntry(t *testing.T) {
 				expectedHash := "bafyreidbxpymnb357glm2cujnjcfmg7rge4ybpurgllpvp57kvk7xrmf2e"
 				e, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
-				hash, err := entry.ToMultihash(ipfs, e)
+				hash, err := e.ToMultihash(ipfs)
 				c.So(err, ShouldBeNil)
 
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
@@ -150,7 +150,7 @@ func TestEntry(t *testing.T) {
 				e2, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}}, nil)
 				c.So(err, ShouldBeNil)
 
-				c.So(entry.IsParent(e1, e2), ShouldBeTrue)
+				c.So(e1.IsParent(e2), ShouldBeTrue)
 			})
 
 			c.Convey("returns false if entry has a child", FailureContinues, func(c C) {
@@ -163,9 +163,9 @@ func TestEntry(t *testing.T) {
 				e3, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e2.Hash}}, nil)
 				c.So(err, ShouldBeNil)
 
-				c.So(entry.IsParent(e1, e2), ShouldBeFalse)
-				c.So(entry.IsParent(e1, e3), ShouldBeFalse)
-				c.So(entry.IsParent(e2, e3), ShouldBeTrue)
+				c.So(e1.IsParent(e2), ShouldBeFalse)
+				c.So(e1.IsParent(e3), ShouldBeFalse)
+				c.So(e2.IsParent(e3), ShouldBeTrue)
 			})
 		})
 
@@ -177,7 +177,7 @@ func TestEntry(t *testing.T) {
 				e2, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
-				c.So(entry.IsEqual(e1, e2), ShouldBeTrue)
+				c.So(e1.Equals(e2), ShouldBeTrue)
 			})
 
 			c.Convey("returns true if entries are not the same", FailureContinues, func(c C) {
@@ -188,7 +188,7 @@ func TestEntry(t *testing.T) {
 				e2, err := entry.CreateEntry(ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
-				c.So(entry.IsEqual(e1, e2), ShouldBeFalse)
+				c.So(e1.Equals(e2), ShouldBeFalse)
 			})
 		})
 

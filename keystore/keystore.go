@@ -1,3 +1,4 @@
+// Package keystore defines a local key manager for OrbitDB and IPFS Log.
 package keystore // import "berty.tech/go-ipfs-log/keystore"
 
 import (
@@ -15,10 +16,12 @@ type Keystore struct {
 	cache *lru.Cache
 }
 
-func (k *Keystore) Sign(pubKey crypto.PrivKey, bytes []byte) ([]byte, error) {
-	return pubKey.Sign(bytes)
+// Sign signs a value using a given private key.
+func (k *Keystore) Sign(privKey crypto.PrivKey, bytes []byte) ([]byte, error) {
+	return privKey.Sign(bytes)
 }
 
+// Verify verifies a signature.
 func (k *Keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte) error {
 	ok, err := publicKey.Verify(data, signature)
 	if err != nil {
@@ -32,6 +35,7 @@ func (k *Keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte
 	return nil
 }
 
+// NewKeystore creates a new keystore.
 func NewKeystore(store datastore.Datastore) (*Keystore, error) {
 	cache, err := lru.New(128)
 	if err != nil {
@@ -44,8 +48,8 @@ func NewKeystore(store datastore.Datastore) (*Keystore, error) {
 	}, nil
 }
 
+// HasKey checks whether a given key ID exist in the keystore.
 func (k *Keystore) HasKey(id string) (bool, error) {
-	hasKey := false
 	storedKey, ok := k.cache.Peek(id)
 
 	if ok == false {
@@ -59,11 +63,10 @@ func (k *Keystore) HasKey(id string) (bool, error) {
 		}
 	}
 
-	hasKey = storedKey != nil
-
-	return hasKey, nil
+	return storedKey != nil, nil
 }
 
+// CreateKey creates a new key in the key store.
 func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 	// FIXME: I kept Secp256k1 for compatibility with OrbitDB, should we change this?
 	priv, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
@@ -85,6 +88,7 @@ func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 	return priv, nil
 }
 
+// GetKey retrieves a key from the keystore.
 func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 	var err error
 	var keyBytes []byte

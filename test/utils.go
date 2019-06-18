@@ -51,8 +51,8 @@ func lastEntry(entries []*entry.Entry) *entry.Entry {
 
 func entriesAsStrings(values *entry.OrderedMap) []string {
 	var foundEntries []string
-	for _, k := range values.Keys() {
-		foundEntries = append(foundEntries, string(values.UnsafeGet(k).Payload))
+	for _, v := range values.Slice() {
+		foundEntries = append(foundEntries, string(v.Payload))
 	}
 
 	return foundEntries
