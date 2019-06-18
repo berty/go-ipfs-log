@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	ipfslog "berty.tech/go-ipfs-log"
+	"berty.tech/go-ipfs-log/entry"
+
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -39,7 +41,7 @@ func TestLogAppend(t *testing.T) {
 	Convey("Log - Append", t, FailureHalts, func(c C) {
 		c.Convey("append", FailureHalts, func(c C) {
 			c.Convey("append one", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
+				log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
 				_, err = log1.Append([]byte("hello1"), 1)
 				c.So(err, ShouldBeNil)
@@ -55,13 +57,13 @@ func TestLogAppend(t *testing.T) {
 					c.So(v.Clock.ID, ShouldResemble, identity.PublicKey)
 					c.So(v.Clock.Time, ShouldEqual, 1)
 				}
-				for _, v := range log.FindHeads(log1.Entries) {
+				for _, v := range entry.FindHeads(log1.Entries) {
 					c.So(v.Hash.String(), ShouldEqual, values.UnsafeGet(keys[0]).Hash.String())
 				}
 			})
 
 			c.Convey("append 100 items to a log", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identity, &log.NewLogOptions{ID: "A"})
+				log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
 				nextPointerAmount := 64
 
@@ -71,7 +73,7 @@ func TestLogAppend(t *testing.T) {
 
 					values := log1.Values()
 					keys := values.Keys()
-					heads := log.FindHeads(log1.Entries)
+					heads := entry.FindHeads(log1.Entries)
 
 					c.So(len(heads), ShouldEqual, 1)
 					c.So(heads[0].Hash.String(), ShouldEqual, values.UnsafeGet(keys[len(keys)-1]).Hash.String())

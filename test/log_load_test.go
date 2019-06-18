@@ -10,12 +10,15 @@ import (
 	"testing"
 	"time"
 
+	ipfslog "berty.tech/go-ipfs-log"
+
+	"berty.tech/go-ipfs-log/entry/sorting"
+
 	"berty.tech/go-ipfs-log/entry"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
 	"berty.tech/go-ipfs-log/test/logcreator"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -75,13 +78,13 @@ func TestLogLoad(t *testing.T) {
 				//heads := map[string]*entry.Entry{}
 				//
 				//for _, h := range json.Heads {
-				//	e, err := entry.FromMultihash(ipfs, h, identities[0].Provider)
+				//	e, err := entry.fromMultihash(ipfs, h, identities[0].Provider)
 				//	c.So(err, ShouldBeNil)
 				//
 				//	heads[e.Hash.String()] = e
 				//}
 
-				l, err := log.NewFromJSON(ipfs, identities[0], json, &log.NewLogOptions{ID: "X"}, &entry.FetchOptions{})
+				l, err := ipfslog.NewFromJSON(ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				values := l.Values()
@@ -98,7 +101,7 @@ func TestLogLoad(t *testing.T) {
 				data := fixture.Log
 				json := fixture.JSON
 
-				l, err := log.NewFromJSON(ipfs, identities[0], json, &log.NewLogOptions{ID: "X", SortFn: log.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+				l, err := ipfslog.NewFromJSON(ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -118,8 +121,8 @@ func TestLogLoad(t *testing.T) {
 				data := fixture.Log
 				json := fixture.JSON
 
-				log1, err := log.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &log.NewLogOptions{ID: "X"}, &log.FetchOptions{})
-				log2, err := log.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &log.NewLogOptions{ID: "X"}, &log.FetchOptions{})
+				log1, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+				log2, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -136,8 +139,8 @@ func TestLogLoad(t *testing.T) {
 				data := fixture.Log
 				json := fixture.JSON
 
-				log1, err := log.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &log.NewLogOptions{ID: "X", SortFn: log.FirstWriteWins}, &log.FetchOptions{})
-				log2, err := log.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &log.NewLogOptions{ID: "X", SortFn: log.FirstWriteWins}, &log.FetchOptions{})
+				log1, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+				log2, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -157,7 +160,7 @@ func TestLogLoad(t *testing.T) {
 
 				data := fixture.Log
 
-				l, err := log.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &log.NewLogOptions{}, &entry.FetchOptions{})
+				l, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -171,7 +174,7 @@ func TestLogLoad(t *testing.T) {
 
 				data := fixture.Log
 
-				l, err := log.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &log.NewLogOptions{SortFn: log.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+				l, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -185,7 +188,7 @@ func TestLogLoad(t *testing.T) {
 
 				data := fixture.Log
 
-				log1, err := log.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
+				log1, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
 
 				c.So(err, ShouldBeNil)
 				c.So(log1.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -193,7 +196,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(string(log1.Values().At(0).Payload), ShouldEqual, "entryC0")
 				c.So(string(log1.Values().At(1).Payload), ShouldEqual, "entryA10")
 
-				log2, err := log.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
+				log2, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
 
 				c.So(err, ShouldBeNil)
 				c.So(log2.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -203,7 +206,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(string(log2.Values().At(2).Payload), ShouldEqual, "entryA9")
 				c.So(string(log2.Values().At(3).Payload), ShouldEqual, "entryA10")
 
-				log3, err := log.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
+				log3, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
 
 				c.So(err, ShouldBeNil)
 				c.So(log3.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -222,13 +225,13 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("retrieves partial log from an entry hash", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				var items1 []*entry.Entry
@@ -273,24 +276,24 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				// limit to 10 entries
-				a, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
+				a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
 				c.So(err, ShouldBeNil)
 				c.So(a.Values().Len(), ShouldEqual, 10)
 
 				// limit to 42 entries
-				b, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
+				b, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
 				c.So(err, ShouldBeNil)
 				c.So(b.Values().Len(), ShouldEqual, 42)
 			})
 
 			c.Convey("retrieves full log from an entry hash", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				var items1 []*entry.Entry
@@ -334,27 +337,27 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items2)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items3)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
 
 			c.Convey("retrieves full log from an entry hash 2", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				var items1 []*entry.Entry
@@ -398,27 +401,27 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := log.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(items3)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
 
 			c.Convey("retrieves full log from an entry hash 3", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				var items1 []*entry.Entry
@@ -474,7 +477,7 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
@@ -501,12 +504,12 @@ func TestLogLoad(t *testing.T) {
 					"entryB10",
 				}
 
-				lB, err := log.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 				c.So(entriesAsStrings(lB.Values()), ShouldResemble, itemsInB)
 
-				lC, err := log.NewFromEntry(ipfs, identities[3], []*entry.Entry{lastEntry(items3)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ipfs, identities[3], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 
 				_, err = lC.Append([]byte("EOF"), 1)
@@ -551,7 +554,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(lC.Values()), ShouldResemble, tmp)
 
 				// make sure logX comes after A, B and C
-				logX, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				logX, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				_, err = logX.Append([]byte{'1'}, 1)
@@ -563,7 +566,7 @@ func TestLogLoad(t *testing.T) {
 				_, err = logX.Append([]byte{'3'}, 1)
 				c.So(err, ShouldBeNil)
 
-				lD, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(logX.Values().Slice())}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+				lD, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				_, err = lC.Join(lD, -1)
@@ -578,10 +581,10 @@ func TestLogLoad(t *testing.T) {
 				_, err = lD.Append([]byte("DONE"), 1)
 				c.So(err, ShouldBeNil)
 
-				logF, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lC.Values().Slice())}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logF, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
-				logG, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lD.Values().Slice())}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logG, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
 				c.So(logF.ToString(nil), ShouldEqual, bigLogString)
@@ -589,13 +592,13 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("retrieves full log of randomly joined log", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
@@ -635,16 +638,16 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("retrieves randomly joined log deterministically", FailureHalts, func(c C) {
-				logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				logB, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				l, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
@@ -715,19 +718,19 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				fetchOrder := l.Values().Slice()
-				entry.Sort(entry.Compare, fetchOrder)
+				sorting.Sort(sorting.Compare, fetchOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
 
 				reverseOrder := l.Values().Slice()
-				log.Reverse(reverseOrder)
-				entry.Sort(entry.Compare, reverseOrder)
+				sorting.Reverse(reverseOrder)
+				sorting.Sort(sorting.Compare, reverseOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), ShouldResemble, expectedData)
 
 				hashOrder := l.Values().Slice()
-				entry.Sort(func(a, b *entry.Entry) (int, error) {
+				sorting.Sort(func(a, b *entry.Entry) (int, error) {
 					return strings.Compare(a.Hash.String(), b.Hash.String()), nil
 				}, hashOrder)
-				entry.Sort(entry.Compare, hashOrder)
+				sorting.Sort(sorting.Compare, hashOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), ShouldResemble, expectedData)
 
 				var partialLog []*entry.Entry
@@ -763,15 +766,15 @@ func TestLogLoad(t *testing.T) {
 				expectedData := testLog.ExpectedData
 
 				fetchOrder := l.Values().Slice()
-				entry.Sort(entry.Compare, fetchOrder)
+				sorting.Sort(sorting.Compare, fetchOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
 
 				for i := 0; i < 1000; i++ {
 					randomOrder := l.Values().Slice()
-					entry.Sort(func(a, b *entry.Entry) (int, error) {
+					sorting.Sort(func(a, b *entry.Entry) (int, error) {
 						return rand.Int(), nil
 					}, randomOrder)
-					entry.Sort(entry.Compare, randomOrder)
+					sorting.Sort(sorting.Compare, randomOrder)
 
 					c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(randomOrder)), ShouldResemble, expectedData)
 				}
@@ -791,7 +794,7 @@ func TestLogLoad(t *testing.T) {
 				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
-				firstWriteWinsLog, err := log.NewLog(ipfs, resortedIdentities[0], &log.NewLogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
+				firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
 				c.So(err, ShouldBeNil)
 
 				_, err = firstWriteWinsLog.Join(testLog.Log, -1)
@@ -803,13 +806,13 @@ func TestLogLoad(t *testing.T) {
 			c.Convey("retrieves partially joined log deterministically - single next pointer", FailureHalts, func(c C) {
 				nextPointersAmount := 1
 
-				logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				logB, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				l, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
@@ -843,7 +846,7 @@ func TestLogLoad(t *testing.T) {
 				hash, err := l.ToMultihash()
 
 				// First 5
-				res, err := log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(5)})
+				res, err := ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
 				c.So(err, ShouldBeNil)
 
 				first5 := []string{
@@ -853,7 +856,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
 
 				// First 11
-				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(11)})
+				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
 				c.So(err, ShouldBeNil)
 
 				first11 := []string{
@@ -866,7 +869,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
 
 				// All but one
-				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(16 - 1)})
+				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
 				c.So(err, ShouldBeNil)
 
 				all := []string{
@@ -883,13 +886,13 @@ func TestLogLoad(t *testing.T) {
 			c.Convey("retrieves partially joined log deterministically - multiple next pointers", FailureHalts, func(c C) {
 				nextPointersAmount := 64
 
-				logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				logB, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				log3, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
-				l, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
@@ -923,7 +926,7 @@ func TestLogLoad(t *testing.T) {
 				hash, err := l.ToMultihash()
 
 				// First 5
-				res, err := log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(5)})
+				res, err := ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
 				c.So(err, ShouldBeNil)
 
 				first5 := []string{
@@ -933,7 +936,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
 
 				// First 11
-				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(11)})
+				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
 				c.So(err, ShouldBeNil)
 
 				first11 := []string{
@@ -946,7 +949,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
 
 				// All but one
-				res, err = log.NewFromMultihash(ipfs, identities[1], hash, &log.NewLogOptions{}, &log.FetchOptions{Length: intPtr(16 - 1)})
+				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
 				c.So(err, ShouldBeNil)
 
 				all := []string{
@@ -960,7 +963,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("throws an error if ipfs is not defined", FailureHalts, func(c C) {
-				_, err := log.NewFromEntry(nil, identities[0], []*entry.Entry{}, &log.NewLogOptions{ID: "X"}, &entry.FetchOptions{})
+				_, err := ipfslog.NewFromEntry(nil, identities[0], []*entry.Entry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldNotBeNil)
 				c.So(err.Error(), ShouldContainSubstring, "ipfs instance not defined")
 			})
@@ -969,13 +972,13 @@ func TestLogLoad(t *testing.T) {
 				const amount = 100
 
 				ts := time.Now().UnixNano() / 1000
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log2, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				log3, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+				log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				var items1 []*entry.Entry
@@ -1026,7 +1029,7 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				c.Convey("returns all entries - no excluded entries", FailureHalts, func(c C) {
-					a, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
@@ -1035,14 +1038,14 @@ func TestLogLoad(t *testing.T) {
 
 				c.Convey("returns all entries - including excluded entries", FailureHalts, func(c C) {
 					// One entry
-					a, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
 					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
 
 					// All entries
-					b, err := log.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &log.NewLogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
+					b, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(b.Values().Len(), ShouldEqual, amount)

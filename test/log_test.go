@@ -7,13 +7,12 @@ import (
 	"testing"
 	"time"
 
+	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/errmsg"
 
 	"berty.tech/go-ipfs-log/entry"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
-	"berty.tech/go-ipfs-log/utils/lamportclock"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -52,7 +51,7 @@ func TestLog(t *testing.T) {
 	Convey("Log", t, FailureHalts, func(c C) {
 		c.Convey("constructor", FailureHalts, func(c C) {
 			c.Convey("sets an id and a clock id", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
 				c.So(log1.ID, ShouldEqual, "A")
 				c.So(log1.Clock.ID, ShouldResemble, identities[0].PublicKey)
@@ -60,7 +59,7 @@ func TestLog(t *testing.T) {
 
 			c.Convey("sets time.now as id string if id is not passed as an argument", FailureHalts, func(c C) {
 				before := time.Now().Unix() / 1000
-				log1, err := log.NewLog(ipfs, identities[0], nil)
+				log1, err := ipfslog.NewLog(ipfs, identities[0], nil)
 				c.So(err, ShouldBeNil)
 				after := time.Now().Unix() / 1000
 
@@ -90,14 +89,14 @@ func TestLog(t *testing.T) {
 				})
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries
-				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, lamportclock.New(id1.PublicKey, 0))
+				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, entry.NewLamportClock(id1.PublicKey, 0))
 				c.So(err, ShouldBeNil)
-				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, lamportclock.New(id2.PublicKey, 1))
+				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, entry.NewLamportClock(id2.PublicKey, 1))
 				c.So(err, ShouldBeNil)
-				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, lamportclock.New(id3.PublicKey, 2))
+				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, entry.NewLamportClock(id3.PublicKey, 2))
 				c.So(err, ShouldBeNil)
 
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
 				c.So(err, ShouldBeNil)
 
 				values := log1.Values()
@@ -118,7 +117,7 @@ func TestLog(t *testing.T) {
 				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "B", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3}), Heads: []*entry.Entry{e3}})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "B", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3}), Heads: []*entry.Entry{e3}})
 				c.So(err, ShouldBeNil)
 				heads := log1.Heads()
 				headsKeys := heads.Keys()
@@ -135,7 +134,7 @@ func TestLog(t *testing.T) {
 				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
-				log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
+				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
 				c.So(err, ShouldBeNil)
 				heads := log1.Heads()
 
@@ -148,7 +147,7 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("creates default public AccessController if not defined", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, identities[0], nil)
+				log1, err := ipfslog.NewLog(ipfs, identities[0], nil)
 				c.So(err, ShouldBeNil)
 
 				err = log1.AccessController.CanAppend(&entry.Entry{Payload: []byte("any")}, identities[0])
@@ -156,13 +155,13 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
-				log1, err := log.NewLog(nil, identities[0], nil)
+				log1, err := ipfslog.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined.Error())
 			})
 
 			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
-				log1, err := log.NewLog(ipfs, nil, nil)
+				log1, err := ipfslog.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
 				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined.Error())
 			})
@@ -170,7 +169,7 @@ func TestLog(t *testing.T) {
 
 		c.Convey("toString", FailureHalts, func(c C) {
 			expectedData := "five\n└─four\n  └─three\n    └─two\n      └─one"
-			log1, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 			for _, val := range []string{"one", "two", "three", "four", "five"} {
 				_, err := log1.Append([]byte(val), 1)

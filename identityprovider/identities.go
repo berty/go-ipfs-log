@@ -18,7 +18,7 @@ type Identities struct {
 	keyStore keystore.Interface
 }
 
-func GetHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, error) {
+func getHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, error) {
 	if !IsSupported(typeName) {
 		return nil, errors.New(fmt.Sprintf("IdentityProvider type '%s' is not supported", typeName))
 	}
@@ -26,7 +26,7 @@ func GetHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, err
 	return supportedTypes[typeName], nil
 }
 
-func NewIdentities(keyStore keystore.Interface) *Identities {
+func newIdentities(keyStore keystore.Interface) *Identities {
 	return &Identities{
 		keyStore: keyStore,
 	}
@@ -46,14 +46,16 @@ func (i *Identities) Sign(identity *Identity, data []byte) ([]byte, error) {
 	return sig, nil
 }
 
+// Verify checks a signature.
 func (i *Identities) Verify(signature []byte, publicKey crypto.PubKey, data []byte) (bool, error) {
+	// TODO: Check why this is related to an identity
 	return publicKey.Verify(data, signature)
 }
 
-type MigrateOptions struct {
-	TargetPath string
-	TargetID   string
-}
+//type MigrateOptions struct {
+//	TargetPath string
+//	TargetID   string
+//}
 
 func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 	pubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
@@ -68,8 +70,9 @@ func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 	return pubKey.SerializeUncompressed(), nil
 }
 
+// CreateIdentity creates a new Identity.
 func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
-	NewIdentityProvider, err := GetHandlerFor(options.Type)
+	NewIdentityProvider, err := getHandlerFor(options.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +90,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 	//	}
 	//}
 
-	publicKey, idSignature, err := i.SignID(id)
+	publicKey, idSignature, err := i.signID(id)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +122,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 	}, nil
 }
 
-func (i *Identities) SignID(id string) (crypto.PubKey, []byte, error) {
+func (i *Identities) signID(id string) (crypto.PubKey, []byte, error) {
 	privKey, err := i.keyStore.GetKey(id)
 	if err != nil {
 		privKey, err = i.keyStore.CreateKey(id)
@@ -137,6 +140,7 @@ func (i *Identities) SignID(id string) (crypto.PubKey, []byte, error) {
 	return privKey.GetPublic(), idSignature, nil
 }
 
+// VerifyIdentity checks an identity.
 func (i *Identities) VerifyIdentity(identity *Identity) error {
 	pubKey, err := identity.GetPublicKey()
 	if err != nil {
@@ -157,11 +161,7 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 		return err
 	}
 
-	return VerifyIdentity(identity)
-}
-
-func VerifyIdentity(identity *Identity) error {
-	identityProvider, err := GetHandlerFor(identity.Type)
+	identityProvider, err := getHandlerFor(identity.Type)
 	if err != nil {
 		return err
 	}
@@ -169,23 +169,26 @@ func VerifyIdentity(identity *Identity) error {
 	return identityProvider(nil).VerifyIdentity(identity)
 }
 
+// CreateIdentity creates a new identity.
 func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	ks := options.Keystore
 	if ks == nil {
 		return nil, errors.New("a keystore is required")
 	}
 
-	identities := NewIdentities(ks)
+	identities := newIdentities(ks)
 
 	return identities.CreateIdentity(options)
 }
 
+// IsSupported checks if an identity type is supported.
 func IsSupported(typeName string) bool {
 	_, ok := supportedTypes[typeName]
 
 	return ok
 }
 
+// AddIdentityProvider registers an new identity provider.
 func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface) error {
 	if identityProvider == nil {
 		return errors.New("'IdentityProvider' class needs to be given as an option")
@@ -196,6 +199,7 @@ func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface
 	return nil
 }
 
+// RemoveIdentityProvider unregisters an identity provider.
 func RemoveIdentityProvider(name string) {
 	delete(supportedTypes, name)
 }

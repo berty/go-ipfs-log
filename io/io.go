@@ -1,3 +1,4 @@
+// Package io defines helpers used within IPFS Log and OrbitDB.
 package io // import "berty.tech/go-ipfs-log/io"
 
 import (
@@ -16,6 +17,7 @@ func SetDebug(val bool) {
 	debug = val
 }
 
+// WriteCBOR writes a CBOR representation of a given object in IPFS' DAG.
 func WriteCBOR(ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
 	cborNode, err := cbornode.WrapObject(obj, math.MaxUint64, -1)
 	if err != nil {
@@ -34,6 +36,7 @@ func WriteCBOR(ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
 	return cborNode.Cid(), nil
 }
 
+// ReadCBOR reads a CBOR representation of a given object from IPFS' DAG.
 func ReadCBOR(ipfs IpfsServices, contentIdentifier cid.Cid) (format.Node, error) {
 	return ipfs.Dag().Get(context.Background(), contentIdentifier)
 }

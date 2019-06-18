@@ -3,34 +3,35 @@ package logcreator // import "berty.tech/go-ipfs-log/test/logcreator"
 import (
 	"fmt"
 
+	ipfslog "berty.tech/go-ipfs-log"
+
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/io"
-	"berty.tech/go-ipfs-log/log"
 )
 
 type CreatedLog struct {
-	Log          *log.Log
+	Log          *ipfslog.Log
 	ExpectedData []string
-	JSON         *log.JSONLog
+	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*log.Log, error) {
-	logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, error) {
+	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	logB, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+	logB, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	log3, err := log.NewLog(ipfs, identities[2], &log.NewLogOptions{ID: "X"})
+	log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	l, err := log.NewLog(ipfs, identities[3], &log.NewLogOptions{ID: "X"})
+	l, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +102,16 @@ func CreateLogWithSixteenEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*log.Log, []string, error) {
+func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, []string, error) {
 	var expectedData []string
 	const amount = 100
 
-	logA, err := log.NewLog(ipfs, identities[0], &log.NewLogOptions{ID: "X"})
+	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	logB, err := log.NewLog(ipfs, identities[1], &log.NewLogOptions{ID: "X"})
+	logB, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, nil, err
 	}

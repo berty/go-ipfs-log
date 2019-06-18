@@ -1,6 +1,7 @@
+// Package errmsg defines error messages used by the Go version of IPFS Log.
 package errmsg // import "berty.tech/go-ipfs-log/errmsg"
-
 // https://dave.cheney.net/2016/04/07/constant-errors
+
 type Error string
 
 func (e Error) Error() string { return string(e) }

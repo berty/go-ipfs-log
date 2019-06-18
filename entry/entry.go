@@ -1,18 +1,17 @@
+// Package entry defines the Entry structure for IPFS Log and its associated methods.
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math"
 	"sort"
 	"time"
 
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/io"
-	"berty.tech/go-ipfs-log/utils/lamportclock"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
@@ -28,7 +27,7 @@ type Entry struct {
 	Sig      []byte
 	Identity *identityprovider.Identity
 	Hash     cid.Cid
-	Clock    *lamportclock.LamportClock
+	Clock    *LamportClock
 }
 
 type Hashable struct {
@@ -37,11 +36,11 @@ type Hashable struct {
 	Payload []byte
 	Next    []string
 	V       uint64
-	Clock   *lamportclock.LamportClock
+	Clock   *LamportClock
 	Key     []byte
 }
 
-var AtlasHashable = atlas.BuildEntry(Hashable{}).
+var _ = atlas.BuildEntry(Hashable{}).
 	StructMap().
 	AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
@@ -51,19 +50,19 @@ var AtlasHashable = atlas.BuildEntry(Hashable{}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 	Complete()
 
-type CborEntry struct {
+type cborEntry struct {
 	V        uint64
 	LogID    string
 	Key      string
 	Sig      string
 	Hash     interface{}
 	Next     []cid.Cid
-	Clock    *lamportclock.CborLamportClock
+	Clock    *cborLamportClock
 	Payload  string
 	Identity *identityprovider.CborIdentity
 }
 
-func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
+func (c *cborEntry) toEntry(provider identityprovider.Interface) (*Entry, error) {
 	key, err := hex.DecodeString(c.Key)
 	if err != nil {
 		return nil, err
@@ -74,7 +73,7 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 		return nil, err
 	}
 
-	clock, err := c.Clock.ToLamportClock()
+	clock, err := c.Clock.toLamportClock()
 	if err != nil {
 		return nil, err
 	}
@@ -96,22 +95,22 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 	}, nil
 }
 
-func (e *Entry) ToCborEntry() *CborEntry {
-	return &CborEntry{
+func (e *Entry) toCborEntry() *cborEntry {
+	return &cborEntry{
 		V:        e.V,
 		LogID:    e.LogID,
 		Key:      hex.EncodeToString(e.Key),
 		Sig:      hex.EncodeToString(e.Sig),
 		Hash:     nil,
 		Next:     e.Next,
-		Clock:    e.Clock.ToCborLamportClock(),
+		Clock:    e.Clock.toCborLamportClock(),
 		Payload:  string(e.Payload),
 		Identity: e.Identity.ToCborIdentity(),
 	}
 }
 
 func init() {
-	AtlasEntry := atlas.BuildEntry(CborEntry{}).
+	AtlasEntry := atlas.BuildEntry(cborEntry{}).
 		StructMap().
 		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
@@ -127,7 +126,8 @@ func init() {
 	cbornode.RegisterCborType(AtlasEntry)
 }
 
-func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *lamportclock.LamportClock) (*Entry, error) {
+// CreateEntry creates an Entry.
+func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *LamportClock) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
@@ -145,14 +145,14 @@ func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identi
 	}
 
 	if clock == nil {
-		clock = lamportclock.New(identity.PublicKey, 0)
+		clock = NewLamportClock(identity.PublicKey, 0)
 	}
 
-	data = data.Copy()
+	data = data.copy()
 	data.Clock = clock
 	data.V = 1
 
-	jsonBytes, err := ToBuffer(data.ToHashable())
+	jsonBytes, err := toBuffer(data.toHashable())
 	if err != nil {
 		return nil, err
 	}
@@ -167,12 +167,12 @@ func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identi
 	data.Sig = signature
 
 	data.Identity = identity.Filtered()
-	data.Hash, err = ToMultihash(ipfsInstance, data)
+	data.Hash, err = data.ToMultihash(ipfsInstance)
 	if err != nil {
 		return nil, err
 	}
 
-	nd, err := cbornode.WrapObject(data.ToCborEntry(), math.MaxUint64, -1)
+	nd, err := cbornode.WrapObject(data.toCborEntry(), math.MaxUint64, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,8 @@ func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identi
 	return data, nil
 }
 
-func (e *Entry) Copy() *Entry {
+// copy creates a copy of an entry.
+func (e *Entry) copy() *Entry {
 	return &Entry{
 		Payload:  e.Payload,
 		LogID:    e.LogID,
@@ -200,6 +201,7 @@ func (e *Entry) Copy() *Entry {
 	}
 }
 
+// uniqueCIDs returns uniques CIDs from a given list.
 func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	foundCids := map[string]bool{}
 	out := []cid.Cid{}
@@ -216,7 +218,8 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	return out
 }
 
-func ToBuffer(e *Hashable) ([]byte, error) {
+// toBuffer converts a hashable entry to bytes.
+func toBuffer(e *Hashable) ([]byte, error) {
 	if e == nil {
 		return nil, errors.New("entry is not defined")
 	}
@@ -239,7 +242,8 @@ func ToBuffer(e *Hashable) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func (e *Entry) ToHashable() *Hashable {
+// toHashable Converts an entry to hashable.
+func (e *Entry) toHashable() *Hashable {
 	nexts := []string{}
 
 	for _, n := range e.Next {
@@ -257,36 +261,38 @@ func (e *Entry) ToHashable() *Hashable {
 	}
 }
 
-func (e *Entry) IsValid() bool {
+// isValid checks that an entry is valid.
+func (e *Entry) isValid() bool {
 	return e.LogID != "" && len(e.Payload) > 0 && e.V <= 1
 }
 
-func Verify(identity identityprovider.Interface, entry *Entry) error {
-	if entry == nil {
+// Verify checks the entry's signature.
+func (e *Entry) Verify(identity identityprovider.Interface) error {
+	if e == nil {
 		return errors.New("entry is not defined")
 	}
 
-	if len(entry.Key) == 0 {
+	if len(e.Key) == 0 {
 		return errors.New("entry doesn't have a key")
 	}
 
-	if len(entry.Sig) == 0 {
+	if len(e.Sig) == 0 {
 		return errors.New("entry doesn't have a signature")
 	}
 
 	// TODO: Check against trusted keys
 
-	jsonBytes, err := ToBuffer(entry.ToHashable())
+	jsonBytes, err := toBuffer(e.toHashable())
 	if err != nil {
 		return errors.Wrap(err, "unable to build string buffer")
 	}
 
-	pubKey, err := ic.UnmarshalSecp256k1PublicKey(entry.Key)
+	pubKey, err := ic.UnmarshalSecp256k1PublicKey(e.Key)
 	if err != nil {
 		return errors.Wrap(err, "unable to unmarshal public key")
 	}
 
-	ok, err := pubKey.Verify(jsonBytes, entry.Sig)
+	ok, err := pubKey.Verify(jsonBytes, e.Sig)
 	if err != nil {
 		return errors.Wrap(err, "error whild verifying signature")
 	}
@@ -298,8 +304,9 @@ func Verify(identity identityprovider.Interface, entry *Entry) error {
 	return nil
 }
 
-func ToMultihash(ipfsInstance io.IpfsServices, entry *Entry) (cid.Cid, error) {
-	if entry == nil {
+// ToMultihash gets the multihash of an Entry.
+func (e *Entry) ToMultihash(ipfsInstance io.IpfsServices) (cid.Cid, error) {
+	if e == nil {
 		return cid.Cid{}, errors.New("entry is not defined")
 	}
 
@@ -307,33 +314,34 @@ func ToMultihash(ipfsInstance io.IpfsServices, entry *Entry) (cid.Cid, error) {
 		return cid.Cid{}, errors.New("ipfs instance not defined")
 	}
 
-	e := &Entry{
+	data := &Entry{
 		Hash:    cid.Cid{},
-		LogID:   entry.LogID,
-		Payload: entry.Payload,
-		Next:    entry.Next,
-		V:       entry.V,
-		Clock:   entry.Clock,
+		LogID:   e.LogID,
+		Payload: e.Payload,
+		Next:    e.Next,
+		V:       e.V,
+		Clock:   e.Clock,
 	}
 
-	if entry.Key != nil {
-		e.Key = entry.Key
+	if e.Key != nil {
+		data.Key = e.Key
 	}
 
-	if entry.Identity != nil {
-		e.Identity = entry.Identity
+	if e.Identity != nil {
+		data.Identity = e.Identity
 	}
 
-	if len(entry.Sig) > 0 {
-		e.Sig = entry.Sig
+	if len(e.Sig) > 0 {
+		data.Sig = e.Sig
 	}
 
-	entryCID, err := io.WriteCBOR(ipfsInstance, e.ToCborEntry())
+	entryCID, err := io.WriteCBOR(ipfsInstance, data.toCborEntry())
 
 	return entryCID, err
 }
 
-func FromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+// fromMultihash creates an Entry from a hash.
+func fromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
@@ -343,7 +351,7 @@ func FromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider
 		return nil, err
 	}
 
-	obj := &CborEntry{}
+	obj := &cborEntry{}
 	err = cbornode.DecodeInto(result.RawData(), obj)
 	if err != nil {
 		return nil, err
@@ -351,7 +359,7 @@ func FromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider
 
 	obj.Hash = hash
 
-	entry, err := obj.ToEntry(provider)
+	entry, err := obj.toEntry(provider)
 	if err != nil {
 		return nil, err
 	}
@@ -359,33 +367,14 @@ func FromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider
 	return entry, nil
 }
 
-func Sort(compFunc func(a, b *Entry) (int, error), values []*Entry) {
-	sort.SliceStable(values, func(i, j int) bool {
-		ret, err := compFunc(values[i], values[j])
-		if err != nil {
-			fmt.Printf("error while comparing: %v\n", err)
-			return false
-		}
-		return ret < 0
-	})
+// Equals checks that two entries are identical.
+func (e *Entry) Equals(b *Entry) bool {
+	return e.Hash.String() == b.Hash.String()
 }
 
-func Compare(a, b *Entry) (int, error) {
-	// TODO: Make it a Golang slice-compatible sort function
-	if a == nil || b == nil {
-		return 0, errors.New("entry is not defined")
-	}
-
-	return lamportclock.Compare(a.Clock, b.Clock), nil
-}
-
-func IsEqual(a, b *Entry) bool {
-	return a.Hash.String() == b.Hash.String()
-}
-
-func IsParent(entry1, entry2 *Entry) bool {
-	for _, next := range entry2.Next {
-		if next.String() == entry1.Hash.String() {
+func (e *Entry) IsParent(b *Entry) bool {
+	for _, next := range b.Next {
+		if next.String() == e.Hash.String() {
 			return true
 		}
 	}
@@ -393,12 +382,15 @@ func IsParent(entry1, entry2 *Entry) bool {
 	return false
 }
 
+// FindChildren finds an entry's children from an Array of entries.
+//
+// Returns entry's children as an Array up to the last know child.
 func FindChildren(entry *Entry, values []*Entry) []*Entry {
 	stack := []*Entry{}
 
 	var parent *Entry
 	for _, e := range values {
-		if IsParent(entry, e) {
+		if entry.IsParent(e) {
 			parent = e
 			break
 		}
@@ -409,7 +401,7 @@ func FindChildren(entry *Entry, values []*Entry) []*Entry {
 		prev := parent
 
 		for _, e := range values {
-			if IsParent(prev, e) {
+			if prev.IsParent(e) {
 				parent = e
 				break
 			}

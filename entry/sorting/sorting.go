@@ -1,15 +1,19 @@
-package log // import "berty.tech/go-ipfs-log/log"
+// Package sorting includes utilities for ordering slices of Entries.
+package sorting
 
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"sort"
+
+	errors2 "github.com/pkg/errors"
 
 	"berty.tech/go-ipfs-log/entry"
-	"berty.tech/go-ipfs-log/utils/lamportclock"
 )
 
 func SortByClocks(a, b *entry.Entry, resolveConflict func(a *entry.Entry, b *entry.Entry) (int, error)) (int, error) {
-	diff := lamportclock.Compare(a.Clock, b.Clock)
+	diff := a.Clock.Compare(b.Clock)
 
 	if diff == 0 {
 		return resolveConflict(a, b)
@@ -69,4 +73,24 @@ func Reverse(a []*entry.Entry) {
 		opp := len(a) - 1 - i
 		a[i], a[opp] = a[opp], a[i]
 	}
+}
+
+func Compare(a, b *entry.Entry) (int, error) {
+	// TODO: Make it a Golang slice-compatible sort function
+	if a == nil || b == nil {
+		return 0, errors2.New("entry is not defined")
+	}
+
+	return a.Clock.Compare(b.Clock), nil
+}
+
+func Sort(compFunc func(a, b *entry.Entry) (int, error), values []*entry.Entry) {
+	sort.SliceStable(values, func(i, j int) bool {
+		ret, err := compFunc(values[i], values[j])
+		if err != nil {
+			fmt.Printf("error while comparing: %v\n", err)
+			return false
+		}
+		return ret < 0
+	})
 }

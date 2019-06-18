@@ -1,3 +1,4 @@
+// Package identityprovider defines a default identity provider for IPFS Log and OrbitDB.
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
@@ -35,6 +36,7 @@ type CborIdentity struct {
 	Type       string
 }
 
+// Filtered gets fields that should be present in the CBOR representation of identity.
 func (i *Identity) Filtered() *Identity {
 	return &Identity{
 		ID:         i.ID,
@@ -44,11 +46,12 @@ func (i *Identity) Filtered() *Identity {
 	}
 }
 
+// GetPublicKey returns the public key of an identity.
 func (i *Identity) GetPublicKey() (ic.PubKey, error) {
 	return ic.UnmarshalPublicKey(i.PublicKey)
 }
 
-var AtlasIdentity = atlas.BuildEntry(CborIdentity{}).
+var atlasIdentity = atlas.BuildEntry(CborIdentity{}).
 	StructMap().
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("Type", atlas.StructMapEntry{SerialName: "type"}).
@@ -56,13 +59,13 @@ var AtlasIdentity = atlas.BuildEntry(CborIdentity{}).
 	AddField("Signatures", atlas.StructMapEntry{SerialName: "signatures"}).
 	Complete()
 
-var AtlasIdentitySignature = atlas.BuildEntry(CborIdentitySignature{}).
+var atlasIdentitySignature = atlas.BuildEntry(CborIdentitySignature{}).
 	StructMap().
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("PublicKey", atlas.StructMapEntry{SerialName: "publicKey"}).
 	Complete()
 
-var AtlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
+var atlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
 	Transform().
 	TransformMarshal(atlas.MakeMarshalTransformFunc(
 		func(x ic.Secp256k1PublicKey) (string, error) {
@@ -94,27 +97,29 @@ var AtlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
 	Complete()
 
 func init() {
-	cbornode.RegisterCborType(AtlasIdentity)
-	cbornode.RegisterCborType(AtlasIdentitySignature)
-	cbornode.RegisterCborType(AtlasPubKey)
+	cbornode.RegisterCborType(atlasIdentity)
+	cbornode.RegisterCborType(atlasIdentitySignature)
+	cbornode.RegisterCborType(atlasPubKey)
 }
 
+// ToCborIdentity converts an identity to a CBOR serializable identity.
 func (i *Identity) ToCborIdentity() *CborIdentity {
 	return &CborIdentity{
 		ID:         i.ID,
 		PublicKey:  hex.EncodeToString(i.PublicKey),
 		Type:       i.Type,
-		Signatures: i.Signatures.ToCborIdentitySignatures(),
+		Signatures: i.Signatures.ToCborIdentitySignature(),
 	}
 }
 
+// ToIdentity converts a CBOR serializable to a plain Identity object.
 func (c *CborIdentity) ToIdentity(provider Interface) (*Identity, error) {
 	publicKey, err := hex.DecodeString(c.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	idSignatures, err := c.Signatures.ToIdentitySignatures()
+	idSignatures, err := c.Signatures.ToIdentitySignature()
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +133,16 @@ func (c *CborIdentity) ToIdentity(provider Interface) (*Identity, error) {
 	}, nil
 }
 
-func (i *IdentitySignature) ToCborIdentitySignatures() *CborIdentitySignature {
+// ToCborIdentitySignature converts to a CBOR serialized identity signature a plain IdentitySignature.
+func (i *IdentitySignature) ToCborIdentitySignature() *CborIdentitySignature {
 	return &CborIdentitySignature{
 		ID:        hex.EncodeToString(i.ID),
 		PublicKey: hex.EncodeToString(i.PublicKey),
 	}
 }
 
-func (c *CborIdentitySignature) ToIdentitySignatures() (*IdentitySignature, error) {
+// ToIdentitySignature converts a CBOR serializable identity signature to a plain IdentitySignature.
+func (c *CborIdentitySignature) ToIdentitySignature() (*IdentitySignature, error) {
 	publicKey, err := hex.DecodeString(c.PublicKey)
 	if err != nil {
 		return nil, err

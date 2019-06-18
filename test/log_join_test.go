@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
+	ipfslog "berty.tech/go-ipfs-log"
+
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	"berty.tech/go-ipfs-log/log"
-	"berty.tech/go-ipfs-log/utils/lamportclock"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -50,10 +50,10 @@ func TestLogJoin(t *testing.T) {
 
 	Convey("Log - Join", t, FailureHalts, func(c C) {
 		c.Convey("join", FailureHalts, func(c C) {
-			var logs []*log.Log
+			var logs []*ipfslog.Log
 
 			for i := 0; i < 4; i++ {
-				l, err := log.NewLog(ipfs, identities[i], &log.NewLogOptions{ID: "X"})
+				l, err := ipfslog.NewLog(ipfs, identities[i], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
 				logs = append(logs, l)
@@ -91,24 +91,19 @@ func TestLogJoin(t *testing.T) {
 
 				// Here we're creating a log from entries signed by A and B
 				// but we accept entries from C too
-				logA, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[1][len(items[1])-1]}, &log.NewLogOptions{}, &entry.FetchOptions{})
+				logA, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 				// Here we're creating a log from entries signed by peer A, B and C
 				// "logA" accepts entries from peer C so we can join logs A and B
-				logB, err := log.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &log.NewLogOptions{}, &entry.FetchOptions{})
+				logB, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
-
-				c.So(entry.EntriesAsStrings(logA.Values().Slice()), ShouldResemble, entry.EntriesAsStrings(append(items[0], items[1]...)))
-				c.So(entry.EntriesAsStrings(logB.Values().Slice()), ShouldResemble, entry.EntriesAsStrings(append(items[0], append(items[1], items[2]...)...)))
 
 				_, err = logA.Join(logB, -1)
 				c.So(err, ShouldBeNil)
 
-				c.So(entry.EntriesAsStrings(logA.Values().Slice()), ShouldResemble, entry.EntriesAsStrings(append(items[0], append(items[1], items[2]...)...)))
-
 				// The last entry, 'entryC100', should be the only head
 				// (it points to entryB100, entryB100 and entryC99)
-				c.So(len(log.FindHeads(logA.Entries)), ShouldEqual, 1)
+				c.So(len(entry.FindHeads(logA.Entries)), ShouldEqual, 1)
 			})
 
 			c.Convey("returns error if log parameter is not defined", FailureHalts, func() {
@@ -439,19 +434,19 @@ func TestLogJoin(t *testing.T) {
 				c.So(logs[3].Clock.Time, ShouldEqual, 8)
 
 				expected := []entry.Entry{
-					entry.Entry{Payload: []byte("helloA1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 1}},
-					entry.Entry{Payload: []byte("helloB1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[1].PublicKey, Time: 1}},
-					entry.Entry{Payload: []byte("helloD1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 1}},
-					entry.Entry{Payload: []byte("helloA2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 2}},
-					entry.Entry{Payload: []byte("helloB2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[1].PublicKey, Time: 2}},
-					entry.Entry{Payload: []byte("helloD2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 2}},
-					entry.Entry{Payload: []byte("helloC1"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[2].PublicKey, Time: 3}},
-					entry.Entry{Payload: []byte("helloC2"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[2].PublicKey, Time: 4}},
-					entry.Entry{Payload: []byte("helloD3"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 5}},
-					entry.Entry{Payload: []byte("helloD4"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 6}},
-					entry.Entry{Payload: []byte("helloA5"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[0].PublicKey, Time: 7}},
-					entry.Entry{Payload: []byte("helloD5"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 7}},
-					entry.Entry{Payload: []byte("helloD6"), LogID: "X", Clock: &lamportclock.LamportClock{ID: identities[3].PublicKey, Time: 8}},
+					{Payload: []byte("helloA1"), LogID: "X", Clock: &entry.LamportClock{ID: identities[0].PublicKey, Time: 1}},
+					{Payload: []byte("helloB1"), LogID: "X", Clock: &entry.LamportClock{ID: identities[1].PublicKey, Time: 1}},
+					{Payload: []byte("helloD1"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 1}},
+					{Payload: []byte("helloA2"), LogID: "X", Clock: &entry.LamportClock{ID: identities[0].PublicKey, Time: 2}},
+					{Payload: []byte("helloB2"), LogID: "X", Clock: &entry.LamportClock{ID: identities[1].PublicKey, Time: 2}},
+					{Payload: []byte("helloD2"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 2}},
+					{Payload: []byte("helloC1"), LogID: "X", Clock: &entry.LamportClock{ID: identities[2].PublicKey, Time: 3}},
+					{Payload: []byte("helloC2"), LogID: "X", Clock: &entry.LamportClock{ID: identities[2].PublicKey, Time: 4}},
+					{Payload: []byte("helloD3"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 5}},
+					{Payload: []byte("helloD4"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 6}},
+					{Payload: []byte("helloA5"), LogID: "X", Clock: &entry.LamportClock{ID: identities[0].PublicKey, Time: 7}},
+					{Payload: []byte("helloD5"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 7}},
+					{Payload: []byte("helloD6"), LogID: "X", Clock: &entry.LamportClock{ID: identities[3].PublicKey, Time: 8}},
 				}
 
 				c.So(logs[3].Values().Len(), ShouldEqual, 13)

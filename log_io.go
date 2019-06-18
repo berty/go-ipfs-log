@@ -1,15 +1,16 @@
-package log // import "berty.tech/go-ipfs-log/log"
+package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
+	"errors"
 	"time"
+
+	"berty.tech/go-ipfs-log/entry/sorting"
 
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/io"
-	"berty.tech/go-ipfs-log/utils/lamportclock"
-	cid "github.com/ipfs/go-cid"
+	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/pkg/errors"
 )
 
 type FetchOptions struct {
@@ -19,7 +20,7 @@ type FetchOptions struct {
 	Timeout      time.Duration
 }
 
-func ToMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
+func toMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
 		return cid.Cid{}, errors.New(`can't serialize an empty log`)
 	}
@@ -27,7 +28,7 @@ func ToMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
 	return io.WriteCBOR(services, log.ToJSON())
 }
 
-func FromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
+func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*snapshot, error) {
 	result, err := io.ReadCBOR(services, hash)
 	if err != nil {
 		return nil, err
@@ -46,14 +47,14 @@ func FromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 	})
 
 	// Find latest clock
-	var clock *lamportclock.LamportClock
+	var clock *entry.LamportClock
 	for _, e := range entries {
 		if clock == nil || e.Clock.Time > clock.Time {
-			clock = lamportclock.New(e.Clock.ID, e.Clock.Time)
+			clock = entry.NewLamportClock(e.Clock.ID, e.Clock.Time)
 		}
 	}
 
-	entry.Sort(entry.Compare, entries)
+	sorting.Sort(sorting.Compare, entries)
 
 	heads := []*entry.Entry{}
 	for _, e := range entries {
@@ -69,7 +70,7 @@ func FromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 		headsCids = append(headsCids, head.Hash)
 	}
 
-	return &Snapshot{
+	return &snapshot{
 		ID:     logData.ID,
 		Values: entries,
 		Heads:  headsCids,
@@ -77,7 +78,7 @@ func FromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 	}, nil
 }
 
-func FromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
+func fromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -106,7 +107,7 @@ func FromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOpt
 	return sliced, nil
 }
 
-func FromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -123,16 +124,16 @@ func FromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOp
 		Timeout:      options.Timeout,
 	})
 
-	entry.Sort(entry.Compare, entries)
+	sorting.Sort(sorting.Compare, entries)
 
-	return &Snapshot{
+	return &snapshot{
 		ID:     jsonLog.ID,
 		Heads:  jsonLog.Heads,
 		Values: entries,
 	}, nil
 }
 
-func FromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
+func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -163,22 +164,73 @@ func FromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *
 	// Combine the fetches with the source entries and take only uniques
 	combined := append(sourceEntries, entries...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
-	entry.Sort(entry.Compare, uniques)
+	sorting.Sort(sorting.Compare, uniques)
 
 	// Cap the result at the right size by taking the last n entries
 	var sliced []*entry.Entry
 
 	if length > -1 {
-		sliced = entry.Slice(uniques, -length)
+		sliced = entrySlice(uniques, -length)
 	} else {
 		sliced = uniques
 	}
 
 	missingSourceEntries := entry.Difference(sliced, sourceEntries)
-	result := append(missingSourceEntries, entry.SliceRange(sliced, len(missingSourceEntries), len(sliced))...)
+	result := append(missingSourceEntries, entrySliceRange(sliced, len(missingSourceEntries), len(sliced))...)
 
-	return &Snapshot{
+	return &snapshot{
 		ID:     result[len(result)-1].LogID,
 		Values: result,
 	}, nil
+}
+
+func entrySlice(entries []*entry.Entry, index int) []*entry.Entry {
+	if len(entries) == 0 || index >= len(entries) {
+		return []*entry.Entry{}
+	}
+
+	if index == 0 || (index < 0 && -index >= len(entries)) {
+		return entries
+	}
+
+	if index > 0 {
+		return entries[index:]
+	}
+
+	return entries[(len(entries) + index):]
+}
+
+func entrySliceRange(entries []*entry.Entry, from int, to int) []*entry.Entry {
+	if len(entries) == 0 {
+		return []*entry.Entry{}
+	}
+
+	if from < 0 {
+		from = len(entries) + from
+		if from < 0 {
+			from = 0
+		}
+	}
+
+	if to < 0 {
+		to = len(entries) + to
+	}
+
+	if from >= len(entries) {
+		return []*entry.Entry{}
+	}
+
+	if to > len(entries) {
+		to = len(entries)
+	}
+
+	if from >= to {
+		return []*entry.Entry{}
+	}
+
+	if from == to {
+		return entries
+	}
+
+	return entries[from:to]
 }
