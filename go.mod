@@ -18,6 +18,7 @@ require (
 	github.com/ipfs/go-ipld-cbor v0.0.2
 	github.com/ipfs/go-ipld-format v0.0.2
 	github.com/ipfs/go-merkledag v0.0.3
+	github.com/ipfs/interface-go-ipfs-core v0.0.8
 	github.com/libp2p/go-libp2p-crypto v0.0.2
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/minio/sha256-simd v0.1.0 // indirect

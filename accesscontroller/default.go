@@ -11,7 +11,7 @@ type Default struct {
 
 // CanAppend Checks whether a given identity can append an entry to the log.
 // This implementation allows anyone to write to the log.
-func (d *Default) CanAppend(*entry.Entry, *identityprovider.Identity) error {
+func (d *Default) CanAppend(*entry.Entry, identityprovider.Interface) error {
 	return nil
 }
 

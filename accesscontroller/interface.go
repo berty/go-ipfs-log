@@ -6,5 +6,5 @@ import (
 )
 
 type Interface interface {
-	CanAppend(*entry.Entry, *identityprovider.Identity) error
+	CanAppend(*entry.Entry, identityprovider.Interface) error
 }
