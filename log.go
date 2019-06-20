@@ -46,7 +46,7 @@ type LogOptions struct {
 	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
 }
 
-type snapshot struct {
+type Snapshot struct {
 	ID     string
 	Heads  []cid.Cid
 	Values []*entry.Entry
@@ -472,24 +472,25 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 	return strings.Join(lines, "\n")
 }
 
-//func (l *Log) toSnapshot() *snapshot {
-//	return &snapshot{
-//		ID:     l.ID,
-//		Heads:  entrySliceToCids(l.heads.Slice()),
-//		Values: l.Values().Slice(),
-//	}
-//}
-//
-//func entrySliceToCids(slice []*entry.Entry) []cid.Cid {
-//	cids := []cid.Cid{}
-//
-//	for _, e := range slice {
-//		cids = append(cids, e.Hash)
-//	}
-//
-//	return cids
-//}
-//
+// ToSnapshot exports a Snapshot-able version of the log
+func (l *Log) ToSnapshot() *Snapshot {
+	return &Snapshot{
+		ID:     l.ID,
+		Heads:  entrySliceToCids(l.heads.Slice()),
+		Values: l.Values().Slice(),
+	}
+}
+
+func entrySliceToCids(slice []*entry.Entry) []cid.Cid {
+	var cids []cid.Cid
+
+	for _, e := range slice {
+		cids = append(cids, e.Hash)
+	}
+
+	return cids
+}
+
 //func (l *Log) toBuffer() ([]byte, error) {
 //	return json.Marshal(l.ToJSON())
 //}
@@ -584,9 +585,9 @@ func NewFromEntryHash(services io.IpfsServices, identity *identityprovider.Ident
 	})
 }
 
-// NewFromJSON Creates a Log from a JSON snapshot
+// NewFromJSON Creates a Log from a JSON Snapshot
 //
-// Creating a log from a JSON snapshot will retrieve entries from IPFS, thus causing side effects
+// Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
 func NewFromJSON(services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
