@@ -29,7 +29,7 @@ func mustBytes(data []byte, err error) []byte {
 type DenyAll struct {
 }
 
-func (*DenyAll) CanAppend(*entry.Entry, *idp.Identity) error {
+func (*DenyAll) CanAppend(*entry.Entry, idp.Interface) error {
 	return errors.New("denied")
 }
 
@@ -37,7 +37,7 @@ type TestACL struct {
 	refIdentity *idp.Identity
 }
 
-func (t *TestACL) CanAppend(e *entry.Entry, i *idp.Identity) error {
+func (t *TestACL) CanAppend(e *entry.Entry, p idp.Interface) error {
 	if e.Identity.ID == t.refIdentity.ID {
 		return errors.New("denied")
 	}

@@ -150,7 +150,7 @@ func TestLog(t *testing.T) {
 				log1, err := ipfslog.NewLog(ipfs, identities[0], nil)
 				c.So(err, ShouldBeNil)
 
-				err = log1.AccessController.CanAppend(&entry.Entry{Payload: []byte("any")}, identities[0])
+				err = log1.AccessController.CanAppend(&entry.Entry{Payload: []byte("any")}, identities[0].Provider)
 				c.So(err, ShouldBeNil)
 			})
 

@@ -252,7 +252,7 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 		return nil, errors.Wrap(err, "append failed")
 	}
 
-	if err := l.AccessController.CanAppend(e, l.Identity); err != nil {
+	if err := l.AccessController.CanAppend(e, l.Identity.Provider); err != nil {
 		return nil, errors.Wrap(err, "append failed")
 	}
 
@@ -345,7 +345,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
-		if err := l.AccessController.CanAppend(e, l.Identity); err != nil {
+		if err := l.AccessController.CanAppend(e, l.Identity.Provider); err != nil {
 			return nil, errors.Wrap(err, "join failed")
 		}
 
