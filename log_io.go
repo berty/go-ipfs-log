@@ -28,7 +28,7 @@ func toMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
 	return io.WriteCBOR(services, log.ToJSON())
 }
 
-func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*snapshot, error) {
+func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
 	result, err := io.ReadCBOR(services, hash)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 		headsCids = append(headsCids, head.Hash)
 	}
 
-	return &snapshot{
+	return &Snapshot{
 		ID:     logData.ID,
 		Values: entries,
 		Heads:  headsCids,
@@ -107,7 +107,7 @@ func fromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOpt
 	return sliced, nil
 }
 
-func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*snapshot, error) {
+func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -126,14 +126,14 @@ func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOp
 
 	sorting.Sort(sorting.Compare, entries)
 
-	return &snapshot{
+	return &Snapshot{
 		ID:     jsonLog.ID,
 		Heads:  jsonLog.Heads,
 		Values: entries,
 	}, nil
 }
 
-func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*snapshot, error) {
+func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -178,7 +178,7 @@ func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *
 	missingSourceEntries := entry.Difference(sliced, sourceEntries)
 	result := append(missingSourceEntries, entrySliceRange(sliced, len(missingSourceEntries), len(sliced))...)
 
-	return &snapshot{
+	return &Snapshot{
 		ID:     result[len(result)-1].LogID,
 		Values: result,
 	}, nil
