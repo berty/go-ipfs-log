@@ -1,6 +1,7 @@
 package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -20,16 +21,16 @@ type FetchOptions struct {
 	Timeout      time.Duration
 }
 
-func toMultihash(services io.IpfsServices, log *Log) (cid.Cid, error) {
+func toMultihash(ctx context.Context, services io.IpfsServices, log *Log) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
 		return cid.Cid{}, errors.New(`can't serialize an empty log`)
 	}
 
-	return io.WriteCBOR(services, log.ToJSON())
+	return io.WriteCBOR(ctx, services, log.ToJSON())
 }
 
-func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
-	result, err := io.ReadCBOR(services, hash)
+func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
+	result, err := io.ReadCBOR(ctx, services, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +41,7 @@ func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 		return nil, err
 	}
 
-	entries := entry.FetchAll(services, logData.Heads, &entry.FetchOptions{
+	entries := entry.FetchAll(ctx, services, logData.Heads, &entry.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
@@ -78,7 +79,7 @@ func fromMultihash(services io.IpfsServices, hash cid.Cid, options *FetchOptions
 	}, nil
 }
 
-func fromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
+func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -93,7 +94,7 @@ func fromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOpt
 		length = maxInt(*options.Length, 1)
 	}
 
-	entries := entry.FetchParallel(services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, hashes, &entry.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
@@ -107,7 +108,7 @@ func fromEntryHash(services io.IpfsServices, hashes []cid.Cid, options *FetchOpt
 	return sliced, nil
 }
 
-func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -116,7 +117,7 @@ func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOp
 		return nil, errmsg.FetchOptionsNotDefined
 	}
 
-	entries := entry.FetchParallel(services, jsonLog.Heads, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &entry.FetchOptions{
 		Length:       options.Length,
 		Exclude:      []*entry.Entry{},
 		ProgressChan: options.ProgressChan,
@@ -133,7 +134,7 @@ func fromJSON(services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOp
 	}, nil
 }
 
-func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
+func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -155,7 +156,7 @@ func fromEntry(services io.IpfsServices, sourceEntries []*entry.Entry, options *
 	}
 
 	// Fetch the entries
-	entries := entry.FetchParallel(services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, hashes, &entry.FetchOptions{
 		Length:       &length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,

@@ -17,7 +17,7 @@ import (
 )
 
 func TestLogAppend(t *testing.T) {
-	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	ipfs := NewMemoryServices()
@@ -43,7 +43,7 @@ func TestLogAppend(t *testing.T) {
 			c.Convey("append one", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
-				_, err = log1.Append([]byte("hello1"), 1)
+				_, err = log1.Append(ctx, []byte("hello1"), 1)
 				c.So(err, ShouldBeNil)
 
 				c.So(log1.Entries.Len(), ShouldEqual, 1)
@@ -68,7 +68,7 @@ func TestLogAppend(t *testing.T) {
 				nextPointerAmount := 64
 
 				for i := 0; i < 100; i++ {
-					_, err := log1.Append([]byte(fmt.Sprintf("hello%d", i)), nextPointerAmount)
+					_, err := log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), nextPointerAmount)
 					c.So(err, ShouldBeNil)
 
 					values := log1.Values()

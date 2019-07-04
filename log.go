@@ -2,6 +2,7 @@
 package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -214,7 +215,7 @@ func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 // Append Appends an entry to the log Returns the latest Entry
 //
 // payload is the data that will be in the Entry
-func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
+func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*entry.Entry, error) {
 	// INFO: JS default value for pointerCount is 1
 	// Update the clock (find the latest clock)
 	newTime := maxClockTimeForEntries(l.heads.Slice(), 0)
@@ -243,7 +244,7 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 
 	// @TODO: Split Entry.create into creating object, checking permission, signing and then posting to IPFS
 	// Create the entry and add it to the internal cache
-	e, err := entry.CreateEntry(l.Storage, l.Identity, &entry.Entry{
+	e, err := entry.CreateEntry(ctx, l.Storage, l.Identity, &entry.Entry{
 		LogID:   l.ID,
 		Payload: payload,
 		Next:    next,
@@ -536,14 +537,14 @@ func entrySliceToCids(slice []*entry.Entry) []cid.Cid {
 // log.toJSON to IPFS, thus causing side effects
 //
 // The only supported format is dag-cbor and a CIDv1 is returned
-func (l *Log) ToMultihash() (cid.Cid, error) {
-	return toMultihash(l.Storage, l)
+func (l *Log) ToMultihash(ctx context.Context) (cid.Cid, error) {
+	return toMultihash(ctx, l.Storage, l)
 }
 
 // NewFromMultihash Creates a Log from a hash
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromMultihash(services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -560,7 +561,7 @@ func NewFromMultihash(services io.IpfsServices, identity *identityprovider.Ident
 		return nil, errmsg.FetchOptionsNotDefined
 	}
 
-	data, err := fromMultihash(services, hash, &FetchOptions{
+	data, err := fromMultihash(ctx, services, hash, &FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
@@ -593,7 +594,7 @@ func NewFromMultihash(services io.IpfsServices, identity *identityprovider.Ident
 // NewFromEntryHash Creates a Log from a hash of an Entry
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromEntryHash(services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -603,7 +604,7 @@ func NewFromEntryHash(services io.IpfsServices, identity *identityprovider.Ident
 	}
 
 	// TODO: need to verify the entries with 'key'
-	entries, err := fromEntryHash(services, []cid.Cid{hash}, &FetchOptions{
+	entries, err := fromEntryHash(ctx, services, []cid.Cid{hash}, &FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,
@@ -623,7 +624,7 @@ func NewFromEntryHash(services io.IpfsServices, identity *identityprovider.Ident
 // NewFromJSON Creates a Log from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -634,7 +635,7 @@ func NewFromJSON(services io.IpfsServices, identity *identityprovider.Identity, 
 
 	// TODO: need to verify the entries with 'key'
 
-	snapshot, err := fromJSON(services, jsonLog, &entry.FetchOptions{
+	snapshot, err := fromJSON(ctx, services, jsonLog, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
 		Timeout:      fetchOptions.Timeout,
 		ProgressChan: fetchOptions.ProgressChan,
@@ -654,7 +655,7 @@ func NewFromJSON(services io.IpfsServices, identity *identityprovider.Identity, 
 // NewFromEntry Creates a Log from an Entry
 //
 // Creating a log from an entry will retrieve entries from IPFS, thus causing side effects
-func NewFromEntry(services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -664,7 +665,7 @@ func NewFromEntry(services io.IpfsServices, identity *identityprovider.Identity,
 	}
 
 	// TODO: need to verify the entries with 'key'
-	snapshot, err := fromEntry(services, sourceEntries, &entry.FetchOptions{
+	snapshot, err := fromEntry(ctx, services, sourceEntries, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
 		ProgressChan: fetchOptions.ProgressChan,

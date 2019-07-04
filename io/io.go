@@ -18,7 +18,7 @@ func SetDebug(val bool) {
 }
 
 // WriteCBOR writes a CBOR representation of a given object in IPFS' DAG.
-func WriteCBOR(ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
+func WriteCBOR(ctx context.Context, ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
 	cborNode, err := cbornode.WrapObject(obj, math.MaxUint64, -1)
 	if err != nil {
 		return cid.Cid{}, err
@@ -28,7 +28,7 @@ func WriteCBOR(ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
 		fmt.Printf("\nStr of cbor: %x\n", cborNode.RawData())
 	}
 
-	err = ipfs.Dag().Add(context.Background(), cborNode)
+	err = ipfs.Dag().Add(ctx, cborNode)
 	if err != nil {
 		return cid.Cid{}, err
 	}
@@ -37,6 +37,6 @@ func WriteCBOR(ipfs IpfsServices, obj interface{}) (cid.Cid, error) {
 }
 
 // ReadCBOR reads a CBOR representation of a given object from IPFS' DAG.
-func ReadCBOR(ipfs IpfsServices, contentIdentifier cid.Cid) (format.Node, error) {
-	return ipfs.Dag().Get(context.Background(), contentIdentifier)
+func ReadCBOR(ctx context.Context, ipfs IpfsServices, contentIdentifier cid.Cid) (format.Node, error) {
+	return ipfs.Dag().Get(ctx, contentIdentifier)
 }

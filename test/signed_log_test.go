@@ -46,7 +46,7 @@ func (t *TestACL) CanAppend(e *entry.Entry, p idp.Interface) error {
 }
 
 func TestSignedLog(t *testing.T) {
-	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	ipfs := NewMemoryServices()
@@ -118,7 +118,7 @@ func TestSignedLog(t *testing.T) {
 			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l.Append([]byte("one"), 1)
+			_, err = l.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
 			c.So(l.Values().At(0).Sig, ShouldNotBeNil)
@@ -137,13 +137,13 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "B"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("three"), 1)
+			_, err = l2.Append(ctx, []byte("three"), 1)
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Join(l2, -1)
@@ -161,10 +161,10 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
 			l2.Values().At(0).Key = nil
@@ -181,10 +181,10 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
 			l2.Values().At(0).Sig = nil
@@ -201,10 +201,10 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
 			l2.Values().At(0).Sig = l1.Values().At(0).Sig
@@ -224,10 +224,10 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A", AccessController: &DenyAll{}})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldNotBeNil)
 			c.So(err.Error(), ShouldContainSubstring, "append failed: denied")
 		})
@@ -239,10 +239,10 @@ func TestSignedLog(t *testing.T) {
 			l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 
-			_, err = l1.Append([]byte("one"), 1)
+			_, err = l1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			_, err = l2.Append([]byte("two"), 1)
+			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
 			_, err = l1.Join(l2, -1)

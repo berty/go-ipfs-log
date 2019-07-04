@@ -20,7 +20,7 @@ import (
 )
 
 func TestLogJoin(t *testing.T) {
-	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	ipfs := NewMemoryServices()
@@ -65,22 +65,22 @@ func TestLogJoin(t *testing.T) {
 				var curr [3]*entry.Entry
 				var err error
 
-				curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
+				curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
 				c.So(err, ShouldBeNil)
-				curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].Hash}}, nil)
+				curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].Hash}}, nil)
 				c.So(err, ShouldBeNil)
-				curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].Hash, curr[1].Hash}}, nil)
+				curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].Hash, curr[1].Hash}}, nil)
 				c.So(err, ShouldBeNil)
 				for i := 1; i <= 100; i++ {
 					if i > 1 {
 						for j := 0; j < 3; j++ {
 							prev[j] = items[j][len(items[j])-1]
 						}
-						curr[0], err = entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].Hash}}, nil)
+						curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].Hash}}, nil)
 						c.So(err, ShouldBeNil)
-						curr[1], err = entry.CreateEntry(ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].Hash, curr[0].Hash}}, nil)
+						curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].Hash, curr[0].Hash}}, nil)
 						c.So(err, ShouldBeNil)
-						curr[2], err = entry.CreateEntry(ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].Hash, curr[0].Hash, curr[1].Hash}}, nil)
+						curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].Hash, curr[0].Hash, curr[1].Hash}}, nil)
 						c.So(err, ShouldBeNil)
 					}
 
@@ -91,11 +91,11 @@ func TestLogJoin(t *testing.T) {
 
 				// Here we're creating a log from entries signed by A and B
 				// but we accept entries from C too
-				logA, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+				logA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 				// Here we're creating a log from entries signed by peer A, B and C
 				// "logA" accepts entries from peer C so we can join logs A and B
-				logB, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+				logB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				_, err = logA.Join(logB, -1)
@@ -112,13 +112,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only unique items", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], -1)
@@ -140,13 +140,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins logs two ways", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], -1)
@@ -176,16 +176,16 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins logs twice", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
@@ -203,18 +203,18 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins 2 logs two ways", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
@@ -273,24 +273,24 @@ func TestLogJoin(t *testing.T) {
 
 			c.Convey("joins 4 logs to one", FailureHalts, func() {
 				// order determined by identity's publicKey
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
-				c.So(err, ShouldBeNil)
-
-				_, err = logs[2].Append([]byte("helloB1"), 1)
-				c.So(err, ShouldBeNil)
-				_, err = logs[2].Append([]byte("helloB2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[1].Append([]byte("helloC1"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloC2"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[3].Append([]byte("helloD1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[3].Append(ctx, []byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append(ctx, []byte("helloD2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], -1)
@@ -323,24 +323,24 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins 4 logs to one is commutative", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
-				c.So(err, ShouldBeNil)
-
-				_, err = logs[1].Append([]byte("helloB1"), 1)
-				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[2].Append([]byte("helloC1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[2].Append([]byte("helloC2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logs[3].Append([]byte("helloD1"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD2"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC2"), 1)
+				c.So(err, ShouldBeNil)
+
+				_, err = logs[3].Append(ctx, []byte("helloD1"), 1)
+				c.So(err, ShouldBeNil)
+				_, err = logs[3].Append(ctx, []byte("helloD2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], -1)
@@ -371,15 +371,15 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins logs and updates clocks", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				c.So(logs[0].Clock.ID, ShouldResemble, identities[0].PublicKey)
@@ -393,17 +393,17 @@ func TestLogJoin(t *testing.T) {
 				c.So(logs[2].Clock.ID, ShouldResemble, identities[2].PublicKey)
 				c.So(logs[2].Clock.Time, ShouldEqual, 2)
 
-				_, err = logs[2].Append([]byte("helloC1"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[2].Append([]byte("helloC2"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[2], -1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD1"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD2"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
@@ -411,25 +411,25 @@ func TestLogJoin(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[2], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD3"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD3"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD4"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD4"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[3], -1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD5"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD5"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA5"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA5"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
 				c.So(logs[3].Clock.ID, ShouldResemble, identities[3].PublicKey)
 				c.So(logs[3].Clock.Time, ShouldEqual, 7)
 
-				_, err = logs[3].Append([]byte("helloD6"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD6"), 1)
 				c.So(err, ShouldBeNil)
 				c.So(logs[3].Clock.Time, ShouldEqual, 8)
 
@@ -463,17 +463,17 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins logs from 4 logs", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[1].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[2], -1)
@@ -488,17 +488,17 @@ func TestLogJoin(t *testing.T) {
 				c.So(logs[2].Clock.ID, ShouldResemble, identities[2].PublicKey)
 				c.So(logs[2].Clock.Time, ShouldEqual, 2)
 
-				_, err = logs[2].Append([]byte("helloC1"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[2].Append([]byte("helloC2"), 1)
+				_, err = logs[2].Append(ctx, []byte("helloC2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[2], -1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[0].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD1"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD2"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD2"), 1)
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[1], -1)
 				c.So(err, ShouldBeNil)
@@ -506,9 +506,9 @@ func TestLogJoin(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[2], -1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD3"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD3"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[3].Append([]byte("helloD4"), 1)
+				_, err = logs[3].Append(ctx, []byte("helloD4"), 1)
 				c.So(err, ShouldBeNil)
 
 				c.So(logs[3].Clock.ID, ShouldResemble, identities[3].PublicKey)
@@ -539,13 +539,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only specified amount of entries - one entry", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], 1)
@@ -568,13 +568,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only specified amount of entries - two entries", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], 2)
@@ -597,13 +597,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only specified amount of entries - three entries", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], 3)
@@ -626,13 +626,13 @@ func TestLogJoin(t *testing.T) {
 			})
 
 			c.Convey("joins only specified amount of entries - (all) four entries", FailureHalts, func() {
-				_, err := logs[0].Append([]byte("helloA1"), 1)
+				_, err := logs[0].Append(ctx, []byte("helloA1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[0].Append([]byte("helloA2"), 1)
+				_, err = logs[0].Append(ctx, []byte("helloA2"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB1"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB1"), 1)
 				c.So(err, ShouldBeNil)
-				_, err = logs[1].Append([]byte("helloB2"), 1)
+				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = logs[0].Join(logs[1], 4)

@@ -14,7 +14,7 @@ import (
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	ipfs_core "github.com/ipfs/go-ipfs/core"
+	ipfsCore "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreapi"
 )
 
@@ -44,7 +44,7 @@ func TestLogIterator(t *testing.T) {
 			identities[i] = identity
 		}
 
-		core, err := ipfs_core.NewNode(ctx, &ipfs_core.BuildCfg{})
+		core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{})
 		c.So(err, ShouldBeNil)
 
 		ipfs, err := coreapi.NewCoreAPI(core)
@@ -53,7 +53,7 @@ func TestLogIterator(t *testing.T) {
 		c.So(err, ShouldBeNil)
 
 		for i := 0; i <= 100; i++ {
-			_, err := log1.Append([]byte(fmt.Sprintf("entry%d", i)), 1)
+			_, err := log1.Append(ctx, []byte(fmt.Sprintf("entry%d", i)), 1)
 			c.So(err, ShouldBeNil)
 		}
 
@@ -442,7 +442,7 @@ func TestLogIterator(t *testing.T) {
 
 		c.Convey("Iteration over forked/joined logs", FailureHalts, func(c C) {
 			identities := [4]*idp.Identity{identities[2], identities[1], identities[2], identities[0]}
-			fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, identities)
+			fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
 			c.So(err, ShouldBeNil)
 
 			c.Convey("returns the full length from all heads", FailureHalts, func(c C) {

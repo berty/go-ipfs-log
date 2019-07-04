@@ -1,6 +1,7 @@
 package logcreator // import "berty.tech/go-ipfs-log/test/logcreator"
 
 import (
+	"context"
 	"fmt"
 
 	ipfslog "berty.tech/go-ipfs-log"
@@ -15,7 +16,7 @@ type CreatedLog struct {
 	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, error) {
+func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, error) {
 	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
@@ -37,14 +38,14 @@ func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (
 	}
 
 	for i := 1; i <= 5; i++ {
-		_, err := logA.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	for i := 1; i <= 5; i++ {
-		_, err := logB.Append([]byte(fmt.Sprintf("entryB%d", i)), 1)
+		_, err := logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), 1)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +62,7 @@ func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (
 	}
 
 	for i := 6; i <= 10; i++ {
-		_, err := logA.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +73,7 @@ func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (
 		return nil, err
 	}
 
-	_, err = l.Append([]byte("entryC0"), 1)
+	_, err = l.Append(ctx, []byte("entryC0"), 1)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func createLogsFor16Entries(ipfs io.IpfsServices, identities [4]*idp.Identity) (
 	return l, nil
 }
 
-func CreateLogWithSixteenEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
 	expectedData := []string{
 		"entryA1", "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
 		"entryA4", "entryB4", "entryA5", "entryB5",
@@ -94,7 +95,7 @@ func CreateLogWithSixteenEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 		"entryA7", "entryA8", "entryA9", "entryA10",
 	}
 
-	l, err := createLogsFor16Entries(ipfs, identities)
+	l, err := createLogsFor16Entries(ctx, ipfs, identities)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func CreateLogWithSixteenEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, []string, error) {
+func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, []string, error) {
 	var expectedData []string
 	const amount = 100
 
@@ -120,7 +121,7 @@ func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 		entryNameA := fmt.Sprintf("entryA%d", i)
 		entryNameB := fmt.Sprintf("entryB%d", i)
 
-		_, err := logA.Append([]byte(entryNameA), 1)
+		_, err := logA.Append(ctx, []byte(entryNameA), 1)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -129,7 +130,7 @@ func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 			return nil, nil, err
 		}
 
-		_, err = logB.Append([]byte(entryNameB), 1)
+		_, err = logB.Append(ctx, []byte(entryNameB), 1)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -145,8 +146,8 @@ func createLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identi
 	return logA, expectedData, nil
 }
 
-func CreateLogWithHundredEntries(ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
-	l, expectedData, err := createLogWithHundredEntries(ipfs, identities)
+func CreateLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+	l, expectedData, err := createLogWithHundredEntries(ctx, ipfs, identities)
 	if err != nil {
 		return nil, err
 	}

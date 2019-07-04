@@ -29,7 +29,7 @@ func BadComparatorReturnsZero(a *entry.Entry, b *entry.Entry) (int, error) {
 }
 
 func TestLogLoad(t *testing.T) {
-	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	ipfs := NewMemoryServices()
@@ -68,7 +68,7 @@ func TestLogLoad(t *testing.T) {
 	Convey("Log - Load", t, FailureHalts, func(c C) {
 		c.Convey("fromJSON", FailureHalts, func(c C) {
 			c.Convey("creates a log from an entry", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, identities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
@@ -84,7 +84,7 @@ func TestLogLoad(t *testing.T) {
 				//	heads[e.Hash.String()] = e
 				//}
 
-				l, err := ipfslog.NewFromJSON(ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
+				l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				values := l.Values()
@@ -95,13 +95,13 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("creates a log from an entry with custom tiebreaker", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, identities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 				json := fixture.JSON
 
-				l, err := ipfslog.NewFromJSON(ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+				l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -115,14 +115,14 @@ func TestLogLoad(t *testing.T) {
 
 		c.Convey("fromEntryHash", FailureHalts, func(c C) {
 			c.Convey("creates a log from an entry hash", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, identities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 				json := fixture.JSON
 
-				log1, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
-				log2, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -133,14 +133,14 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("creates a log from an entry hash with custom tiebreaker", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, identities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 				json := fixture.JSON
 
-				log1, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
-				log2, err := ipfslog.NewFromEntryHash(ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -155,12 +155,12 @@ func TestLogLoad(t *testing.T) {
 			resortedIdentities := [4]*idp.Identity{identities[2], identities[1], identities[0], identities[3]}
 
 			c.Convey("creates a log from an entry", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 
-				l, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
+				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -169,12 +169,12 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("creates a log from an entry with custom tiebreaker", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 
-				l, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -183,12 +183,12 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("keeps the original heads", FailureHalts, func(c C) {
-				fixture, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				data := fixture.Log
 
-				log1, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
+				log1, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
 
 				c.So(err, ShouldBeNil)
 				c.So(log1.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -196,7 +196,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(string(log1.Values().At(0).Payload), ShouldEqual, "entryC0")
 				c.So(string(log1.Values().At(1).Payload), ShouldEqual, "entryA10")
 
-				log2, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
+				log2, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
 
 				c.So(err, ShouldBeNil)
 				c.So(log2.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -206,7 +206,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(string(log2.Values().At(2).Payload), ShouldEqual, "entryA9")
 				c.So(string(log2.Values().At(3).Payload), ShouldEqual, "entryA10")
 
-				log3, err := ipfslog.NewFromEntry(ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
+				log3, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
 
 				c.So(err, ShouldBeNil)
 				c.So(log3.ID, ShouldEqual, data.Heads().At(0).LogID)
@@ -249,7 +249,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev1.Hash}
 					}
 
-					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
@@ -258,7 +258,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash}
 					}
 
-					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
@@ -267,7 +267,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
 
-					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					items1 = append(items1, n1)
@@ -276,12 +276,12 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				// limit to 10 entries
-				a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
+				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
 				c.So(err, ShouldBeNil)
 				c.So(a.Values().Len(), ShouldEqual, 10)
 
 				// limit to 42 entries
-				b, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
+				b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
 				c.So(err, ShouldBeNil)
 				c.So(b.Values().Len(), ShouldEqual, 42)
 			})
@@ -311,7 +311,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev1.Hash}
 					}
 
-					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
@@ -320,7 +320,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash}
 					}
 
-					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
@@ -329,7 +329,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n2.Hash}
 					}
 
-					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					items1 = append(items1, n1)
@@ -337,15 +337,15 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
@@ -375,7 +375,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev1.Hash}
 					}
 
-					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
@@ -384,7 +384,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash}
 					}
 
-					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
@@ -393,7 +393,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
 
-					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					items1 = append(items1, n1)
@@ -401,15 +401,15 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := ipfslog.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
@@ -444,7 +444,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev1.Hash}
 					}
 
-					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, log1.Clock)
+					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, log1.Clock)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
@@ -453,7 +453,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash}
 					}
 
-					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, log2.Clock)
+					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, log2.Clock)
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
@@ -462,7 +462,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
 
-					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, log3.Clock)
+					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, log3.Clock)
 					c.So(err, ShouldBeNil)
 
 					log1.Clock.Merge(log2.Clock)
@@ -477,7 +477,7 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
@@ -504,15 +504,15 @@ func TestLogLoad(t *testing.T) {
 					"entryB10",
 				}
 
-				lB, err := ipfslog.NewFromEntry(ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 				c.So(entriesAsStrings(lB.Values()), ShouldResemble, itemsInB)
 
-				lC, err := ipfslog.NewFromEntry(ipfs, identities[3], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[3], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 
-				_, err = lC.Append([]byte("EOF"), 1)
+				_, err = lC.Append(ctx, []byte("EOF"), 1)
 				c.So(err, ShouldBeNil)
 
 				c.So(lC.Values().Len(), ShouldEqual, amount*3+1)
@@ -557,16 +557,16 @@ func TestLogLoad(t *testing.T) {
 				logX, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				_, err = logX.Append([]byte{'1'}, 1)
+				_, err = logX.Append(ctx, []byte{'1'}, 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logX.Append([]byte{'2'}, 1)
+				_, err = logX.Append(ctx, []byte{'2'}, 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = logX.Append([]byte{'3'}, 1)
+				_, err = logX.Append(ctx, []byte{'3'}, 1)
 				c.So(err, ShouldBeNil)
 
-				lD, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+				lD, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				_, err = lC.Join(lD, -1)
@@ -575,16 +575,16 @@ func TestLogLoad(t *testing.T) {
 				_, err = lD.Join(lC, -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = lC.Append([]byte("DONE"), 1)
+				_, err = lC.Append(ctx, []byte("DONE"), 1)
 				c.So(err, ShouldBeNil)
 
-				_, err = lD.Append([]byte("DONE"), 1)
+				_, err = lD.Append(ctx, []byte("DONE"), 1)
 				c.So(err, ShouldBeNil)
 
-				logF, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logF, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
-				logG, err := ipfslog.NewFromEntry(ipfs, identities[2], []*entry.Entry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logG, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
 				c.So(logF.ToString(nil), ShouldEqual, bigLogString)
@@ -602,10 +602,10 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
-					_, err := log1.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 					c.So(err, ShouldBeNil)
 
-					_, err = log2.Append([]byte(fmt.Sprintf("entryB%d", i)), 1)
+					_, err = log2.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 
@@ -616,14 +616,14 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 6; i <= 10; i++ {
-					_, err := log1.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 
 				_, err = log1.Join(log3, -1)
 
 				for i := 11; i <= 15; i++ {
-					_, err := log1.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 
@@ -651,10 +651,10 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
-					_, err := logA.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+					_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 					c.So(err, ShouldBeNil)
 
-					_, err = logB.Append([]byte(fmt.Sprintf("entryB%d", i)), 1)
+					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 
@@ -665,14 +665,14 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 6; i <= 10; i++ {
-					_, err := logA.Append([]byte(fmt.Sprintf("entryA%d", i)), 1)
+					_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
 					c.So(err, ShouldBeNil)
 				}
 
 				_, err = l.Join(log3, -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = l.Append([]byte("entryC0"), 1)
+				_, err = l.Append(ctx, []byte("entryC0"), 1)
 				c.So(err, ShouldBeNil)
 
 				_, err = l.Join(logA, 16)
@@ -690,7 +690,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("sorts", FailureHalts, func(c C) {
-				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				testLog, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				l := testLog.Log
@@ -759,7 +759,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("sorts deterministically from random order", FailureHalts, func(c C) {
-				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				testLog, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				l := testLog.Log
@@ -781,7 +781,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("sorts entries correctly", FailureHalts, func(c C) {
-				testLog, err := logcreator.CreateLogWithHundredEntries(ipfs, resortedIdentities)
+				testLog, err := logcreator.CreateLogWithHundredEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				l := testLog.Log
@@ -791,7 +791,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("sorts entries according to custom tiebreaker function", FailureHalts, func(c C) {
-				testLog, err := logcreator.CreateLogWithSixteenEntries(ipfs, resortedIdentities)
+				testLog, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
 				firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
@@ -816,10 +816,10 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
-					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 
-					_, err = logB.Append([]byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
+					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 				}
 
@@ -830,23 +830,23 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 6; i <= 10; i++ {
-					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 				}
 
 				_, err = l.Join(log3, -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = l.Append([]byte("entryC0"), nextPointersAmount)
+				_, err = l.Append(ctx, []byte("entryC0"), nextPointersAmount)
 				c.So(err, ShouldBeNil)
 
 				_, err = l.Join(logA, -1)
 				c.So(err, ShouldBeNil)
 
-				hash, err := l.ToMultihash()
+				hash, err := l.ToMultihash(ctx)
 
 				// First 5
-				res, err := ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
+				res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
 				c.So(err, ShouldBeNil)
 
 				first5 := []string{
@@ -856,7 +856,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
 
 				// First 11
-				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
+				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
 				c.So(err, ShouldBeNil)
 
 				first11 := []string{
@@ -869,7 +869,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
 
 				// All but one
-				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
+				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
 				c.So(err, ShouldBeNil)
 
 				all := []string{
@@ -896,10 +896,10 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 1; i <= 5; i++ {
-					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 
-					_, err = logB.Append([]byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
+					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 				}
 
@@ -910,23 +910,23 @@ func TestLogLoad(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				for i := 6; i <= 10; i++ {
-					_, err = logA.Append([]byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
+					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nextPointersAmount)
 					c.So(err, ShouldBeNil)
 				}
 
 				_, err = l.Join(log3, -1)
 				c.So(err, ShouldBeNil)
 
-				_, err = l.Append([]byte("entryC0"), nextPointersAmount)
+				_, err = l.Append(ctx, []byte("entryC0"), nextPointersAmount)
 				c.So(err, ShouldBeNil)
 
 				_, err = l.Join(logA, -1)
 				c.So(err, ShouldBeNil)
 
-				hash, err := l.ToMultihash()
+				hash, err := l.ToMultihash(ctx)
 
 				// First 5
-				res, err := ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
+				res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
 				c.So(err, ShouldBeNil)
 
 				first5 := []string{
@@ -936,7 +936,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
 
 				// First 11
-				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
+				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
 				c.So(err, ShouldBeNil)
 
 				first11 := []string{
@@ -949,7 +949,7 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
 
 				// All but one
-				res, err = ipfslog.NewFromMultihash(ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
+				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
 				c.So(err, ShouldBeNil)
 
 				all := []string{
@@ -963,7 +963,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("throws an error if ipfs is not defined", FailureHalts, func(c C) {
-				_, err := ipfslog.NewFromEntry(nil, identities[0], []*entry.Entry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
+				_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []*entry.Entry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldNotBeNil)
 				c.So(err.Error(), ShouldContainSubstring, "ipfs instance not defined")
 			})
@@ -995,7 +995,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev1.Hash}
 					}
 
-					n1, err := entry.CreateEntry(ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts}, log1.Clock)
+					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts}, log1.Clock)
 					c.So(err, ShouldBeNil)
 
 					nexts = []cid.Cid{n1.Hash}
@@ -1003,7 +1003,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev2.Hash, n1.Hash}
 					}
 
-					n2, err := entry.CreateEntry(ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts}, log2.Clock)
+					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts}, log2.Clock)
 					c.So(err, ShouldBeNil)
 
 					nexts = []cid.Cid{n1.Hash, n2.Hash}
@@ -1011,7 +1011,7 @@ func TestLogLoad(t *testing.T) {
 						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
 					}
 
-					n3, err := entry.CreateEntry(ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts}, log3.Clock)
+					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts}, log3.Clock)
 					c.So(err, ShouldBeNil)
 
 					log1.Clock.Tick()
@@ -1029,7 +1029,7 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				c.Convey("returns all entries - no excluded entries", FailureHalts, func(c C) {
-					a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
@@ -1038,14 +1038,14 @@ func TestLogLoad(t *testing.T) {
 
 				c.Convey("returns all entries - including excluded entries", FailureHalts, func(c C) {
 					// One entry
-					a, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
 					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
 
 					// All entries
-					b, err := ipfslog.NewFromEntry(ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
+					b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(b.Values().Len(), ShouldEqual, amount)
