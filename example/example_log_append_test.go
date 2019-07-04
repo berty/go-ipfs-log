@@ -132,17 +132,17 @@ func Example_logAppend() {
 	}
 
 	// nodeA Append data (hello world)"
-	_, err = logA.Append([]byte("hello world"), 1)
+	_, err = logA.Append(ctx, []byte("hello world"), 1)
 	if err != nil {
 		panic(fmt.Errorf("append error: %s", err))
 	}
 
-	h, err := logA.ToMultihash()
+	h, err := logA.ToMultihash(ctx)
 	if err != nil {
 		panic(fmt.Errorf("ToMultihash error: %s", err))
 	}
 
-	res, err := log.NewFromMultihash(serviceB, identityB, h, &log.LogOptions{}, &log.FetchOptions{})
+	res, err := log.NewFromMultihash(ctx, serviceB, identityB, h, &log.LogOptions{}, &log.FetchOptions{})
 	if err != nil {
 		panic(fmt.Errorf("NewFromMultihash error: %s", err))
 	}

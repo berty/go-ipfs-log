@@ -19,7 +19,7 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	_, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	ipfs := NewMemoryServices()
@@ -89,11 +89,11 @@ func TestLog(t *testing.T) {
 				})
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries
-				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, entry.NewLamportClock(id1.PublicKey, 0))
+				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, entry.NewLamportClock(id1.PublicKey, 0))
 				c.So(err, ShouldBeNil)
-				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, entry.NewLamportClock(id2.PublicKey, 1))
+				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, entry.NewLamportClock(id2.PublicKey, 1))
 				c.So(err, ShouldBeNil)
-				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, entry.NewLamportClock(id3.PublicKey, 2))
+				e3, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, entry.NewLamportClock(id3.PublicKey, 2))
 				c.So(err, ShouldBeNil)
 
 				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
@@ -110,11 +110,11 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("sets heads if given as params", FailureHalts, func(c C) {
-				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
+				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
-				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
+				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
-				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
+				e3, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
 				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "B", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3}), Heads: []*entry.Entry{e3}})
@@ -127,11 +127,11 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("finds heads if heads not given as params", FailureHalts, func(c C) {
-				e1, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
+				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
-				e2, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
+				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
-				e3, err := entry.CreateEntry(ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
+				e3, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, nil)
 				c.So(err, ShouldBeNil)
 
 				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]*entry.Entry{e1, e2, e3})})
@@ -172,7 +172,7 @@ func TestLog(t *testing.T) {
 			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 			for _, val := range []string{"one", "two", "three", "four", "five"} {
-				_, err := log1.Append([]byte(val), 1)
+				_, err := log1.Append(ctx, []byte(val), 1)
 				c.So(err, ShouldBeNil)
 			}
 

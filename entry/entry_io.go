@@ -1,6 +1,7 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,11 +20,11 @@ type FetchOptions struct {
 }
 
 // FetchParallel retrieves IPFS log entries.
-func FetchParallel(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	var entries []*Entry
 
 	for _, h := range hashes {
-		entries = append(entries, FetchAll(ipfs, []cid.Cid{h}, options)...)
+		entries = append(entries, FetchAll(ctx, ipfs, []cid.Cid{h}, options)...)
 	}
 
 	// TODO: parallelize things
@@ -33,7 +34,7 @@ func FetchParallel(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions
 }
 
 // FetchAll gets entries from their CIDs.
-func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
 	result := []*Entry{}
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
@@ -73,7 +74,7 @@ func FetchAll(ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*
 			return
 		}
 
-		entry, err := fromMultihash(ipfs, hash, options.Provider)
+		entry, err := fromMultihash(ctx, ipfs, hash, options.Provider)
 		if err != nil {
 			fmt.Printf("unable to fetch entry %s, %+v\n", hash, err)
 			return

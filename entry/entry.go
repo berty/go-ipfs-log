@@ -2,20 +2,18 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
+	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/io"
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"math"
-	"sort"
-	"time"
-
-	"berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 	"github.com/polydawn/refmt/obj/atlas"
+	"math"
+	"sort"
 )
 
 type Entry struct {
@@ -127,7 +125,7 @@ func init() {
 }
 
 // CreateEntry creates an Entry.
-func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *LamportClock) (*Entry, error) {
+func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *LamportClock) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
@@ -167,7 +165,7 @@ func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identi
 	data.Sig = signature
 
 	data.Identity = identity.Filtered()
-	data.Hash, err = data.ToMultihash(ipfsInstance)
+	data.Hash, err = data.ToMultihash(ctx, ipfsInstance)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +175,6 @@ func CreateEntry(ipfsInstance io.IpfsServices, identity *identityprovider.Identi
 		return nil, err
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	err = ipfsInstance.Dag().Add(ctx, nd)
 	if err != nil {
 		return nil, err
@@ -305,7 +302,7 @@ func (e *Entry) Verify(identity identityprovider.Interface) error {
 }
 
 // ToMultihash gets the multihash of an Entry.
-func (e *Entry) ToMultihash(ipfsInstance io.IpfsServices) (cid.Cid, error) {
+func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices) (cid.Cid, error) {
 	if e == nil {
 		return cid.Cid{}, errors.New("entry is not defined")
 	}
@@ -335,18 +332,18 @@ func (e *Entry) ToMultihash(ipfsInstance io.IpfsServices) (cid.Cid, error) {
 		data.Sig = e.Sig
 	}
 
-	entryCID, err := io.WriteCBOR(ipfsInstance, data.toCborEntry())
+	entryCID, err := io.WriteCBOR(ctx, ipfsInstance, data.toCborEntry())
 
 	return entryCID, err
 }
 
 // fromMultihash creates an Entry from a hash.
-func fromMultihash(ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+func fromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
 
-	result, err := io.ReadCBOR(ipfs, hash)
+	result, err := io.ReadCBOR(ctx, ipfs, hash)
 	if err != nil {
 		return nil, err
 	}
