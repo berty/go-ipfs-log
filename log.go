@@ -270,15 +270,24 @@ func (l *Log) Append(payload []byte, pointerCount int) (*entry.Entry, error) {
 }
 
 type IteratorOptions struct {
-	GT     *entry.Entry
-	GTE    *entry.Entry
-	LT     *entry.Entry
-	LTE    *entry.Entry
+	GT     *cid.Cid
+	GTE    *cid.Cid
+	LT     []cid.Cid
+	LTE    []cid.Cid
 	Amount *int
 }
 
-func (l *Log) Iterator(options IteratorOptions, output chan<- *entry.Entry) error {
+/* Iterator Provides entries values on a channel */
+func (l *Log) Iterator(options *IteratorOptions, output chan<- *entry.Entry) error {
 	amount := -1
+	if options == nil {
+		return errors.New("no options specified")
+	}
+
+	if output == nil {
+		return errors.New("no output channel specified")
+	}
+
 	if options.Amount != nil {
 		if *options.Amount == 0 {
 			return nil
@@ -288,16 +297,40 @@ func (l *Log) Iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 
 	start := l.heads.Slice()
 	if options.LTE != nil {
-		start = []*entry.Entry{options.LTE}
+		start = nil
+
+		for _, c := range options.LTE {
+			e, ok := l.Values().Get(c.String())
+			if !ok {
+				return errors.New("entry specified at LTE not found")
+			}
+			start = append(start, e)
+		}
 	} else if options.LT != nil {
-		start = []*entry.Entry{options.LT}
+		values := l.Values()
+
+		for _, c := range options.LT {
+			e, ok := values.Get(c.String())
+			if !ok {
+				return errors.New("entry specified at LT not found")
+			}
+
+			start = nil
+			for _, n := range e.Next {
+				e, ok := values.Get(n.String())
+				if !ok {
+					return errors.New("entry specified at LT not found")
+				}
+				start = append(start, e)
+			}
+		}
 	}
 
 	endHash := ""
 	if options.GTE != nil {
-		endHash = options.GTE.Hash.String()
+		endHash = options.GTE.String()
 	} else if options.GT != nil {
-		endHash = options.GT.Hash.String()
+		endHash = options.GT.String()
 	}
 
 	count := -1
@@ -322,6 +355,8 @@ func (l *Log) Iterator(options IteratorOptions, output chan<- *entry.Entry) erro
 	for i := range entries {
 		output <- entries[i]
 	}
+
+	close(output)
 
 	return nil
 }
