@@ -11,8 +11,8 @@ import (
 )
 
 type LamportClock struct {
-	ID   []byte
-	Time int
+	ID   []byte `json:"id,omitempty"`
+	Time int    `json:"time,omitempty"`
 }
 
 // Tick increments the time value, returns a new instance of LamportClock.

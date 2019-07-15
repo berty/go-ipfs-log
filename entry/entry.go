@@ -17,15 +17,15 @@ import (
 )
 
 type Entry struct {
-	Payload  []byte
-	LogID    string
-	Next     []cid.Cid
-	V        uint64
-	Key      []byte
-	Sig      []byte
-	Identity *identityprovider.Identity
-	Hash     cid.Cid
-	Clock    *LamportClock
+	Payload  []byte                     `json:"payload,omitempty"`
+	LogID    string                     `json:"id,omitempty"`
+	Next     []cid.Cid                  `json:"next,omitempty"`
+	V        uint64                     `json:"v,omitempty"`
+	Key      []byte                     `json:"key,omitempty"`
+	Sig      []byte                     `json:"sig,omitempty"`
+	Identity *identityprovider.Identity `json:"identity,omitempty"`
+	Hash     cid.Cid                    `json:"hash,omitempty"`
+	Clock    *LamportClock              `json:"clock,omitempty"`
 }
 
 type Hashable struct {

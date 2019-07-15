@@ -12,8 +12,8 @@ import (
 )
 
 type IdentitySignature struct {
-	ID        []byte
-	PublicKey []byte
+	ID        []byte `json:"id,omitempty"`
+	PublicKey []byte `json:"publicKey,omitempty"`
 }
 
 type CborIdentitySignature struct {
@@ -22,10 +22,10 @@ type CborIdentitySignature struct {
 }
 
 type Identity struct {
-	ID         string
-	PublicKey  []byte
-	Signatures *IdentitySignature
-	Type       string
+	ID         string             `json:"id,omitempty"`
+	PublicKey  []byte             `json:"publicKey,omitempty"`
+	Signatures *IdentitySignature `json:"signatures,omitempty"`
+	Type       string             `json:"type,omitempty"`
 	Provider   Interface
 }
 
