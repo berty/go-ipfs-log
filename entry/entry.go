@@ -60,7 +60,8 @@ type cborEntry struct {
 	Identity *identityprovider.CborIdentity
 }
 
-func (c *cborEntry) toEntry(provider identityprovider.Interface) (*Entry, error) {
+// ToEntry returns a plain Entry from a CBOR serialized version
+func (c *cborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
 	key, err := hex.DecodeString(c.Key)
 	if err != nil {
 		return nil, err
@@ -93,7 +94,8 @@ func (c *cborEntry) toEntry(provider identityprovider.Interface) (*Entry, error)
 	}, nil
 }
 
-func (e *Entry) toCborEntry() *cborEntry {
+// ToCborEntry creates a CBOR serializable version of an entry
+func (e *Entry) ToCborEntry() *cborEntry {
 	return &cborEntry{
 		V:        e.V,
 		LogID:    e.LogID,
@@ -170,7 +172,7 @@ func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *id
 		return nil, err
 	}
 
-	nd, err := cbornode.WrapObject(data.toCborEntry(), math.MaxUint64, -1)
+	nd, err := cbornode.WrapObject(data.ToCborEntry(), math.MaxUint64, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +334,7 @@ func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices) (
 		data.Sig = e.Sig
 	}
 
-	entryCID, err := io.WriteCBOR(ctx, ipfsInstance, data.toCborEntry())
+	entryCID, err := io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry())
 
 	return entryCID, err
 }
@@ -356,7 +358,7 @@ func fromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, prov
 
 	obj.Hash = hash
 
-	entry, err := obj.toEntry(provider)
+	entry, err := obj.ToEntry(provider)
 	if err != nil {
 		return nil, err
 	}

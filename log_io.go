@@ -102,7 +102,7 @@ func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.C
 
 	sliced := entries
 	if length > -1 {
-		sliced = sliced[:-length]
+		sliced = entrySlice(sliced, -length)
 	}
 
 	return sliced, nil
