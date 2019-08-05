@@ -48,7 +48,8 @@ var _ = atlas.BuildEntry(Hashable{}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 	Complete()
 
-type cborEntry struct {
+// CborEntry CBOR representable version of Entry
+type CborEntry struct {
 	V        uint64
 	LogID    string
 	Key      string
@@ -61,7 +62,7 @@ type cborEntry struct {
 }
 
 // ToEntry returns a plain Entry from a CBOR serialized version
-func (c *cborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
+func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
 	key, err := hex.DecodeString(c.Key)
 	if err != nil {
 		return nil, err
@@ -95,8 +96,8 @@ func (c *cborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 }
 
 // ToCborEntry creates a CBOR serializable version of an entry
-func (e *Entry) ToCborEntry() *cborEntry {
-	return &cborEntry{
+func (e *Entry) ToCborEntry() *CborEntry {
+	return &CborEntry{
 		V:        e.V,
 		LogID:    e.LogID,
 		Key:      hex.EncodeToString(e.Key),
@@ -110,7 +111,7 @@ func (e *Entry) ToCborEntry() *cborEntry {
 }
 
 func init() {
-	AtlasEntry := atlas.BuildEntry(cborEntry{}).
+	AtlasEntry := atlas.BuildEntry(CborEntry{}).
 		StructMap().
 		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
@@ -350,7 +351,7 @@ func fromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, prov
 		return nil, err
 	}
 
-	obj := &cborEntry{}
+	obj := &CborEntry{}
 	err = cbornode.DecodeInto(result.RawData(), obj)
 	if err != nil {
 		return nil, err
