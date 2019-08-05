@@ -1,4 +1,11 @@
-version: 2
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@1.0.5
+  moul: moul/build@1.5.0
+  tools: gotest/tools@0.0.9
+
+
 jobs:
   build:
     docker:
@@ -9,15 +16,23 @@ jobs:
       GOPROXY: "https://goproxy.io"
     steps:
       - checkout
-#      - restore_cache:
-#        keys:
-#          - go-mod-v1-{{ arch }}-{{ checksum "go.sum" }}
-#          - go-mod-v1-{{ arch }}-
-      - run: go mod download
+      # - restore_cache:
+      #     keys:
+      #       - go-mod-v1-{{ checksum "go.sum" }}
+      #       - go-mod-v1-
+      - tools/mod-download
+      - tools/mod-tidy-check
       - run: make test
-      - run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- v1.17.1
-      - run: PATH=$PATH:./bin make lint
-#      - save_cache:
-#        key: go-mod-v1-{{ arch }}-{{ checksum "go.sum" }}
-#          paths:
-#             - /go/pkg/mod
+      - moul/install_golangci-lint
+      - run: make lint
+      - codecov/upload:
+          file: coverage.txt
+      # - save_cache:
+      #     key: go-mod-v1-{{ checksum "go.sum" }}
+      #     paths:
+      #       - /go/pkg/mod
+
+workflows:
+  main:
+    jobs:
+      - build

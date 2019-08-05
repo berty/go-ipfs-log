@@ -7,6 +7,8 @@
 [._]ss[a-gi-z]
 [._]sw[a-p]
 
+coverage.txt
+
 # osx
 .DS_Store
 
