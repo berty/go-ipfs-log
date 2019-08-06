@@ -2,16 +2,19 @@ package entry
 
 import (
 	"github.com/iancoleman/orderedmap"
+	"sync"
 )
 
 // OrderedMap is an ordered map of entries.
 type OrderedMap struct {
+	lock       sync.RWMutex
 	orderedMap *orderedmap.OrderedMap
 }
 
 // NewOrderedMap creates a new OrderedMap of entries.
 func NewOrderedMap() *OrderedMap {
 	return &OrderedMap{
+		lock:       sync.RWMutex{},
 		orderedMap: orderedmap.New(),
 	}
 }
@@ -59,25 +62,31 @@ func (o *OrderedMap) Copy() *OrderedMap {
 
 // Get retrieves an Entry using its key.
 func (o *OrderedMap) Get(key string) (*Entry, bool) {
+	o.lock.RLock()
 	val, exists := o.orderedMap.Get(key)
 	entry, ok := val.(*Entry)
 	if !ok {
 		exists = false
 	}
+	o.lock.RUnlock()
 
 	return entry, exists
 }
 
 // UnsafeGet retrieves an Entry using its key, returns nil if not found.
 func (o *OrderedMap) UnsafeGet(key string) *Entry {
+	o.lock.RLock()
 	val, _ := o.Get(key)
+	o.lock.RUnlock()
 
 	return val
 }
 
 // Set defines an Entry in the map for a given key.
 func (o *OrderedMap) Set(key string, value *Entry) {
+	o.lock.Lock()
 	o.orderedMap.Set(key, value)
+	o.lock.Unlock()
 }
 
 // Slice returns an ordered slice of the values existing in the map.
@@ -94,22 +103,32 @@ func (o *OrderedMap) Slice() []*Entry {
 
 // Delete removes an Entry from the map for a given key.
 func (o *OrderedMap) Delete(key string) {
+	o.lock.Lock()
 	o.orderedMap.Delete(key)
+	o.lock.Unlock()
 }
 
 // Keys retrieves the ordered list of keys in the map.
 func (o *OrderedMap) Keys() []string {
-	return o.orderedMap.Keys()
+	o.lock.RLock()
+	keys := o.orderedMap.Keys()
+	o.lock.RUnlock()
+
+	return keys
 }
 
 // SortKeys orders the map keys using your sort func.
 func (o *OrderedMap) SortKeys(sortFunc func(keys []string)) {
+	o.lock.Lock()
 	o.orderedMap.SortKeys(sortFunc)
+	o.lock.Unlock()
 }
 
 // Sort orders the map using your sort func.
 func (o *OrderedMap) Sort(lessFunc func(a *orderedmap.Pair, b *orderedmap.Pair) bool) {
+	o.lock.Lock()
 	o.orderedMap.Sort(lessFunc)
+	o.lock.Unlock()
 }
 
 // Len gets the length of the map.

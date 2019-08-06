@@ -1,10 +1,9 @@
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
+	"berty.tech/go-ipfs-log/keystore"
 	"encoding/hex"
 	"fmt"
-
-	"berty.tech/go-ipfs-log/keystore"
 	"github.com/pkg/errors"
 )
 
@@ -14,7 +13,7 @@ type OrbitDBIdentityProvider struct {
 
 // VerifyIdentity checks an OrbitDB identity.
 func (p *OrbitDBIdentityProvider) VerifyIdentity(identity *Identity) error {
-	panic("implement me")
+	return nil
 }
 
 // NewOrbitDBIdentityProvider creates a new identity for use with OrbitDB.
