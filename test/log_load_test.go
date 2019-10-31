@@ -1,6 +1,7 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"context"
 	"fmt"
@@ -24,7 +25,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func BadComparatorReturnsZero(a *entry.Entry, b *entry.Entry) (int, error) {
+func BadComparatorReturnsZero(a, b iface.IPFSLogEntry) (int, error) {
 	return 0, nil
 }
 
@@ -65,7 +66,7 @@ func TestLogLoad(t *testing.T) {
 
 	_ = firstWriteExpectedData
 
-	Convey("Log - Load", t, FailureHalts, func(c C) {
+	Convey("IPFSLog - Load", t, FailureHalts, func(c C) {
 		c.Convey("fromJSON", FailureHalts, func(c C) {
 			c.Convey("creates a log from an entry", FailureHalts, func(c C) {
 				fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
@@ -89,7 +90,7 @@ func TestLogLoad(t *testing.T) {
 
 				values := l.Values()
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(values.Len(), ShouldEqual, 16)
 				c.So(entriesAsStrings(values), ShouldResemble, fixture.ExpectedData)
 			})
@@ -104,7 +105,7 @@ func TestLogLoad(t *testing.T) {
 				l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(l.Values().Len(), ShouldEqual, 16)
 				// TODO: found out why firstWriteExpectedData is what it is in JS test
 
@@ -127,7 +128,7 @@ func TestLogLoad(t *testing.T) {
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
 
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(log1.Values().Len(), ShouldEqual, 16)
 				c.So(entriesAsStrings(log1.Values()), ShouldResemble, fixture.ExpectedData)
 			})
@@ -145,7 +146,7 @@ func TestLogLoad(t *testing.T) {
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
 
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(log1.Values().Len(), ShouldEqual, 16)
 				c.So(entriesAsStrings(log1.Values()), ShouldResemble, firstWriteExpectedData)
 			})
@@ -163,7 +164,7 @@ func TestLogLoad(t *testing.T) {
 				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(l.Values().Len(), ShouldEqual, 16)
 				c.So(entriesAsStrings(l.Values()), ShouldResemble, fixture.ExpectedData)
 			})
@@ -177,7 +178,7 @@ func TestLogLoad(t *testing.T) {
 				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(l.Values().Len(), ShouldEqual, 16)
 				c.So(entriesAsStrings(l.Values()), ShouldResemble, firstWriteExpectedData)
 			})
@@ -191,33 +192,33 @@ func TestLogLoad(t *testing.T) {
 				log1, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
 
 				c.So(err, ShouldBeNil)
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(log1.Values().Len(), ShouldEqual, data.Heads().Len())
-				c.So(string(log1.Values().At(0).Payload), ShouldEqual, "entryC0")
-				c.So(string(log1.Values().At(1).Payload), ShouldEqual, "entryA10")
+				c.So(string(log1.Values().At(0).GetPayload()), ShouldEqual, "entryC0")
+				c.So(string(log1.Values().At(1).GetPayload()), ShouldEqual, "entryA10")
 
 				log2, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
 
 				c.So(err, ShouldBeNil)
-				c.So(log2.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(log2.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(log2.Values().Len(), ShouldEqual, 4)
-				c.So(string(log2.Values().At(0).Payload), ShouldEqual, "entryC0")
-				c.So(string(log2.Values().At(1).Payload), ShouldEqual, "entryA8")
-				c.So(string(log2.Values().At(2).Payload), ShouldEqual, "entryA9")
-				c.So(string(log2.Values().At(3).Payload), ShouldEqual, "entryA10")
+				c.So(string(log2.Values().At(0).GetPayload()), ShouldEqual, "entryC0")
+				c.So(string(log2.Values().At(1).GetPayload()), ShouldEqual, "entryA8")
+				c.So(string(log2.Values().At(2).GetPayload()), ShouldEqual, "entryA9")
+				c.So(string(log2.Values().At(3).GetPayload()), ShouldEqual, "entryA10")
 
 				log3, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
 
 				c.So(err, ShouldBeNil)
-				c.So(log3.ID, ShouldEqual, data.Heads().At(0).LogID)
+				c.So(log3.ID, ShouldEqual, data.Heads().At(0).GetLogID())
 				c.So(log3.Values().Len(), ShouldEqual, 7)
-				c.So(string(log3.Values().At(0).Payload), ShouldEqual, "entryB5")
-				c.So(string(log3.Values().At(1).Payload), ShouldEqual, "entryA6")
-				c.So(string(log3.Values().At(2).Payload), ShouldEqual, "entryC0")
-				c.So(string(log3.Values().At(3).Payload), ShouldEqual, "entryA7")
-				c.So(string(log3.Values().At(4).Payload), ShouldEqual, "entryA8")
-				c.So(string(log3.Values().At(5).Payload), ShouldEqual, "entryA9")
-				c.So(string(log3.Values().At(6).Payload), ShouldEqual, "entryA10")
+				c.So(string(log3.Values().At(0).GetPayload()), ShouldEqual, "entryB5")
+				c.So(string(log3.Values().At(1).GetPayload()), ShouldEqual, "entryA6")
+				c.So(string(log3.Values().At(2).GetPayload()), ShouldEqual, "entryC0")
+				c.So(string(log3.Values().At(3).GetPayload()), ShouldEqual, "entryA7")
+				c.So(string(log3.Values().At(4).GetPayload()), ShouldEqual, "entryA8")
+				c.So(string(log3.Values().At(5).GetPayload()), ShouldEqual, "entryA9")
+				c.So(string(log3.Values().At(6).GetPayload()), ShouldEqual, "entryA10")
 			})
 
 			c.Convey("onProgress callback is fired for each entry", FailureHalts, func(c C) {
@@ -234,9 +235,9 @@ func TestLogLoad(t *testing.T) {
 				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				var items1 []*entry.Entry
-				var items2 []*entry.Entry
-				var items3 []*entry.Entry
+				var items1 []iface.IPFSLogEntry
+				var items2 []iface.IPFSLogEntry
+				var items3 []iface.IPFSLogEntry
 
 				const amount = 100
 				for i := 1; i <= amount; i++ {
@@ -246,14 +247,14 @@ func TestLogLoad(t *testing.T) {
 
 					var nexts []cid.Cid
 					if prev1 != nil {
-						nexts = []cid.Cid{prev1.Hash}
+						nexts = []cid.Cid{prev1.GetHash()}
 					}
 
 					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
-						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash}
 					}
@@ -262,7 +263,7 @@ func TestLogLoad(t *testing.T) {
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
-						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
+						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
@@ -276,12 +277,12 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				// limit to 10 entries
-				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
+				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
 				c.So(err, ShouldBeNil)
 				c.So(a.Values().Len(), ShouldEqual, 10)
 
 				// limit to 42 entries
-				b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
+				b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
 				c.So(err, ShouldBeNil)
 				c.So(b.Values().Len(), ShouldEqual, 42)
 			})
@@ -296,9 +297,9 @@ func TestLogLoad(t *testing.T) {
 				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				var items1 []*entry.Entry
-				var items2 []*entry.Entry
-				var items3 []*entry.Entry
+				var items1 []iface.IPFSLogEntry
+				var items2 []iface.IPFSLogEntry
+				var items3 []iface.IPFSLogEntry
 
 				const amount = 100
 				for i := 1; i <= amount; i++ {
@@ -308,14 +309,14 @@ func TestLogLoad(t *testing.T) {
 
 					var nexts []cid.Cid
 					if prev1 != nil {
-						nexts = []cid.Cid{prev1.Hash}
+						nexts = []cid.Cid{prev1.GetHash()}
 					}
 
 					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
-						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash}
 					}
@@ -324,7 +325,7 @@ func TestLogLoad(t *testing.T) {
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
-						nexts = []cid.Cid{prev3.Hash, n2.Hash}
+						nexts = []cid.Cid{prev3.GetHash(), n2.Hash}
 					} else {
 						nexts = []cid.Cid{n2.Hash}
 					}
@@ -337,15 +338,15 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
@@ -360,9 +361,9 @@ func TestLogLoad(t *testing.T) {
 				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				var items1 []*entry.Entry
-				var items2 []*entry.Entry
-				var items3 []*entry.Entry
+				var items1 []iface.IPFSLogEntry
+				var items2 []iface.IPFSLogEntry
+				var items3 []iface.IPFSLogEntry
 
 				const amount = 100
 				for i := 1; i <= amount; i++ {
@@ -372,14 +373,14 @@ func TestLogLoad(t *testing.T) {
 
 					var nexts []cid.Cid
 					if prev1 != nil {
-						nexts = []cid.Cid{prev1.Hash}
+						nexts = []cid.Cid{prev1.GetHash()}
 					}
 
 					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
-						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash}
 					}
@@ -388,7 +389,7 @@ func TestLogLoad(t *testing.T) {
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
-						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
+						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
@@ -401,15 +402,15 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 				c.So(lC.Values().Len(), ShouldEqual, amount*3)
 			})
@@ -424,9 +425,9 @@ func TestLogLoad(t *testing.T) {
 				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				var items1 []*entry.Entry
-				var items2 []*entry.Entry
-				var items3 []*entry.Entry
+				var items1 []iface.IPFSLogEntry
+				var items2 []iface.IPFSLogEntry
+				var items3 []iface.IPFSLogEntry
 
 				const amount = 10
 				for i := 1; i <= amount; i++ {
@@ -441,14 +442,14 @@ func TestLogLoad(t *testing.T) {
 					log3.Clock.Tick()
 
 					if prev1 != nil {
-						nexts = []cid.Cid{prev1.Hash}
+						nexts = []cid.Cid{prev1.GetHash()}
 					}
 
 					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, log1.Clock)
 					c.So(err, ShouldBeNil)
 
 					if prev2 != nil {
-						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash}
 					}
@@ -457,7 +458,7 @@ func TestLogLoad(t *testing.T) {
 					c.So(err, ShouldBeNil)
 
 					if prev3 != nil {
-						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
+						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
 					} else {
 						nexts = []cid.Cid{n1.Hash, n2.Hash}
 					}
@@ -477,7 +478,7 @@ func TestLogLoad(t *testing.T) {
 					items3 = append(items3, n3)
 				}
 
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
 				c.So(err, ShouldBeNil)
 				c.So(lA.Values().Len(), ShouldEqual, amount)
 
@@ -504,12 +505,12 @@ func TestLogLoad(t *testing.T) {
 					"entryB10",
 				}
 
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []*entry.Entry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
 				c.So(err, ShouldBeNil)
 				c.So(lB.Values().Len(), ShouldEqual, amount*2)
 				c.So(entriesAsStrings(lB.Values()), ShouldResemble, itemsInB)
 
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[3], []*entry.Entry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[3], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
 				c.So(err, ShouldBeNil)
 
 				_, err = lC.Append(ctx, []byte("EOF"), 1)
@@ -566,7 +567,7 @@ func TestLogLoad(t *testing.T) {
 				_, err = logX.Append(ctx, []byte{'3'}, 1)
 				c.So(err, ShouldBeNil)
 
-				lD, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+				lD, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 				c.So(err, ShouldBeNil)
 
 				_, err = lC.Join(lD, -1)
@@ -581,10 +582,10 @@ func TestLogLoad(t *testing.T) {
 				_, err = lD.Append(ctx, []byte("DONE"), 1)
 				c.So(err, ShouldBeNil)
 
-				logF, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logF, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
-				logG, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+				logG, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
 				c.So(err, ShouldBeNil)
 
 				c.So(logF.ToString(nil), ShouldEqual, bigLogString)
@@ -727,31 +728,31 @@ func TestLogLoad(t *testing.T) {
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), ShouldResemble, expectedData)
 
 				hashOrder := l.Values().Slice()
-				sorting.Sort(func(a, b *entry.Entry) (int, error) {
-					return strings.Compare(a.Hash.String(), b.Hash.String()), nil
+				sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
+					return strings.Compare(a.GetHash().String(), b.GetHash().String()), nil
 				}, hashOrder)
 				sorting.Sort(sorting.Compare, hashOrder)
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), ShouldResemble, expectedData)
 
-				var partialLog []*entry.Entry
+				var partialLog []iface.IPFSLogEntry
 				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.Payload, []byte("entryC0")) != 0 {
+					if bytes.Compare(item.GetPayload(), []byte("entryC0")) != 0 {
 						partialLog = append(partialLog, item)
 					}
 				}
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog)), ShouldResemble, expectedData2)
 
-				var partialLog2 []*entry.Entry
+				var partialLog2 []iface.IPFSLogEntry
 				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.Payload, []byte("entryA10")) != 0 {
+					if bytes.Compare(item.GetPayload(), []byte("entryA10")) != 0 {
 						partialLog2 = append(partialLog2, item)
 					}
 				}
 				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog2)), ShouldResemble, expectedData3)
 
-				var partialLog3 []*entry.Entry
+				var partialLog3 []iface.IPFSLogEntry
 				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.Payload, []byte("entryB5")) != 0 {
+					if bytes.Compare(item.GetPayload(), []byte("entryB5")) != 0 {
 						partialLog3 = append(partialLog3, item)
 					}
 				}
@@ -771,7 +772,7 @@ func TestLogLoad(t *testing.T) {
 
 				for i := 0; i < 1000; i++ {
 					randomOrder := l.Values().Slice()
-					sorting.Sort(func(a, b *entry.Entry) (int, error) {
+					sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
 						return rand.Int(), nil
 					}, randomOrder)
 					sorting.Sort(sorting.Compare, randomOrder)
@@ -963,7 +964,7 @@ func TestLogLoad(t *testing.T) {
 			})
 
 			c.Convey("throws an error if ipfs is not defined", FailureHalts, func(c C) {
-				_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []*entry.Entry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
+				_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []iface.IPFSLogEntry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldNotBeNil)
 				c.So(err.Error(), ShouldContainSubstring, "ipfs instance not defined")
 			})
@@ -981,9 +982,9 @@ func TestLogLoad(t *testing.T) {
 				log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
 				c.So(err, ShouldBeNil)
 
-				var items1 []*entry.Entry
-				var items2 []*entry.Entry
-				var items3 []*entry.Entry
+				var items1 []iface.IPFSLogEntry
+				var items2 []iface.IPFSLogEntry
+				var items3 []iface.IPFSLogEntry
 
 				for i := 1; i <= amount; i++ {
 					var nexts []cid.Cid
@@ -992,7 +993,7 @@ func TestLogLoad(t *testing.T) {
 					prev3 := lastEntry(items3)
 
 					if prev1 != nil {
-						nexts = []cid.Cid{prev1.Hash}
+						nexts = []cid.Cid{prev1.GetHash()}
 					}
 
 					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts}, log1.Clock)
@@ -1000,7 +1001,7 @@ func TestLogLoad(t *testing.T) {
 
 					nexts = []cid.Cid{n1.Hash}
 					if prev2 != nil {
-						nexts = []cid.Cid{prev2.Hash, n1.Hash}
+						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
 					}
 
 					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts}, log2.Clock)
@@ -1008,7 +1009,7 @@ func TestLogLoad(t *testing.T) {
 
 					nexts = []cid.Cid{n1.Hash, n2.Hash}
 					if prev2 != nil {
-						nexts = []cid.Cid{prev3.Hash, n1.Hash, n2.Hash}
+						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
 					}
 
 					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts}, log3.Clock)
@@ -1029,27 +1030,27 @@ func TestLogLoad(t *testing.T) {
 				}
 
 				c.Convey("returns all entries - no excluded entries", FailureHalts, func(c C) {
-					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
-					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+					c.So(a.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
 				})
 
 				c.Convey("returns all entries - including excluded entries", FailureHalts, func(c C) {
 					// One entry
-					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []*entry.Entry{items1[0]}, Length: intPtr(-1)})
+					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []iface.IPFSLogEntry{items1[0]}, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(a.Values().Len(), ShouldEqual, amount)
-					c.So(a.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+					c.So(a.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
 
 					// All entries
-					b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []*entry.Entry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
+					b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
 					c.So(err, ShouldBeNil)
 
 					c.So(b.Values().Len(), ShouldEqual, amount)
-					c.So(b.Values().At(0).Hash.String(), ShouldEqual, items1[0].Hash.String())
+					c.So(b.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
 				})
 			})
 		})

@@ -1,6 +1,7 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"fmt"
 	"reflect"
@@ -48,9 +49,9 @@ func TestLogJoin(t *testing.T) {
 		identities[i] = identity
 	}
 
-	Convey("Log - Join", t, FailureHalts, func(c C) {
+	Convey("IPFSLog - Join", t, FailureHalts, func(c C) {
 		c.Convey("join", FailureHalts, func(c C) {
-			var logs []*ipfslog.Log
+			var logs []*ipfslog.IPFSLog
 
 			for i := 0; i < 4; i++ {
 				l, err := ipfslog.NewLog(ipfs, identities[i], &ipfslog.LogOptions{ID: "X"})
@@ -91,11 +92,11 @@ func TestLogJoin(t *testing.T) {
 
 				// Here we're creating a log from entries signed by A and B
 				// but we accept entries from C too
-				logA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+				logA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 				// Here we're creating a log from entries signed by peer A, B and C
 				// "logA" accepts entries from peer C so we can join logs A and B
-				logB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []*entry.Entry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+				logB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 				c.So(err, ShouldBeNil)
 
 				_, err = logA.Join(logB, -1)
@@ -132,11 +133,11 @@ func TestLogJoin(t *testing.T) {
 				var result []string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, string(logs[0].Values().UnsafeGet(v).Payload))
+					result = append(result, string(logs[0].Values().UnsafeGet(v).GetPayload()))
 				}
 
 				c.So(expected, ShouldResemble, result)
-				c.So(len(getLastEntry(logs[0].Values()).Next), ShouldEqual, 1)
+				c.So(len(getLastEntry(logs[0].Values()).GetNext()), ShouldEqual, 1)
 			})
 
 			c.Convey("joins logs two ways", FailureHalts, func() {
@@ -163,8 +164,8 @@ func TestLogJoin(t *testing.T) {
 					keys := values.Keys()
 					for _, k := range keys {
 						v := values.UnsafeGet(k)
-						hashes[i] = append(hashes[i], v.Hash)
-						payloads[i] = append(payloads[i], v.Payload)
+						hashes[i] = append(hashes[i], v.GetHash())
+						payloads[i] = append(payloads[i], v.GetPayload())
 					}
 				}
 
@@ -196,7 +197,7 @@ func TestLogJoin(t *testing.T) {
 				var result []string
 
 				for _, v := range logs[1].Values().Keys() {
-					result = append(result, string(logs[1].Values().UnsafeGet(v).Payload))
+					result = append(result, string(logs[1].Values().UnsafeGet(v).GetPayload()))
 				}
 
 				c.So(expected, ShouldResemble, result)
@@ -225,7 +226,7 @@ func TestLogJoin(t *testing.T) {
 				var result []string
 
 				for _, v := range logs[1].Values().Keys() {
-					result = append(result, string(logs[1].Values().UnsafeGet(v).Payload))
+					result = append(result, string(logs[1].Values().UnsafeGet(v).GetPayload()))
 				}
 
 				c.So(expected, ShouldResemble, result)
@@ -316,7 +317,7 @@ func TestLogJoin(t *testing.T) {
 				var result []string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, string(logs[0].Values().UnsafeGet(v).Payload))
+					result = append(result, string(logs[0].Values().UnsafeGet(v).GetPayload()))
 				}
 
 				c.So(expected, ShouldResemble, result)
@@ -363,7 +364,7 @@ func TestLogJoin(t *testing.T) {
 
 				for i := 0; i < 2; i++ {
 					for _, v := range logs[i].Values().Keys() {
-						payloads[i] = append(payloads[i], string(logs[i].Values().UnsafeGet(v).Payload))
+						payloads[i] = append(payloads[i], string(logs[i].Values().UnsafeGet(v).GetPayload()))
 					}
 				}
 
@@ -382,16 +383,16 @@ func TestLogJoin(t *testing.T) {
 				_, err = logs[1].Append(ctx, []byte("helloB2"), 1)
 				c.So(err, ShouldBeNil)
 
-				c.So(logs[0].Clock.ID, ShouldResemble, identities[0].PublicKey)
-				c.So(logs[1].Clock.ID, ShouldResemble, identities[1].PublicKey)
-				c.So(logs[0].Clock.Time, ShouldEqual, 2)
-				c.So(logs[1].Clock.Time, ShouldEqual, 2)
+				c.So(logs[0].Clock.GetID(), ShouldResemble, identities[0].PublicKey)
+				c.So(logs[1].Clock.GetID(), ShouldResemble, identities[1].PublicKey)
+				c.So(logs[0].Clock.GetTime(), ShouldEqual, 2)
+				c.So(logs[1].Clock.GetTime(), ShouldEqual, 2)
 
 				_, err = logs[2].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
 				c.So(logs[2].ID, ShouldEqual, "X")
-				c.So(logs[2].Clock.ID, ShouldResemble, identities[2].PublicKey)
-				c.So(logs[2].Clock.Time, ShouldEqual, 2)
+				c.So(logs[2].Clock.GetID(), ShouldResemble, identities[2].PublicKey)
+				c.So(logs[2].Clock.GetTime(), ShouldEqual, 2)
 
 				_, err = logs[2].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
@@ -426,12 +427,12 @@ func TestLogJoin(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				_, err = logs[3].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
-				c.So(logs[3].Clock.ID, ShouldResemble, identities[3].PublicKey)
-				c.So(logs[3].Clock.Time, ShouldEqual, 7)
+				c.So(logs[3].Clock.GetID(), ShouldResemble, identities[3].PublicKey)
+				c.So(logs[3].Clock.GetTime(), ShouldEqual, 7)
 
 				_, err = logs[3].Append(ctx, []byte("helloD6"), 1)
 				c.So(err, ShouldBeNil)
-				c.So(logs[3].Clock.Time, ShouldEqual, 8)
+				c.So(logs[3].Clock.GetTime(), ShouldEqual, 8)
 
 				expected := []entry.Entry{
 					{Payload: []byte("helloA1"), LogID: "X", Clock: &entry.LamportClock{ID: identities[0].PublicKey, Time: 1}},
@@ -456,7 +457,10 @@ func TestLogJoin(t *testing.T) {
 				for _, v := range logs[3].Values().Keys() {
 					e, exist := logs[3].Values().Get(v)
 					c.So(exist, ShouldBeTrue)
-					result = append(result, entry.Entry{Payload: e.Payload, LogID: e.LogID, Clock: e.Clock})
+					result = append(result, entry.Entry{Payload: e.GetPayload(), LogID: e.GetLogID(), Clock: &entry.LamportClock{
+						ID:   e.GetClock().GetID(),
+						Time: e.GetClock().GetTime(),
+					}})
 				}
 
 				c.So(reflect.DeepEqual(result, expected), ShouldBeTrue)
@@ -479,14 +483,14 @@ func TestLogJoin(t *testing.T) {
 				_, err = logs[0].Join(logs[2], -1)
 				c.So(err, ShouldBeNil)
 				c.So(logs[0].ID, ShouldEqual, "X")
-				c.So(logs[0].Clock.ID, ShouldResemble, identities[0].PublicKey)
-				c.So(logs[0].Clock.Time, ShouldEqual, 2)
+				c.So(logs[0].Clock.GetID(), ShouldResemble, identities[0].PublicKey)
+				c.So(logs[0].Clock.GetTime(), ShouldEqual, 2)
 
 				_, err = logs[2].Join(logs[0], -1)
 				c.So(err, ShouldBeNil)
 				c.So(logs[2].ID, ShouldEqual, "X")
-				c.So(logs[2].Clock.ID, ShouldResemble, identities[2].PublicKey)
-				c.So(logs[2].Clock.Time, ShouldEqual, 2)
+				c.So(logs[2].Clock.GetID(), ShouldResemble, identities[2].PublicKey)
+				c.So(logs[2].Clock.GetTime(), ShouldEqual, 2)
 
 				_, err = logs[2].Append(ctx, []byte("helloC1"), 1)
 				c.So(err, ShouldBeNil)
@@ -511,8 +515,8 @@ func TestLogJoin(t *testing.T) {
 				_, err = logs[3].Append(ctx, []byte("helloD4"), 1)
 				c.So(err, ShouldBeNil)
 
-				c.So(logs[3].Clock.ID, ShouldResemble, identities[3].PublicKey)
-				c.So(logs[3].Clock.Time, ShouldEqual, 6)
+				c.So(logs[3].Clock.GetID(), ShouldResemble, identities[3].PublicKey)
+				c.So(logs[3].Clock.GetTime(), ShouldEqual, 6)
 
 				expected := [][]byte{
 					[]byte("helloA1"),
@@ -532,7 +536,7 @@ func TestLogJoin(t *testing.T) {
 				var result [][]byte
 
 				for _, v := range logs[3].Values().Keys() {
-					result = append(result, logs[3].Values().UnsafeGet(v).Payload)
+					result = append(result, logs[3].Values().UnsafeGet(v).GetPayload())
 				}
 
 				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
@@ -559,12 +563,12 @@ func TestLogJoin(t *testing.T) {
 				var key string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
 					key = v
 				}
 
 				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
-				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+				c.So(len(logs[0].Values().UnsafeGet(key).GetNext()), ShouldEqual, 1)
 			})
 
 			c.Convey("joins only specified amount of entries - two entries", FailureHalts, func() {
@@ -588,12 +592,12 @@ func TestLogJoin(t *testing.T) {
 				var key string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
 					key = v
 				}
 
 				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
-				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+				c.So(len(logs[0].Values().UnsafeGet(key).GetNext()), ShouldEqual, 1)
 			})
 
 			c.Convey("joins only specified amount of entries - three entries", FailureHalts, func() {
@@ -617,12 +621,12 @@ func TestLogJoin(t *testing.T) {
 				var key string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
 					key = v
 				}
 
 				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
-				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+				c.So(len(logs[0].Values().UnsafeGet(key).GetNext()), ShouldEqual, 1)
 			})
 
 			c.Convey("joins only specified amount of entries - (all) four entries", FailureHalts, func() {
@@ -646,12 +650,12 @@ func TestLogJoin(t *testing.T) {
 				var key string
 
 				for _, v := range logs[0].Values().Keys() {
-					result = append(result, logs[0].Values().UnsafeGet(v).Payload)
+					result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
 					key = v
 				}
 
 				c.So(reflect.DeepEqual(expected, result), ShouldBeTrue)
-				c.So(len(logs[0].Values().UnsafeGet(key).Next), ShouldEqual, 1)
+				c.So(len(logs[0].Values().UnsafeGet(key).GetNext()), ShouldEqual, 1)
 			})
 		})
 	})

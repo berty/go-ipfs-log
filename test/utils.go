@@ -1,7 +1,7 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
-	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io"
 	bserv "github.com/ipfs/go-blockservice"
 	"github.com/ipfs/go-datastore"
@@ -40,7 +40,7 @@ func NewMemoryServices() io.IpfsServices {
 
 var _ io.IpfsServices = &ipfsServices{}
 
-func lastEntry(entries []*entry.Entry) *entry.Entry {
+func lastEntry(entries []iface.IPFSLogEntry) iface.IPFSLogEntry {
 	length := len(entries)
 	if length > 0 {
 		return entries[len(entries)-1]
@@ -49,16 +49,16 @@ func lastEntry(entries []*entry.Entry) *entry.Entry {
 	return nil
 }
 
-func entriesAsStrings(values *entry.OrderedMap) []string {
+func entriesAsStrings(values iface.IPFSLogOrderedEntries) []string {
 	var foundEntries []string
 	for _, v := range values.Slice() {
-		foundEntries = append(foundEntries, string(v.Payload))
+		foundEntries = append(foundEntries, string(v.GetPayload()))
 	}
 
 	return foundEntries
 }
 
-func getLastEntry(omap *entry.OrderedMap) *entry.Entry {
+func getLastEntry(omap iface.IPFSLogOrderedEntries) iface.IPFSLogEntry {
 	lastKey := omap.Keys()[len(omap.Keys())-1]
 
 	return omap.UnsafeGet(lastKey)

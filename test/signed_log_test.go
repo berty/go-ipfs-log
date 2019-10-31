@@ -1,6 +1,7 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
+	"berty.tech/go-ipfs-log/accesscontroller"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	ipfslog "berty.tech/go-ipfs-log"
-	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
@@ -29,7 +29,7 @@ func mustBytes(data []byte, err error) []byte {
 type DenyAll struct {
 }
 
-func (*DenyAll) CanAppend(*entry.Entry, idp.Interface) error {
+func (*DenyAll) CanAppend(accesscontroller.LogEntry, idp.Interface, accesscontroller.CanAppendAdditionalContext) error {
 	return errors.New("denied")
 }
 
@@ -37,8 +37,8 @@ type TestACL struct {
 	refIdentity *idp.Identity
 }
 
-func (t *TestACL) CanAppend(e *entry.Entry, p idp.Interface) error {
-	if e.Identity.ID == t.refIdentity.ID {
+func (t *TestACL) CanAppend(e accesscontroller.LogEntry, p idp.Interface, _ accesscontroller.CanAppendAdditionalContext) error {
+	if e.GetIdentity().ID == t.refIdentity.ID {
 		return errors.New("denied")
 	}
 
@@ -74,7 +74,7 @@ func TestSignedLog(t *testing.T) {
 		identities[i] = identity
 	}
 
-	Convey("Signed Log", t, FailureHalts, func(c C) {
+	Convey("Signed IPFSLog", t, FailureHalts, func(c C) {
 		c.Convey("creates a signed log", FailureHalts, func(c C) {
 			logID := "A"
 			l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: logID})
@@ -121,8 +121,8 @@ func TestSignedLog(t *testing.T) {
 			_, err = l.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			c.So(l.Values().At(0).Sig, ShouldNotBeNil)
-			c.So(l.Values().At(0).Identity.Filtered(), ShouldResemble, identities[0].Filtered())
+			c.So(l.Values().At(0).GetSig(), ShouldNotBeNil)
+			c.So(l.Values().At(0).GetIdentity().Filtered(), ShouldResemble, identities[0].Filtered())
 		})
 
 		c.Convey("doesn't sign entries when identity is not defined", FailureHalts, func(c C) {
@@ -151,7 +151,7 @@ func TestSignedLog(t *testing.T) {
 
 			c.So(l1.ID, ShouldEqual, "A")
 			c.So(l1.Values().Len(), ShouldEqual, 1)
-			c.So(l1.Values().At(0).Payload, ShouldResemble, []byte("one"))
+			c.So(l1.Values().At(0).GetPayload(), ShouldResemble, []byte("one"))
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge with an entry that doesn't have public signing key", FailureHalts, func(c C) {
@@ -167,7 +167,7 @@ func TestSignedLog(t *testing.T) {
 			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			l2.Values().At(0).Key = nil
+			l2.Values().At(0).SetKey(nil)
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
@@ -187,7 +187,7 @@ func TestSignedLog(t *testing.T) {
 			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			l2.Values().At(0).Sig = nil
+			l2.Values().At(0).SetSig(nil)
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
@@ -207,14 +207,14 @@ func TestSignedLog(t *testing.T) {
 			_, err = l2.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			l2.Values().At(0).Sig = l1.Values().At(0).Sig
+			l2.Values().At(0).SetSig(l1.Values().At(0).GetSig())
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
 			c.So(err.Error(), ShouldContainSubstring, "unable to verify entry signature")
 
 			c.So(l1.Values().Len(), ShouldEqual, 1)
-			c.So(l1.Values().At(0).Payload, ShouldResemble, []byte("one"))
+			c.So(l1.Values().At(0).GetPayload(), ShouldResemble, []byte("one"))
 		})
 
 		c.Convey("throws an error if entry doesn't have append access", FailureHalts, func(c C) {

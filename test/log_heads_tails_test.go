@@ -48,7 +48,7 @@ func TestLogHeadsTails(t *testing.T) {
 		identities = append(identities, identity)
 	}
 
-	Convey("Log - heads and Tails", t, FailureContinues, func(c C) {
+	Convey("IPFSLog - heads and Tails", t, FailureContinues, func(c C) {
 		c.Convey("heads", FailureContinues, func(c C) {
 			c.Convey("finds one head after one entry", FailureContinues, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
@@ -91,7 +91,7 @@ func TestLogHeadsTails(t *testing.T) {
 				lastEntry := getLastEntry(log2.Values())
 
 				c.So(len(entry.FindHeads(log2.Entries)), ShouldEqual, 1)
-				c.So(entry.FindHeads(log2.Entries)[0].Hash.String(), ShouldEqual, lastEntry.Hash.String())
+				c.So(entry.FindHeads(log2.Entries)[0].GetHash().String(), ShouldEqual, lastEntry.GetHash().String())
 			})
 
 			c.Convey("finds two heads after a join", FailureContinues, func(c C) {
@@ -116,8 +116,8 @@ func TestLogHeadsTails(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				c.So(len(entry.FindHeads(log1.Entries)), ShouldEqual, 2)
-				c.So(entry.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, lastEntry1.Hash.String())
-				c.So(entry.FindHeads(log1.Entries)[1].Hash.String(), ShouldEqual, lastEntry2.Hash.String())
+				c.So(entry.FindHeads(log1.Entries)[0].GetHash().String(), ShouldEqual, lastEntry1.GetHash().String())
+				c.So(entry.FindHeads(log1.Entries)[1].GetHash().String(), ShouldEqual, lastEntry2.GetHash().String())
 			})
 
 			c.Convey("finds two heads after two joins", FailureContinues, func(c C) {
@@ -154,8 +154,8 @@ func TestLogHeadsTails(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				c.So(len(entry.FindHeads(log1.Entries)), ShouldEqual, 2)
-				c.So(entry.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, lastEntry1.Hash.String())
-				c.So(entry.FindHeads(log1.Entries)[1].Hash.String(), ShouldEqual, lastEntry2.Hash.String())
+				c.So(entry.FindHeads(log1.Entries)[0].GetHash().String(), ShouldEqual, lastEntry1.GetHash().String())
+				c.So(entry.FindHeads(log1.Entries)[1].GetHash().String(), ShouldEqual, lastEntry2.GetHash().String())
 			})
 
 			c.Convey("finds two heads after three joins", FailureContinues, func(c C) {
@@ -194,8 +194,8 @@ func TestLogHeadsTails(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				c.So(len(entry.FindHeads(log1.Entries)), ShouldEqual, 2)
-				c.So(entry.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, lastEntry1.Hash.String())
-				c.So(entry.FindHeads(log1.Entries)[1].Hash.String(), ShouldEqual, lastEntry2.Hash.String())
+				c.So(entry.FindHeads(log1.Entries)[0].GetHash().String(), ShouldEqual, lastEntry1.GetHash().String())
+				c.So(entry.FindHeads(log1.Entries)[1].GetHash().String(), ShouldEqual, lastEntry2.GetHash().String())
 			})
 
 			c.Convey("finds three heads after three joins", FailureContinues, func(c C) {
@@ -235,9 +235,9 @@ func TestLogHeadsTails(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				c.So(len(entry.FindHeads(log1.Entries)), ShouldEqual, 3)
-				c.So(entry.FindHeads(log1.Entries)[0].Hash.String(), ShouldEqual, lastEntry1.Hash.String())
-				c.So(entry.FindHeads(log1.Entries)[1].Hash.String(), ShouldEqual, lastEntry2.Hash.String())
-				c.So(entry.FindHeads(log1.Entries)[2].Hash.String(), ShouldEqual, lastEntry3.Hash.String())
+				c.So(entry.FindHeads(log1.Entries)[0].GetHash().String(), ShouldEqual, lastEntry1.GetHash().String())
+				c.So(entry.FindHeads(log1.Entries)[1].GetHash().String(), ShouldEqual, lastEntry2.GetHash().String())
+				c.So(entry.FindHeads(log1.Entries)[2].GetHash().String(), ShouldEqual, lastEntry3.GetHash().String())
 			})
 		})
 

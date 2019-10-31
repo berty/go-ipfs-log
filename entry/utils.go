@@ -1,6 +1,7 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"sort"
 
@@ -8,21 +9,21 @@ import (
 )
 
 // Difference gets the list of values not present in both entries sets.
-func Difference(a []*Entry, b []*Entry) []*Entry {
+func Difference(a []iface.IPFSLogEntry, b []iface.IPFSLogEntry) []iface.IPFSLogEntry {
 	existing := map[string]bool{}
 	processed := map[string]bool{}
-	var diff []*Entry
+	var diff []iface.IPFSLogEntry
 
 	for _, v := range a {
-		existing[v.Hash.String()] = true
+		existing[v.GetHash().String()] = true
 	}
 
 	for _, v := range b {
-		isInFirst := existing[v.Hash.String()]
-		hasBeenProcessed := processed[v.Hash.String()]
+		isInFirst := existing[v.GetHash().String()]
+		hasBeenProcessed := processed[v.GetHash().String()]
 		if !isInFirst && !hasBeenProcessed {
 			diff = append(diff, v)
-			processed[v.Hash.String()] = true
+			processed[v.GetHash().String()] = true
 		}
 	}
 
@@ -90,18 +91,18 @@ func Difference(a []*Entry, b []*Entry) []*Entry {
 //}
 
 // FindHeads search entries heads in an OrderedMap.
-func FindHeads(entries *OrderedMap) []*Entry {
+func FindHeads(entries iface.IPFSLogOrderedEntries) []iface.IPFSLogEntry {
 	if entries == nil {
 		return nil
 	}
 
-	result := []*Entry{}
+	var result []iface.IPFSLogEntry
 	items := orderedmap.New()
 
 	for _, k := range entries.Keys() {
 		e := entries.UnsafeGet(k)
-		for _, n := range e.Next {
-			items.Set(n.String(), e.Hash.String())
+		for _, n := range e.GetNext() {
+			items.Set(n.String(), e.GetHash().String())
 		}
 	}
 
@@ -115,7 +116,7 @@ func FindHeads(entries *OrderedMap) []*Entry {
 	}
 
 	sort.SliceStable(result, func(a, b int) bool {
-		return bytes.Compare(result[a].Clock.ID, result[b].Clock.ID) < 0
+		return bytes.Compare(result[a].GetClock().GetID(), result[b].GetClock().GetID()) < 0
 	})
 
 	return result

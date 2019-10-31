@@ -1,6 +1,7 @@
 package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"errors"
 	"time"
@@ -16,12 +17,12 @@ import (
 
 type FetchOptions struct {
 	Length       *int
-	Exclude      []*entry.Entry
-	ProgressChan chan *entry.Entry
+	Exclude      []iface.IPFSLogEntry
+	ProgressChan chan iface.IPFSLogEntry
 	Timeout      time.Duration
 }
 
-func toMultihash(ctx context.Context, services io.IpfsServices, log *Log) (cid.Cid, error) {
+func toMultihash(ctx context.Context, services io.IpfsServices, log *IPFSLog) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
 		return cid.Cid{}, errors.New(`can't serialize an empty log`)
 	}
@@ -41,34 +42,34 @@ func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, 
 		return nil, err
 	}
 
-	entries := entry.FetchAll(ctx, services, logData.Heads, &entry.FetchOptions{
+	entries := entry.FetchAll(ctx, services, logData.Heads, &iface.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
 	})
 
 	// Find latest clock
-	var clock *entry.LamportClock
+	var clock iface.IPFSLogLamportClock
 	for _, e := range entries {
-		if clock == nil || e.Clock.Time > clock.Time {
-			clock = entry.NewLamportClock(e.Clock.ID, e.Clock.Time)
+		if clock == nil || e.GetClock().GetTime() > clock.GetTime() {
+			clock = entry.NewLamportClock(e.GetClock().GetID(), e.GetClock().GetTime())
 		}
 	}
 
 	sorting.Sort(sorting.Compare, entries)
 
-	heads := []*entry.Entry{}
+	var heads []iface.IPFSLogEntry
 	for _, e := range entries {
 		for _, h := range logData.Heads {
-			if h.String() == e.Hash.String() {
+			if h.String() == e.GetHash().String() {
 				heads = append(heads, e)
 			}
 		}
 	}
 
-	headsCids := []cid.Cid{}
+	var headsCids []cid.Cid
 	for _, head := range heads {
-		headsCids = append(headsCids, head.Hash)
+		headsCids = append(headsCids, head.GetHash())
 	}
 
 	return &Snapshot{
@@ -79,7 +80,7 @@ func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, 
 	}, nil
 }
 
-func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]*entry.Entry, error) {
+func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]iface.IPFSLogEntry, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -94,7 +95,7 @@ func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.C
 		length = maxInt(*options.Length, 1)
 	}
 
-	entries := entry.FetchParallel(ctx, services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, hashes, &iface.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
@@ -108,7 +109,7 @@ func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.C
 	return sliced, nil
 }
 
-func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, options *entry.FetchOptions) (*Snapshot, error) {
+func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -117,9 +118,9 @@ func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, o
 		return nil, errmsg.FetchOptionsNotDefined
 	}
 
-	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &iface.FetchOptions{
 		Length:       options.Length,
-		Exclude:      []*entry.Entry{},
+		Exclude:      []iface.IPFSLogEntry{},
 		ProgressChan: options.ProgressChan,
 		Concurrency:  16,
 		Timeout:      options.Timeout,
@@ -134,7 +135,7 @@ func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, o
 	}, nil
 }
 
-func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []*entry.Entry, options *entry.FetchOptions) (*Snapshot, error) {
+func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []iface.IPFSLogEntry, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -150,13 +151,13 @@ func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []*e
 	}
 
 	// Make sure we pass hashes instead of objects to the fetcher function
-	hashes := []cid.Cid{}
+	var hashes []cid.Cid
 	for _, e := range sourceEntries {
-		hashes = append(hashes, e.Hash)
+		hashes = append(hashes, e.GetHash())
 	}
 
 	// Fetch the entries
-	entries := entry.FetchParallel(ctx, services, hashes, &entry.FetchOptions{
+	entries := entry.FetchParallel(ctx, services, hashes, &iface.FetchOptions{
 		Length:       &length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
@@ -168,7 +169,7 @@ func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []*e
 	sorting.Sort(sorting.Compare, uniques)
 
 	// Cap the result at the right size by taking the last n entries
-	var sliced []*entry.Entry
+	var sliced []iface.IPFSLogEntry
 
 	if length > -1 {
 		sliced = entrySlice(uniques, -length)
@@ -180,14 +181,14 @@ func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []*e
 	result := append(missingSourceEntries, entrySliceRange(sliced, len(missingSourceEntries), len(sliced))...)
 
 	return &Snapshot{
-		ID:     result[len(result)-1].LogID,
+		ID:     result[len(result)-1].GetLogID(),
 		Values: result,
 	}, nil
 }
 
-func entrySlice(entries []*entry.Entry, index int) []*entry.Entry {
+func entrySlice(entries []iface.IPFSLogEntry, index int) []iface.IPFSLogEntry {
 	if len(entries) == 0 || index >= len(entries) {
-		return []*entry.Entry{}
+		return []iface.IPFSLogEntry{}
 	}
 
 	if index == 0 || (index < 0 && -index >= len(entries)) {
@@ -201,9 +202,9 @@ func entrySlice(entries []*entry.Entry, index int) []*entry.Entry {
 	return entries[(len(entries) + index):]
 }
 
-func entrySliceRange(entries []*entry.Entry, from int, to int) []*entry.Entry {
+func entrySliceRange(entries []iface.IPFSLogEntry, from int, to int) []iface.IPFSLogEntry {
 	if len(entries) == 0 {
-		return []*entry.Entry{}
+		return nil
 	}
 
 	if from < 0 {
@@ -218,7 +219,7 @@ func entrySliceRange(entries []*entry.Entry, from int, to int) []*entry.Entry {
 	}
 
 	if from >= len(entries) {
-		return []*entry.Entry{}
+		return nil
 	}
 
 	if to > len(entries) {
@@ -226,7 +227,7 @@ func entrySliceRange(entries []*entry.Entry, from int, to int) []*entry.Entry {
 	}
 
 	if from >= to {
-		return []*entry.Entry{}
+		return nil
 	}
 
 	if from == to {

@@ -1,10 +1,18 @@
 package accesscontroller // import "berty.tech/go-ipfs-log/accesscontroller"
 
 import (
-	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/identityprovider"
 )
 
+type LogEntry interface {
+	GetPayload() []byte
+	GetIdentity() *identityprovider.Identity
+}
+
+type CanAppendAdditionalContext interface {
+	GetLogEntries() []LogEntry
+}
+
 type Interface interface {
-	CanAppend(*entry.Entry, identityprovider.Interface) error
+	CanAppend(LogEntry, identityprovider.Interface, CanAppendAdditionalContext) error
 }
