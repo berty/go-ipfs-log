@@ -3,6 +3,7 @@ package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
 	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io"
 	"context"
 	"encoding/hex"
@@ -28,13 +29,88 @@ type Entry struct {
 	Clock    *LamportClock              `json:"clock,omitempty"`
 }
 
+func (e *Entry) GetPayload() []byte {
+	return e.Payload
+}
+
+func (e *Entry) GetLogID() string {
+	return e.LogID
+}
+
+func (e *Entry) GetNext() []cid.Cid {
+	return e.Next
+}
+
+func (e *Entry) GetV() uint64 {
+	return e.V
+}
+
+func (e *Entry) GetKey() []byte {
+	return e.Key
+}
+
+func (e *Entry) GetSig() []byte {
+	return e.Sig
+}
+
+func (e *Entry) GetIdentity() *identityprovider.Identity {
+	return e.Identity
+}
+
+func (e *Entry) GetHash() cid.Cid {
+	return e.Hash
+}
+
+func (e *Entry) GetClock() iface.IPFSLogLamportClock {
+	return e.Clock
+}
+
+func (e *Entry) SetPayload(payload []byte) {
+	e.Payload = payload
+}
+
+func (e *Entry) SetLogID(logID string) {
+	e.LogID = logID
+}
+
+func (e *Entry) SetNext(next []cid.Cid) {
+	e.Next = next
+}
+
+func (e *Entry) SetV(v uint64) {
+	e.V = v
+}
+
+func (e *Entry) SetKey(key []byte) {
+	e.Key = key
+}
+
+func (e *Entry) SetSig(sig []byte) {
+	e.Sig = sig
+}
+
+func (e *Entry) SetIdentity(identity *identityprovider.Identity) {
+	e.Identity = identity
+}
+
+func (e *Entry) SetHash(hash cid.Cid) {
+	e.Hash = hash
+}
+
+func (e *Entry) SetClock(clock iface.IPFSLogLamportClock) {
+	e.Clock = &LamportClock{
+		ID:   clock.GetID(),
+		Time: clock.GetTime(),
+	}
+}
+
 type Hashable struct {
 	Hash    interface{}
 	ID      string
 	Payload []byte
 	Next    []string
 	V       uint64
-	Clock   *LamportClock
+	Clock   iface.IPFSLogLamportClock
 	Key     []byte
 }
 
@@ -56,7 +132,7 @@ type CborEntry struct {
 	Sig      string
 	Hash     interface{}
 	Next     []cid.Cid
-	Clock    *cborLamportClock
+	Clock    *CborLamportClock
 	Payload  string
 	Identity *identityprovider.CborIdentity
 }
@@ -73,7 +149,7 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 		return nil, err
 	}
 
-	clock, err := c.Clock.toLamportClock()
+	clock, err := ToLamportClock(c.Clock)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +172,7 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 }
 
 // ToCborEntry creates a CBOR serializable version of an entry
-func (e *Entry) ToCborEntry() *CborEntry {
+func (e *Entry) ToCborEntry() interface{} {
 	return &CborEntry{
 		V:        e.V,
 		LogID:    e.LogID,
@@ -104,7 +180,7 @@ func (e *Entry) ToCborEntry() *CborEntry {
 		Sig:      hex.EncodeToString(e.Sig),
 		Hash:     nil,
 		Next:     e.Next,
-		Clock:    e.Clock.toCborLamportClock(),
+		Clock:    e.Clock.ToCborLamportClock(),
 		Payload:  string(e.Payload),
 		Identity: e.Identity.ToCborIdentity(),
 	}
@@ -128,7 +204,7 @@ func init() {
 }
 
 // CreateEntry creates an Entry.
-func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock *LamportClock) (*Entry, error) {
+func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock iface.IPFSLogLamportClock) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errors.New("ipfs instance not defined")
 	}
@@ -150,7 +226,10 @@ func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *id
 	}
 
 	data = data.copy()
-	data.Clock = clock
+	data.Clock = &LamportClock{
+		ID:   clock.GetID(),
+		Time: clock.GetTime(),
+	}
 	data.V = 1
 
 	jsonBytes, err := toBuffer(data.toHashable())
@@ -231,8 +310,8 @@ func toBuffer(e *Hashable) ([]byte, error) {
 		"next":    e.Next,
 		"v":       e.V,
 		"clock": map[string]interface{}{
-			"id":   hex.EncodeToString(e.Clock.ID),
-			"time": e.Clock.Time,
+			"id":   hex.EncodeToString(e.Clock.GetID()),
+			"time": e.Clock.GetTime(),
 		},
 	})
 	if err != nil {
@@ -262,7 +341,7 @@ func (e *Entry) toHashable() *Hashable {
 }
 
 // isValid checks that an entry is valid.
-func (e *Entry) isValid() bool {
+func (e *Entry) IsValid() bool {
 	return e.LogID != "" && len(e.Payload) > 0 && e.V <= 1
 }
 
@@ -372,8 +451,8 @@ func (e *Entry) Equals(b *Entry) bool {
 	return e.Hash.String() == b.Hash.String()
 }
 
-func (e *Entry) IsParent(b *Entry) bool {
-	for _, next := range b.Next {
+func (e *Entry) IsParent(b iface.IPFSLogEntry) bool {
+	for _, next := range b.GetNext() {
 		if next.String() == e.Hash.String() {
 			return true
 		}
@@ -385,10 +464,10 @@ func (e *Entry) IsParent(b *Entry) bool {
 // FindChildren finds an entry's children from an Array of entries.
 //
 // Returns entry's children as an Array up to the last know child.
-func FindChildren(entry *Entry, values []*Entry) []*Entry {
-	stack := []*Entry{}
+func FindChildren(entry iface.IPFSLogEntry, values []iface.IPFSLogEntry) []iface.IPFSLogEntry {
+	var stack []iface.IPFSLogEntry
 
-	var parent *Entry
+	var parent iface.IPFSLogEntry
 	for _, e := range values {
 		if entry.IsParent(e) {
 			parent = e
@@ -411,8 +490,10 @@ func FindChildren(entry *Entry, values []*Entry) []*Entry {
 	}
 
 	sort.SliceStable(stack, func(i, j int) bool {
-		return stack[i].Clock.Time <= stack[j].Clock.Time
+		return stack[i].GetClock().GetTime() <= stack[j].GetClock().GetTime()
 	})
 
 	return stack
 }
+
+var _ iface.IPFSLogEntry = (*Entry)(nil)

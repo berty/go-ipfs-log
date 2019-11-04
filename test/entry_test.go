@@ -46,8 +46,8 @@ func TestEntry(t *testing.T) {
 
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
 				c.So(e.LogID, ShouldEqual, "A")
-				c.So(e.Clock.ID, ShouldResemble, identity.PublicKey)
-				c.So(e.Clock.Time, ShouldEqual, 0)
+				c.So(e.Clock.GetID(), ShouldResemble, identity.PublicKey)
+				c.So(e.Clock.GetTime(), ShouldEqual, 0)
 				c.So(e.V, ShouldEqual, 1)
 				c.So(string(e.Payload), ShouldEqual, "hello")
 				c.So(len(e.Next), ShouldEqual, 0)
@@ -60,8 +60,8 @@ func TestEntry(t *testing.T) {
 
 				c.So(string(e.Payload), ShouldEqual, "hello world")
 				c.So(e.LogID, ShouldEqual, "A")
-				c.So(e.Clock.ID, ShouldResemble, identity.PublicKey)
-				c.So(e.Clock.Time, ShouldEqual, 0)
+				c.So(e.Clock.GetID(), ShouldResemble, identity.PublicKey)
+				c.So(e.Clock.GetTime(), ShouldEqual, 0)
 				c.So(e.V, ShouldEqual, 1)
 				c.So(len(e.Next), ShouldEqual, 0)
 				c.So(e.Hash.String(), ShouldEqual, expectedHash)
@@ -80,8 +80,8 @@ func TestEntry(t *testing.T) {
 				c.So(string(e2.Payload), ShouldEqual, payload2)
 				c.So(len(e2.Next), ShouldEqual, 1)
 				c.So(e2.Hash.String(), ShouldEqual, expectedHash)
-				c.So(e2.Clock.ID, ShouldResemble, identity.PublicKey)
-				c.So(e2.Clock.Time, ShouldEqual, 1)
+				c.So(e2.Clock.GetID(), ShouldResemble, identity.PublicKey)
+				c.So(e2.Clock.GetTime(), ShouldEqual, 1)
 			})
 
 			c.Convey("should return an entry interopable with older versions", FailureContinues, func(c C) {

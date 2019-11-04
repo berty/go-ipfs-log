@@ -1,6 +1,7 @@
 package entry
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"github.com/iancoleman/orderedmap"
 	"sync"
 )
@@ -12,7 +13,7 @@ type OrderedMap struct {
 }
 
 // NewOrderedMap creates a new OrderedMap of entries.
-func NewOrderedMap() *OrderedMap {
+func NewOrderedMap() iface.IPFSLogOrderedEntries {
 	return &OrderedMap{
 		lock:       sync.RWMutex{},
 		orderedMap: orderedmap.New(),
@@ -20,7 +21,7 @@ func NewOrderedMap() *OrderedMap {
 }
 
 // NewOrderedMapFromEntries creates a new OrderedMap of entries from a slice.
-func NewOrderedMapFromEntries(entries []*Entry) *OrderedMap {
+func NewOrderedMapFromEntries(entries []iface.IPFSLogEntry) iface.IPFSLogOrderedEntries {
 	orderedMap := NewOrderedMap()
 
 	for _, e := range entries {
@@ -28,14 +29,14 @@ func NewOrderedMapFromEntries(entries []*Entry) *OrderedMap {
 			continue
 		}
 
-		orderedMap.Set(e.Hash.String(), e)
+		orderedMap.Set(e.GetHash().String(), e)
 	}
 
 	return orderedMap
 }
 
 // Merge will fusion two OrderedMap of entries.
-func (o *OrderedMap) Merge(other *OrderedMap) *OrderedMap {
+func (o *OrderedMap) Merge(other iface.IPFSLogOrderedEntries) iface.IPFSLogOrderedEntries {
 	newMap := o.Copy()
 
 	otherKeys := other.Keys()
@@ -48,7 +49,7 @@ func (o *OrderedMap) Merge(other *OrderedMap) *OrderedMap {
 }
 
 // Copy creates a copy of an OrderedMap.
-func (o *OrderedMap) Copy() *OrderedMap {
+func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
 	newMap := NewOrderedMap()
 	keys := o.Keys()
 
@@ -61,10 +62,10 @@ func (o *OrderedMap) Copy() *OrderedMap {
 }
 
 // Get retrieves an Entry using its key.
-func (o *OrderedMap) Get(key string) (*Entry, bool) {
+func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
 	o.lock.RLock()
 	val, exists := o.orderedMap.Get(key)
-	entry, ok := val.(*Entry)
+	entry, ok := val.(iface.IPFSLogEntry)
 	if !ok {
 		exists = false
 	}
@@ -74,7 +75,7 @@ func (o *OrderedMap) Get(key string) (*Entry, bool) {
 }
 
 // UnsafeGet retrieves an Entry using its key, returns nil if not found.
-func (o *OrderedMap) UnsafeGet(key string) *Entry {
+func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
 	o.lock.RLock()
 	val, _ := o.Get(key)
 	o.lock.RUnlock()
@@ -83,15 +84,15 @@ func (o *OrderedMap) UnsafeGet(key string) *Entry {
 }
 
 // Set defines an Entry in the map for a given key.
-func (o *OrderedMap) Set(key string, value *Entry) {
+func (o *OrderedMap) Set(key string, value iface.IPFSLogEntry) {
 	o.lock.Lock()
 	o.orderedMap.Set(key, value)
 	o.lock.Unlock()
 }
 
 // Slice returns an ordered slice of the values existing in the map.
-func (o *OrderedMap) Slice() []*Entry {
-	out := []*Entry{}
+func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
+	var out []iface.IPFSLogEntry
 
 	keys := o.orderedMap.Keys()
 	for _, k := range keys {
@@ -137,7 +138,7 @@ func (o *OrderedMap) Len() int {
 }
 
 // At gets an item at the given index in the map, returns nil if not found.
-func (o *OrderedMap) At(index uint) *Entry {
+func (o *OrderedMap) At(index uint) iface.IPFSLogEntry {
 	keys := o.Keys()
 
 	if uint(len(keys)) < index {
@@ -146,3 +147,5 @@ func (o *OrderedMap) At(index uint) *Entry {
 
 	return o.UnsafeGet(keys[index])
 }
+
+var _ iface.IPFSLogOrderedEntries = (*OrderedMap)(nil)

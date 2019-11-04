@@ -2,6 +2,7 @@
 package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"strconv"
 	"strings"
@@ -21,37 +22,32 @@ import (
 	"github.com/polydawn/refmt/obj/atlas"
 )
 
-type JSONLog struct {
-	ID    string
-	Heads []cid.Cid
-}
+type Snapshot = iface.Snapshot
+type JSONLog = iface.JSONLog
+type LogOptions = iface.LogOptions
+type IteratorOptions = iface.IteratorOptions
 
-type Log struct {
+type Entry = iface.IPFSLogEntry
+type Log = iface.IPFSLog
+
+type IPFSLog struct {
 	Storage          io.IpfsServices
 	ID               string
 	AccessController accesscontroller.Interface
-	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
+	SortFn           func(a iface.IPFSLogEntry, b iface.IPFSLogEntry) (int, error)
 	Identity         *identityprovider.Identity
-	Entries          *entry.OrderedMap
-	heads            *entry.OrderedMap
-	Next             *entry.OrderedMap
-	Clock            *entry.LamportClock
+	Entries          iface.IPFSLogOrderedEntries
+	heads            iface.IPFSLogOrderedEntries
+	Next             iface.IPFSLogOrderedEntries
+	Clock            iface.IPFSLogLamportClock
 }
 
-type LogOptions struct {
-	ID               string
-	AccessController accesscontroller.Interface
-	Entries          *entry.OrderedMap
-	Heads            []*entry.Entry
-	Clock            *entry.LamportClock
-	SortFn           func(a *entry.Entry, b *entry.Entry) (int, error)
+func (l *IPFSLog) SetEntries(entries iface.IPFSLogOrderedEntries) {
+	l.Entries = entries
 }
 
-type Snapshot struct {
-	ID     string
-	Heads  []cid.Cid
-	Values []*entry.Entry
-	Clock  *entry.LamportClock
+func (l *IPFSLog) RawHeads() iface.IPFSLogOrderedEntries {
+	return l.heads
 }
 
 // maxInt Returns the larger of x or y
@@ -62,18 +58,18 @@ func maxInt(x, y int) int {
 	return x
 }
 
-func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
+func maxClockTimeForEntries(entries []iface.IPFSLogEntry, defValue int) int {
 	max := defValue
 	for _, e := range entries {
-		max = maxInt(e.Clock.Time, max)
+		max = maxInt(e.GetClock().GetTime(), max)
 	}
 
 	return max
 }
 
-// NewLog Creates creates a new Log for a given identity
+// NewLog Creates creates a new IPFSLog for a given identity
 //
-// Each Log gets a unique ID, which can be passed in the options as ID.
+// Each IPFSLog gets a unique ID, which can be passed in the options as ID.
 //
 // Returns a log instance.
 //
@@ -83,8 +79,8 @@ func maxClockTimeForEntries(entries []*entry.Entry, defValue int) int {
 // Usually this should be a user id or similar.
 //
 // options.AccessController is an instance of accesscontroller.Interface,
-// which by default allows anyone to append to the Log.
-func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *LogOptions) (*Log, error) {
+// which by default allows anyone to append to the IPFSLog.
+func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *LogOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -107,7 +103,7 @@ func NewLog(services io.IpfsServices, identity *identityprovider.Identity, optio
 
 	maxTime := 0
 	if options.Clock != nil {
-		maxTime = options.Clock.Time
+		maxTime = options.Clock.GetTime()
 	}
 	maxTime = maxClockTimeForEntries(options.Heads, maxTime)
 
@@ -126,12 +122,12 @@ func NewLog(services io.IpfsServices, identity *identityprovider.Identity, optio
 	next := entry.NewOrderedMap()
 	for _, key := range options.Entries.Keys() {
 		entry := options.Entries.UnsafeGet(key)
-		for _, n := range entry.Next {
+		for _, n := range entry.GetNext() {
 			next.Set(n.String(), entry)
 		}
 	}
 
-	return &Log{
+	return &IPFSLog{
 		Storage:          services,
 		ID:               options.ID,
 		Identity:         identity,
@@ -145,24 +141,24 @@ func NewLog(services io.IpfsServices, identity *identityprovider.Identity, optio
 }
 
 // addToStack Add an entry to the stack and traversed nodes index
-func (l *Log) addToStack(e *entry.Entry, stack []*entry.Entry, traversed *orderedmap.OrderedMap) ([]*entry.Entry, *orderedmap.OrderedMap) {
+func (l *IPFSLog) addToStack(e iface.IPFSLogEntry, stack []iface.IPFSLogEntry, traversed *orderedmap.OrderedMap) ([]iface.IPFSLogEntry, *orderedmap.OrderedMap) {
 	// If we've already processed the entry, don't add it to the stack
-	if _, ok := traversed.Get(e.Hash.String()); ok {
+	if _, ok := traversed.Get(e.GetHash().String()); ok {
 		return stack, traversed
 	}
 
 	// Add the entry in front of the stack and sort
-	stack = append([]*entry.Entry{e}, stack...)
+	stack = append([]iface.IPFSLogEntry{e}, stack...)
 	sorting.Sort(l.SortFn, stack)
 	sorting.Reverse(stack)
 
 	// Add to the cache of processed entries
-	traversed.Set(e.Hash.String(), true)
+	traversed.Set(e.GetHash().String(), true)
 
 	return stack, traversed
 }
 
-func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string) ([]*entry.Entry, error) {
+func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, endHash string) ([]iface.IPFSLogEntry, error) {
 	if rootEntries == nil {
 		return nil, errmsg.EntriesNotDefined
 	}
@@ -176,7 +172,7 @@ func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 	// Cache for checking if we've processed an entry already
 	traversed := orderedmap.New()
 	// End result
-	result := []*entry.Entry{}
+	var result []iface.IPFSLogEntry
 	// We keep a counter to check if we have traversed requested amount of entries
 	count := 0
 
@@ -194,7 +190,7 @@ func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 		result = append(result, e)
 
 		// Add entry's next references to the stack
-		for _, next := range e.Next {
+		for _, next := range e.GetNext() {
 			nextEntry, ok := l.Entries.Get(next.String())
 			if !ok {
 				continue
@@ -204,7 +200,7 @@ func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 		}
 
 		// If it is the specified end hash, break out of the while loop
-		if e.Hash.String() == endHash {
+		if e.GetHash().String() == endHash {
 			break
 		}
 	}
@@ -215,13 +211,13 @@ func (l *Log) traverse(rootEntries *entry.OrderedMap, amount int, endHash string
 // Append Appends an entry to the log Returns the latest Entry
 //
 // payload is the data that will be in the Entry
-func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*entry.Entry, error) {
+func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) (iface.IPFSLogEntry, error) {
 	// INFO: JS default value for pointerCount is 1
 	// Update the clock (find the latest clock)
 	newTime := maxClockTimeForEntries(l.heads.Slice(), 0)
-	newTime = maxInt(l.Clock.Time, newTime) + 1
+	newTime = maxInt(l.Clock.GetTime(), newTime) + 1
 
-	l.Clock = entry.NewLamportClock(l.Clock.ID, newTime)
+	l.Clock = entry.NewLamportClock(l.Clock.GetID(), newTime)
 
 	// Get the required amount of hashes to next entries (as per current state of the log)
 	references, err := l.traverse(l.heads, maxInt(pointerCount, l.heads.Len()), "")
@@ -234,10 +230,10 @@ func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*en
 	keys := l.heads.Keys()
 	for _, k := range keys {
 		e, _ := l.heads.Get(k)
-		next = append(next, e.Hash)
+		next = append(next, e.GetHash())
 	}
 	for _, e := range references {
-		next = append(next, e.Hash)
+		next = append(next, e.GetHash())
 	}
 
 	// TODO: ensure port of ```Object.keys(Object.assign({}, this._headsIndex, references))``` is correctly implemented
@@ -253,7 +249,7 @@ func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*en
 		return nil, errors.Wrap(err, "append failed")
 	}
 
-	if err := l.AccessController.CanAppend(e, l.Identity.Provider); err != nil {
+	if err := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); err != nil {
 		return nil, errors.Wrap(err, "append failed")
 	}
 
@@ -261,7 +257,7 @@ func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*en
 
 	for _, k := range keys {
 		nextEntry, _ := l.heads.Get(k)
-		l.Next.Set(nextEntry.Hash.String(), e)
+		l.Next.Set(nextEntry.GetHash().String(), e)
 	}
 
 	l.heads = entry.NewOrderedMap()
@@ -270,16 +266,23 @@ func (l *Log) Append(ctx context.Context, payload []byte, pointerCount int) (*en
 	return e, nil
 }
 
-type IteratorOptions struct {
-	GT     *cid.Cid
-	GTE    *cid.Cid
-	LT     []cid.Cid
-	LTE    []cid.Cid
-	Amount *int
+type CanAppendContext struct {
+	log *IPFSLog
+}
+
+func (c *CanAppendContext) GetLogEntries() []accesscontroller.LogEntry {
+	logEntries := c.log.Entries.Slice()
+
+	var entries = make([]accesscontroller.LogEntry, len(logEntries))
+	for i := range logEntries {
+		entries[i] = logEntries[i]
+	}
+
+	return entries
 }
 
 /* Iterator Provides entries values on a channel */
-func (l *Log) Iterator(options *IteratorOptions, output chan<- *entry.Entry) error {
+func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLogEntry) error {
 	amount := -1
 	if options == nil {
 		return errors.New("no options specified")
@@ -317,7 +320,7 @@ func (l *Log) Iterator(options *IteratorOptions, output chan<- *entry.Entry) err
 			}
 
 			start = nil
-			for _, n := range e.Next {
+			for _, n := range e.GetNext() {
 				e, ok := values.Get(n.String())
 				if !ok {
 					return errors.New("entry specified at LT not found")
@@ -367,13 +370,13 @@ func (l *Log) Iterator(options *IteratorOptions, output chan<- *entry.Entry) err
 // Returns a log instance.
 //
 // The size of the joined log can be specified by specifying the size argument, to include all values use -1
-func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
+func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) {
 	// INFO: JS default size is -1
 	if otherLog == nil {
 		return nil, errmsg.LogJoinNotDefined
 	}
 
-	if l.ID != otherLog.ID {
+	if l.ID != otherLog.GetID() {
 		return l, nil
 	}
 
@@ -381,7 +384,7 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
-		if err := l.AccessController.CanAppend(e, l.Identity.Provider); err != nil {
+		if err := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); err != nil {
 			return nil, errors.Wrap(err, "join failed")
 		}
 
@@ -392,30 +395,30 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
-		for _, next := range e.Next {
+		for _, next := range e.GetNext() {
 			l.Next.Set(next.String(), e)
 		}
 
-		l.Entries.Set(e.Hash.String(), e)
+		l.Entries.Set(e.GetHash().String(), e)
 	}
 
 	nextsFromNewItems := orderedmap.New()
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
-		for _, n := range e.Next {
+		for _, n := range e.GetNext() {
 			nextsFromNewItems.Set(n.String(), true)
 		}
 	}
 
-	mergedHeads := entry.FindHeads(l.heads.Merge(otherLog.heads))
+	mergedHeads := entry.FindHeads(l.heads.Merge(otherLog.RawHeads()))
 	for idx, e := range mergedHeads {
 		// notReferencedByNewItems
-		if _, ok := nextsFromNewItems.Get(e.Hash.String()); ok {
+		if _, ok := nextsFromNewItems.Get(e.GetHash().String()); ok {
 			mergedHeads[idx] = nil
 		}
 
 		// notInCurrentNexts
-		if _, ok := l.Next.Get(e.Hash.String()); ok {
+		if _, ok := l.Next.Get(e.GetHash().String()); ok {
 			mergedHeads[idx] = nil
 		}
 	}
@@ -431,21 +434,21 @@ func (l *Log) Join(otherLog *Log, size int) (*Log, error) {
 
 	// Find the latest clock from the heads
 	maxClock := maxClockTimeForEntries(l.heads.Slice(), 0)
-	l.Clock = entry.NewLamportClock(l.Clock.ID, maxInt(l.Clock.Time, maxClock))
+	l.Clock = entry.NewLamportClock(l.Clock.GetID(), maxInt(l.Clock.GetTime(), maxClock))
 
 	return l, nil
 }
 
-func difference(logA, logB *Log) *entry.OrderedMap {
-	if logA == nil || logA.Entries == nil || logA.Entries.Len() == 0 || logB == nil {
+func difference(logA, logB iface.IPFSLog) iface.IPFSLogOrderedEntries {
+	if logA == nil || logA.GetEntries() == nil || logA.GetEntries().Len() == 0 || logB == nil {
 		return entry.NewOrderedMap()
 	}
 
-	if logB.Entries == nil {
-		logB.Entries = entry.NewOrderedMap()
+	if logB.GetEntries() == nil {
+		logB.SetEntries(entry.NewOrderedMap())
 	}
 
-	stack := logA.heads.Keys()
+	stack := logA.RawHeads().Keys()
 	traversed := map[string]bool{}
 	res := entry.NewOrderedMap()
 
@@ -456,15 +459,15 @@ func difference(logA, logB *Log) *entry.OrderedMap {
 		hash := stack[0]
 		stack = stack[1:]
 
-		eA, okA := logA.Entries.Get(hash)
-		_, okB := logB.Entries.Get(hash)
+		eA, okA := logA.GetEntries().Get(hash)
+		_, okB := logB.GetEntries().Get(hash)
 
-		if okA && !okB && eA.LogID == logB.ID {
+		if okA && !okB && eA.GetLogID() == logB.GetID() {
 			res.Set(hash, eA)
 			traversed[hash] = true
-			for _, h := range eA.Next {
+			for _, h := range eA.GetNext() {
 				hash := h.String()
-				_, okB := logB.Entries.Get(hash)
+				_, okB := logB.GetEntries().Get(hash)
 				_, okT := traversed[hash]
 				if !okT && !okB {
 					stack = append(stack, hash)
@@ -481,11 +484,11 @@ func difference(logA, logB *Log) *entry.OrderedMap {
 //
 // payloadMapper is a function to customize text representation,
 // use nil to use the default mapper which convert the payload as a string
-func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
+func (l *IPFSLog) ToString(payloadMapper func(iface.IPFSLogEntry) string) string {
 	values := l.Values().Slice()
 	sorting.Reverse(values)
 
-	lines := []string{}
+	var lines []string
 
 	for _, e := range values {
 		parents := entry.FindChildren(e, l.Values().Slice())
@@ -499,7 +502,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 		if payloadMapper != nil {
 			payload = payloadMapper(e)
 		} else {
-			payload = string(e.Payload)
+			payload = string(e.GetPayload())
 		}
 
 		lines = append(lines, padding+payload)
@@ -509,7 +512,7 @@ func (l *Log) ToString(payloadMapper func(*entry.Entry) string) string {
 }
 
 // ToSnapshot exports a Snapshot-able version of the log
-func (l *Log) ToSnapshot() *Snapshot {
+func (l *IPFSLog) ToSnapshot() *Snapshot {
 	return &Snapshot{
 		ID:     l.ID,
 		Heads:  entrySliceToCids(l.heads.Slice()),
@@ -517,17 +520,17 @@ func (l *Log) ToSnapshot() *Snapshot {
 	}
 }
 
-func entrySliceToCids(slice []*entry.Entry) []cid.Cid {
+func entrySliceToCids(slice []iface.IPFSLogEntry) []cid.Cid {
 	var cids []cid.Cid
 
 	for _, e := range slice {
-		cids = append(cids, e.Hash)
+		cids = append(cids, e.GetHash())
 	}
 
 	return cids
 }
 
-//func (l *Log) toBuffer() ([]byte, error) {
+//func (l *IPFSLog) toBuffer() ([]byte, error) {
 //	return json.Marshal(l.ToJSON())
 //}
 
@@ -537,14 +540,14 @@ func entrySliceToCids(slice []*entry.Entry) []cid.Cid {
 // log.toJSON to IPFS, thus causing side effects
 //
 // The only supported format is dag-cbor and a CIDv1 is returned
-func (l *Log) ToMultihash(ctx context.Context) (cid.Cid, error) {
+func (l *IPFSLog) ToMultihash(ctx context.Context) (cid.Cid, error) {
 	return toMultihash(ctx, l.Storage, l)
 }
 
-// NewFromMultihash Creates a Log from a hash
+// NewFromMultihash Creates a IPFSLog from a hash
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -571,10 +574,10 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 		return nil, errors.Wrap(err, "newfrommultihash failed")
 	}
 
-	heads := []*entry.Entry{}
+	var heads []iface.IPFSLogEntry
 	for _, e := range data.Values {
 		for _, h := range data.Heads {
-			if e.Hash.String() == h.String() {
+			if e.GetHash().String() == h.String() {
 				heads = append(heads, e)
 				break
 			}
@@ -586,15 +589,15 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(data.Values),
 		Heads:            heads,
-		Clock:            entry.NewLamportClock(data.Clock.ID, data.Clock.Time),
+		Clock:            entry.NewLamportClock(data.Clock.GetID(), data.Clock.GetTime()),
 		SortFn:           logOptions.SortFn,
 	})
 }
 
-// NewFromEntryHash Creates a Log from a hash of an Entry
+// NewFromEntryHash Creates a IPFSLog from a hash of an Entry
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*Log, error) {
+func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -621,10 +624,10 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 	})
 }
 
-// NewFromJSON Creates a Log from a JSON Snapshot
+// NewFromJSON Creates a IPFSLog from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -652,10 +655,10 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 	})
 }
 
-// NewFromEntry Creates a Log from an Entry
+// NewFromEntry Creates a IPFSLog from an Entry
 //
 // Creating a log from an entry will retrieve entries from IPFS, thus causing side effects
-func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []*entry.Entry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*Log, error) {
+func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []iface.IPFSLogEntry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -685,7 +688,7 @@ func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *ident
 // Values Returns an Array of entries in the log
 //
 // The values are in linearized order according to their Lamport clocks
-func (l *Log) Values() *entry.OrderedMap {
+func (l *IPFSLog) Values() iface.IPFSLogOrderedEntries {
 	if l.heads == nil {
 		return entry.NewOrderedMap()
 	}
@@ -696,14 +699,14 @@ func (l *Log) Values() *entry.OrderedMap {
 }
 
 // ToJSON Returns a log in a JSON serializable structure
-func (l *Log) ToJSON() *JSONLog {
+func (l *IPFSLog) ToJSON() *JSONLog {
 	stack := l.heads.Slice()
 	sorting.Sort(l.SortFn, stack)
 	sorting.Reverse(stack)
 
-	hashes := []cid.Cid{}
+	var hashes []cid.Cid
 	for _, e := range stack {
-		hashes = append(hashes, e.Hash)
+		hashes = append(hashes, e.GetHash())
 	}
 
 	return &JSONLog{
@@ -712,10 +715,18 @@ func (l *Log) ToJSON() *JSONLog {
 	}
 }
 
+func (l *IPFSLog) GetID() string {
+	return l.ID
+}
+
+func (l *IPFSLog) GetEntries() iface.IPFSLogOrderedEntries {
+	return l.Entries
+}
+
 // Heads Returns the heads of the log
 //
 // Heads are the entries that are not referenced by other entries in the log
-func (l *Log) Heads() *entry.OrderedMap {
+func (l *IPFSLog) Heads() iface.IPFSLogOrderedEntries {
 	heads := l.heads.Slice()
 	sorting.Sort(l.SortFn, heads)
 	sorting.Reverse(heads)
@@ -732,3 +743,5 @@ var atlasJSONLog = atlas.BuildEntry(JSONLog{}).
 func init() {
 	cbornode.RegisterCborType(atlasJSONLog)
 }
+
+var _ iface.IPFSLog = (*IPFSLog)(nil)

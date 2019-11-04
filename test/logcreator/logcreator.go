@@ -11,12 +11,12 @@ import (
 )
 
 type CreatedLog struct {
-	Log          *ipfslog.Log
+	Log          *ipfslog.IPFSLog
 	ExpectedData []string
 	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, error) {
+func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, error) {
 	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, iden
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.Log, []string, error) {
+func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
 	var expectedData []string
 	const amount = 100
 

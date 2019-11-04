@@ -38,7 +38,7 @@ func TestLogAppend(t *testing.T) {
 		panic(err)
 	}
 
-	Convey("Log - Append", t, FailureHalts, func(c C) {
+	Convey("IPFSLog - Append", t, FailureHalts, func(c C) {
 		c.Convey("append", FailureHalts, func(c C) {
 			c.Convey("append one", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
@@ -52,13 +52,13 @@ func TestLogAppend(t *testing.T) {
 
 				for _, k := range keys {
 					v := values.UnsafeGet(k)
-					c.So(string(v.Payload), ShouldEqual, "hello1")
-					c.So(len(v.Next), ShouldEqual, 0)
-					c.So(v.Clock.ID, ShouldResemble, identity.PublicKey)
-					c.So(v.Clock.Time, ShouldEqual, 1)
+					c.So(string(v.GetPayload()), ShouldEqual, "hello1")
+					c.So(len(v.GetNext()), ShouldEqual, 0)
+					c.So(v.GetClock().GetID(), ShouldResemble, identity.PublicKey)
+					c.So(v.GetClock().GetTime(), ShouldEqual, 1)
 				}
 				for _, v := range entry.FindHeads(log1.Entries) {
-					c.So(v.Hash.String(), ShouldEqual, values.UnsafeGet(keys[0]).Hash.String())
+					c.So(v.GetHash().String(), ShouldEqual, values.UnsafeGet(keys[0]).GetHash().String())
 				}
 			})
 
@@ -76,7 +76,7 @@ func TestLogAppend(t *testing.T) {
 					heads := entry.FindHeads(log1.Entries)
 
 					c.So(len(heads), ShouldEqual, 1)
-					c.So(heads[0].Hash.String(), ShouldEqual, values.UnsafeGet(keys[len(keys)-1]).Hash.String())
+					c.So(heads[0].GetHash().String(), ShouldEqual, values.UnsafeGet(keys[len(keys)-1]).GetHash().String())
 				}
 
 				c.So(log1.Entries.Len(), ShouldEqual, 100)
@@ -87,10 +87,10 @@ func TestLogAppend(t *testing.T) {
 				for i, k := range keys {
 					v := values.UnsafeGet(k)
 
-					c.So(string(v.Payload), ShouldEqual, fmt.Sprintf("hello%d", i))
-					c.So(v.Clock.Time, ShouldEqual, i+1)
-					c.So(v.Clock.ID, ShouldResemble, identity.PublicKey)
-					c.So(len(v.Next), ShouldEqual, minInt(i, nextPointerAmount))
+					c.So(string(v.GetPayload()), ShouldEqual, fmt.Sprintf("hello%d", i))
+					c.So(v.GetClock().GetTime(), ShouldEqual, i+1)
+					c.So(v.GetClock().GetID(), ShouldResemble, identity.PublicKey)
+					c.So(len(v.GetNext()), ShouldEqual, minInt(i, nextPointerAmount))
 				}
 			})
 		})

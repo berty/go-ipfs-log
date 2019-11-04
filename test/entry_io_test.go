@@ -1,6 +1,7 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"fmt"
 	"reflect"
@@ -54,7 +55,7 @@ func TestEntryPersistence(t *testing.T) {
 			e, err := log1.Append(ctx, []byte("one"), 1)
 			c.So(err, ShouldBeNil)
 
-			hash := e.Hash
+			hash := e.GetHash()
 			res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{})
 			c.So(len(res), ShouldEqual, 1)
 		})
@@ -67,7 +68,7 @@ func TestEntryPersistence(t *testing.T) {
 			e, err := log1.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			hash := e.Hash
+			hash := e.GetHash()
 			res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{})
 			c.So(len(res), ShouldEqual, 2)
 		})
@@ -80,13 +81,13 @@ func TestEntryPersistence(t *testing.T) {
 			e, err := log1.Append(ctx, []byte("two"), 1)
 			c.So(err, ShouldBeNil)
 
-			hash := e.Hash
+			hash := e.GetHash()
 			res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
 			c.So(len(res), ShouldEqual, 1)
 		})
 
 		c.Convey("log with 100 entries", FailureHalts, func(c C) {
-			var e *entry.Entry
+			var e iface.IPFSLogEntry
 			var err error
 
 			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
@@ -96,7 +97,7 @@ func TestEntryPersistence(t *testing.T) {
 				c.So(err, ShouldBeNil)
 			}
 
-			hash := e.Hash
+			hash := e.GetHash()
 			res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{})
 			c.So(len(res), ShouldEqual, 100)
 		})
@@ -238,11 +239,11 @@ func TestEntryPersistence(t *testing.T) {
 
 			for _, k := range log3Keys {
 				v, _ := log3Values.Get(k)
-				values3 = append(values3, v.Payload)
+				values3 = append(values3, v.GetPayload())
 			}
 			for _, k := range log4Keys {
 				v, _ := log4Values.Get(k)
-				values4 = append(values4, v.Payload)
+				values4 = append(values4, v.GetPayload())
 			}
 			c.So(reflect.DeepEqual(values3, values4), ShouldBeTrue)
 		})

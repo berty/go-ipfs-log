@@ -1,27 +1,18 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
+	"berty.tech/go-ipfs-log/iface"
+	"berty.tech/go-ipfs-log/io"
 	"context"
 	"fmt"
-	"time"
-
-	"berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
 )
 
-type FetchOptions struct {
-	Length       *int
-	Exclude      []*Entry
-	Concurrency  int
-	Timeout      time.Duration
-	ProgressChan chan *Entry
-	Provider     identityprovider.Interface
-}
+type FetchOptions = iface.FetchOptions
 
 // FetchParallel retrieves IPFS log entries.
-func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
-	var entries []*Entry
+func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
+	var entries []iface.IPFSLogEntry
 
 	for _, h := range hashes {
 		entries = append(entries, FetchAll(ctx, ipfs, []cid.Cid{h}, options)...)
@@ -34,8 +25,8 @@ func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, 
 }
 
 // FetchAll gets entries from their CIDs.
-func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
-	result := []*Entry{}
+func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
+	var result []iface.IPFSLogEntry
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
 	length := -1
@@ -44,7 +35,7 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 	}
 
 	addToResults := func(entry *Entry) {
-		if entry.isValid() {
+		if entry.IsValid() {
 			loadingQueue = append(loadingQueue, entry.Next...)
 			result = append(result, entry)
 			cache.Set(entry.Hash.String(), entry)
@@ -56,9 +47,9 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 	}
 
 	for _, e := range options.Exclude {
-		if e.isValid() {
+		if e.IsValid() {
 			result = append(result, e)
-			cache.Set(e.Hash.String(), e)
+			cache.Set(e.GetHash().String(), e)
 		}
 	}
 
@@ -82,7 +73,7 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 
 		entry.Hash = hash
 
-		if entry.isValid() {
+		if entry.IsValid() {
 			addToResults(entry)
 		}
 	}
