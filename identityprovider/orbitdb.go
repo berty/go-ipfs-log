@@ -4,6 +4,7 @@ import (
 	"berty.tech/go-ipfs-log/keystore"
 	"encoding/hex"
 	"fmt"
+	crypto "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 )
 
@@ -74,6 +75,15 @@ func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte,
 	}
 
 	return sig, nil
+}
+
+func (p *OrbitDBIdentityProvider) UnmarshalPublicKey(data []byte) (crypto.PubKey, error) {
+	pubKey, err := crypto.UnmarshalSecp256k1PublicKey(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to unmarshal public key")
+	}
+
+	return pubKey, nil
 }
 
 // GetType returns the current identity type.

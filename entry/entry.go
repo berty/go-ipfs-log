@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	ic "github.com/libp2p/go-libp2p-crypto"
 	"github.com/pkg/errors"
 	"github.com/polydawn/refmt/obj/atlas"
 	"math"
@@ -366,7 +365,7 @@ func (e *Entry) Verify(identity identityprovider.Interface) error {
 		return errors.Wrap(err, "unable to build string buffer")
 	}
 
-	pubKey, err := ic.UnmarshalSecp256k1PublicKey(e.Key)
+	pubKey, err := identity.UnmarshalPublicKey(e.Key)
 	if err != nil {
 		return errors.Wrap(err, "unable to unmarshal public key")
 	}
