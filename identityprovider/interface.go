@@ -1,6 +1,9 @@
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
-import "berty.tech/go-ipfs-log/keystore"
+import (
+	"berty.tech/go-ipfs-log/keystore"
+	crypto "github.com/libp2p/go-libp2p-crypto"
+)
 
 type CreateIdentityOptions struct {
 	IdentityKeysPath string
@@ -25,4 +28,7 @@ type Interface interface {
 
 	// Sign will sign a value.
 	Sign(identity *Identity, bytes []byte) ([]byte, error)
+
+	// UnmarshalPublicKey will provide a crypto.PubKey from a key bytes.
+	UnmarshalPublicKey(data []byte) (crypto.PubKey, error)
 }

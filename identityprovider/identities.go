@@ -100,9 +100,12 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 		return nil, err
 	}
 
-	publicKeyBytes, err = compressedToUncompressedS256Key(publicKeyBytes)
-	if err != nil {
-		return nil, err
+	// JS version of IPFS Log expects an uncompressed Secp256k1 key
+	if publicKey.Type().String() == "Secp256k1" {
+		publicKeyBytes, err = compressedToUncompressedS256Key(publicKeyBytes)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pubKeyIDSignature, err := identityProvider.SignIdentity(append(publicKeyBytes, idSignature...), options.ID)
