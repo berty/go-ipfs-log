@@ -2,7 +2,7 @@ package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"berty.tech/go-ipfs-log/keystore"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 )
 
 type CreateIdentityOptions struct {

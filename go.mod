@@ -1,33 +1,28 @@
 module berty.tech/go-ipfs-log
 
-go 1.12
+go 1.13
 
 require (
-	github.com/btcsuite/btcd v0.0.0-20190523000118-16327141da8c
-	github.com/coreos/go-semver v0.3.0 // indirect
-	github.com/golang/mock v1.3.1 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20190430165422-3e4dfb77656c // indirect
-	github.com/hashicorp/golang-lru v0.5.1
+	github.com/btcsuite/btcd v0.20.1-beta
+	github.com/hashicorp/golang-lru v0.5.3
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0
-	github.com/ipfs/go-blockservice v0.0.3
-	github.com/ipfs/go-cid v0.0.2
-	github.com/ipfs/go-datastore v0.0.5
-	github.com/ipfs/go-ipfs v0.4.21
-	github.com/ipfs/go-ipfs-blockstore v0.0.1
+	github.com/ipfs/go-blockservice v0.1.2
+	github.com/ipfs/go-cid v0.0.4
+	github.com/ipfs/go-datastore v0.3.1
+	github.com/ipfs/go-ipfs v0.4.22-0.20191217161056-7cc392ba9dac
+	github.com/ipfs/go-ipfs-blockstore v0.1.1
 	github.com/ipfs/go-ipfs-exchange-offline v0.0.1
-	github.com/ipfs/go-ipld-cbor v0.0.2
+	github.com/ipfs/go-ipfs-pinner v0.0.2
+	github.com/ipfs/go-ipld-cbor v0.0.3
 	github.com/ipfs/go-ipld-format v0.0.2
-	github.com/ipfs/go-merkledag v0.0.3
-	github.com/ipfs/interface-go-ipfs-core v0.0.8
-	github.com/libp2p/go-libp2p-crypto v0.0.2
-	github.com/mattn/go-colorable v0.1.2 // indirect
-	github.com/minio/sha256-simd v0.1.0 // indirect
+	github.com/ipfs/go-merkledag v0.3.1
+	github.com/ipfs/interface-go-ipfs-core v0.2.5
+	github.com/libp2p/go-libp2p-core v0.3.0
 	github.com/pkg/errors v0.8.1
-	github.com/polydawn/refmt v0.0.0-20190221155625-df39d6c2d992
-	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
-	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa
-	go.opencensus.io v0.22.0 // indirect
-	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5 // indirect
+	github.com/polydawn/refmt v0.0.0-20190408063855-01bf1e26dd14
+	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a
 )
 
-replace github.com/dgraph-io/badger => github.com/dgraph-io/badger v0.0.0-20190809121831-9d7b751e85c9
+replace github.com/golangci/golangci-lint => github.com/golangci/golangci-lint v1.18.0
+
+replace github.com/go-critic/go-critic v0.0.0-20181204210945-ee9bf5809ead => github.com/go-critic/go-critic v0.3.5-0.20190526074819-1df300866540

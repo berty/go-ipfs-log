@@ -6,7 +6,7 @@ import (
 
 	"berty.tech/go-ipfs-log/keystore"
 	"github.com/btcsuite/btcd/btcec"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/pkg/errors"
 )
 

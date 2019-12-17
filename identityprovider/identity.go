@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	ic "github.com/libp2p/go-libp2p-crypto"
+	ic "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/pkg/errors"
 	"github.com/polydawn/refmt/obj/atlas"
 )

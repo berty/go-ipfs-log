@@ -7,7 +7,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	datastore "github.com/ipfs/go-datastore"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/pkg/errors"
 )
 
