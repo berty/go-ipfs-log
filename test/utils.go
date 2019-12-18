@@ -8,7 +8,7 @@ import (
 	dssync "github.com/ipfs/go-datastore/sync"
 	bstore "github.com/ipfs/go-ipfs-blockstore"
 	offline "github.com/ipfs/go-ipfs-exchange-offline"
-	"github.com/ipfs/go-ipfs/pin"
+	pin "github.com/ipfs/go-ipfs-pinner"
 	"github.com/ipfs/go-merkledag"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 )

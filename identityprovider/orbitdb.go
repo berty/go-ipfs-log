@@ -1,10 +1,11 @@
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
-	"berty.tech/go-ipfs-log/keystore"
 	"encoding/hex"
 	"fmt"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+
+	"berty.tech/go-ipfs-log/keystore"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/pkg/errors"
 )
 
