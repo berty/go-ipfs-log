@@ -50,6 +50,9 @@ func (o *OrderedMap) Merge(other iface.IPFSLogOrderedEntries) iface.IPFSLogOrder
 
 // Copy creates a copy of an OrderedMap.
 func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	newMap := NewOrderedMap()
 	keys := o.Keys()
 
@@ -64,12 +67,13 @@ func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
 // Get retrieves an Entry using its key.
 func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
 	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	val, exists := o.orderedMap.Get(key)
 	entry, ok := val.(iface.IPFSLogEntry)
 	if !ok {
 		exists = false
 	}
-	o.lock.RUnlock()
 
 	return entry, exists
 }
@@ -77,8 +81,9 @@ func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
 // UnsafeGet retrieves an Entry using its key, returns nil if not found.
 func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
 	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	val, _ := o.Get(key)
-	o.lock.RUnlock()
 
 	return val
 }
@@ -86,12 +91,16 @@ func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
 // Set defines an Entry in the map for a given key.
 func (o *OrderedMap) Set(key string, value iface.IPFSLogEntry) {
 	o.lock.Lock()
+	defer o.lock.Unlock()
+
 	o.orderedMap.Set(key, value)
-	o.lock.Unlock()
 }
 
 // Slice returns an ordered slice of the values existing in the map.
 func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	var out []iface.IPFSLogEntry
 
 	keys := o.orderedMap.Keys()
@@ -105,47 +114,61 @@ func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
 // Delete removes an Entry from the map for a given key.
 func (o *OrderedMap) Delete(key string) {
 	o.lock.Lock()
+	defer o.lock.Unlock()
+
 	o.orderedMap.Delete(key)
-	o.lock.Unlock()
 }
 
 // Keys retrieves the ordered list of keys in the map.
 func (o *OrderedMap) Keys() []string {
 	o.lock.RLock()
-	keys := o.orderedMap.Keys()
-	o.lock.RUnlock()
+	defer o.lock.RUnlock()
 
-	return keys
+	return append([]string(nil), o.orderedMap.Keys()...)
 }
 
 // SortKeys orders the map keys using your sort func.
 func (o *OrderedMap) SortKeys(sortFunc func(keys []string)) {
 	o.lock.Lock()
+	defer o.lock.Unlock()
+
 	o.orderedMap.SortKeys(sortFunc)
-	o.lock.Unlock()
 }
 
 // Sort orders the map using your sort func.
 func (o *OrderedMap) Sort(lessFunc func(a *orderedmap.Pair, b *orderedmap.Pair) bool) {
 	o.lock.Lock()
+	defer o.lock.Unlock()
+
 	o.orderedMap.Sort(lessFunc)
-	o.lock.Unlock()
 }
 
 // Len gets the length of the map.
 func (o *OrderedMap) Len() int {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	return len(o.orderedMap.Keys())
 }
 
 // At gets an item at the given index in the map, returns nil if not found.
 func (o *OrderedMap) At(index uint) iface.IPFSLogEntry {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
 	keys := o.Keys()
+
+	if keys == nil {
+		return nil
+	}
 
 	if uint(len(keys)) < index {
 		return nil
 	}
 
-	return o.UnsafeGet(keys[index])
+	key := keys[index]
+
+	return o.UnsafeGet(key)
 }
 
 var _ iface.IPFSLogOrderedEntries = (*OrderedMap)(nil)
