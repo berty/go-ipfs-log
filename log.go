@@ -44,7 +44,16 @@ type IPFSLog struct {
 	lock             sync.RWMutex
 }
 
+func (l *IPFSLog) GetClock() iface.IPFSLogLamportClock {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.Clock
+}
+
 func (l *IPFSLog) SetEntries(entries iface.IPFSLogOrderedEntries) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
 	l.Entries = entries
 }
 
@@ -225,9 +234,13 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) 
 	l.lock.RUnlock()
 
 	newTime := maxClockTimeForEntries(heads.Slice(), 0)
-	newTime = maxInt(l.Clock.GetTime(), newTime) + 1
+	newTime = maxInt(l.GetClock().GetTime(), newTime) + 1
 
-	l.Clock = entry.NewLamportClock(l.Clock.GetID(), newTime)
+	clockID := l.GetClock().GetID()
+
+	l.lock.Lock()
+	l.Clock = entry.NewLamportClock(clockID, newTime)
+	l.lock.Unlock()
 
 	// Get the required amount of hashes to next entries (as per current state of the log)
 	references, err := l.traverse(heads, maxInt(pointerCount, heads.Len()), "")
@@ -254,7 +267,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) 
 		LogID:   l.ID,
 		Payload: payload,
 		Next:    next,
-	}, l.Clock)
+	}, l.GetClock())
 	if err != nil {
 		return nil, errors.Wrap(err, "append failed")
 	}
@@ -464,13 +477,14 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 	// Find the latest clock from the heads
 	l.lock.RLock()
 	headsSlice := l.heads.Slice()
-	clock := l.Clock
-	l.lock.RUnlock()
+	clockID := l.GetClock().GetID()
 
 	maxClock := maxClockTimeForEntries(headsSlice, 0)
+	clockTime := maxInt(l.GetClock().GetTime(), maxClock)
+	l.lock.RUnlock()
 
 	l.lock.Lock()
-	l.Clock = entry.NewLamportClock(clock.GetID(), maxInt(clock.GetTime(), maxClock))
+	l.Clock = entry.NewLamportClock(clockID, clockTime)
 	l.lock.Unlock()
 
 	return l, nil
