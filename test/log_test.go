@@ -1,7 +1,6 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"fmt"
 	"strconv"
@@ -9,13 +8,12 @@ import (
 	"time"
 
 	ipfslog "berty.tech/go-ipfs-log"
-	"berty.tech/go-ipfs-log/errmsg"
-
 	"berty.tech/go-ipfs-log/entry"
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/errmsg"
+	idp "berty.tech/go-ipfs-log/identity"
+	"berty.tech/go-ipfs-log/iface"
 	ks "berty.tech/go-ipfs-log/keystore"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -26,7 +24,7 @@ func TestLog(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := ks.New(datastore)
 	if err != nil {
 		panic(err)
 	}
@@ -36,12 +34,7 @@ func TestLog(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		char := 'A' + i
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-			Keystore: keystore,
-			ID:       fmt.Sprintf("user%c", char),
-			Type:     "orbitdb",
-		})
-
+		identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 		if err != nil {
 			panic(err)
 		}
@@ -71,23 +64,11 @@ func TestLog(t *testing.T) {
 			})
 
 			c.Convey("sets items if given as params", FailureHalts, func(c C) {
-				id1, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-					Keystore: keystore,
-					ID:       "userA",
-					Type:     "orbitdb",
-				})
+				id1, err := idp.CreateIdentity(keystore, "userA")
 				c.So(err, ShouldBeNil)
-				id2, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-					Keystore: keystore,
-					ID:       "userB",
-					Type:     "orbitdb",
-				})
+				id2, err := idp.CreateIdentity(keystore, "userB")
 				c.So(err, ShouldBeNil)
-				id3, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-					Keystore: keystore,
-					ID:       "userC",
-					Type:     "orbitdb",
-				})
+				id3, err := idp.CreateIdentity(keystore, "userC")
 				c.So(err, ShouldBeNil)
 				// TODO: Use time=0 and known public keys for all 3 entries
 				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, entry.NewLamportClock(id1.PublicKey, 0))

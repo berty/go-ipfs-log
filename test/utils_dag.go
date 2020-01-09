@@ -3,9 +3,8 @@ package test
 import (
 	"context"
 
-	ipld "github.com/ipfs/go-ipld-format"
-
 	"github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 )
 
@@ -39,10 +38,6 @@ func (d *dagWrapper) RemoveMany(ctx context.Context, c []cid.Cid) error {
 
 func (d *dagWrapper) Pinning() ipld.NodeAdder {
 	return d.dag
-}
-
-func (i *ipfsServices) Dag() core_iface.APIDagService {
-	return i.dag
 }
 
 var _ core_iface.APIDagService = &dagWrapper{}

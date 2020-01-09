@@ -1,49 +1,19 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
-	"berty.tech/go-ipfs-log/accesscontroller"
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/errmsg"
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
 	ks "berty.tech/go-ipfs-log/keystore"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
-
-func mustBytes(data []byte, err error) []byte {
-	if err != nil {
-		panic(err)
-	}
-
-	return data
-}
-
-type DenyAll struct {
-}
-
-func (*DenyAll) CanAppend(accesscontroller.LogEntry, idp.Interface, accesscontroller.CanAppendAdditionalContext) error {
-	return errors.New("denied")
-}
-
-type TestACL struct {
-	refIdentity *idp.Identity
-}
-
-func (t *TestACL) CanAppend(e accesscontroller.LogEntry, p idp.Interface, _ accesscontroller.CanAppendAdditionalContext) error {
-	if e.GetIdentity().ID == t.refIdentity.ID {
-		return errors.New("denied")
-	}
-
-	return nil
-}
 
 func TestSignedLog(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -52,7 +22,7 @@ func TestSignedLog(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := ks.New(datastore)
 	if err != nil {
 		panic(err)
 	}
@@ -61,12 +31,7 @@ func TestSignedLog(t *testing.T) {
 
 	for i, char := range []rune{'A', 'B'} {
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-			Keystore: keystore,
-			ID:       fmt.Sprintf("user%c", char),
-			Type:     "orbitdb",
-		})
-
+		identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 		if err != nil {
 			panic(err)
 		}

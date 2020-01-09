@@ -1,4 +1,4 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
 	"context"
@@ -8,11 +8,9 @@ import (
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
-
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
 	"berty.tech/go-ipfs-log/keystore"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -23,17 +21,12 @@ func TestLogAppend(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := keystore.NewKeystore(datastore)
+	keystore, err := keystore.New(datastore)
 	if err != nil {
 		panic(err)
 	}
 
-	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-		Keystore: keystore,
-		ID:       fmt.Sprintf("userA"),
-		Type:     "orbitdb",
-	})
-
+	identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("userA"))
 	if err != nil {
 		panic(err)
 	}

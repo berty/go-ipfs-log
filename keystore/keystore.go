@@ -1,5 +1,4 @@
-// Package keystore defines a local key manager for OrbitDB and IPFS Log.
-package keystore // import "berty.tech/go-ipfs-log/keystore"
+package keystore
 
 import (
 	"crypto/rand"
@@ -11,18 +10,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Keystore struct {
+// New creates a new keystore.
+func New(store datastore.Datastore) (Keystore, error) {
+	cache, err := lru.New(128)
+	if err != nil {
+		return nil, err
+	}
+
+	ks := &keystore{store: store, cache: cache}
+	return ks, nil
+}
+
+type keystore struct {
 	store datastore.Datastore
 	cache *lru.Cache
 }
 
-// Sign signs a value using a given private key.
-func (k *Keystore) Sign(privKey crypto.PrivKey, bytes []byte) ([]byte, error) {
+func (k *keystore) Sign(privKey crypto.PrivKey, bytes []byte) ([]byte, error) {
 	return privKey.Sign(bytes)
 }
 
-// Verify verifies a signature.
-func (k *Keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte) error {
+func (k *keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte) error {
 	ok, err := publicKey.Verify(data, signature)
 	if err != nil {
 		return err
@@ -35,21 +43,7 @@ func (k *Keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte
 	return nil
 }
 
-// NewKeystore creates a new keystore.
-func NewKeystore(store datastore.Datastore) (*Keystore, error) {
-	cache, err := lru.New(128)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Keystore{
-		store: store,
-		cache: cache,
-	}, nil
-}
-
-// HasKey checks whether a given key ID exist in the keystore.
-func (k *Keystore) HasKey(id string) (bool, error) {
+func (k *keystore) HasKey(id string) (bool, error) {
 	storedKey, ok := k.cache.Peek(id)
 
 	if ok == false {
@@ -66,8 +60,7 @@ func (k *Keystore) HasKey(id string) (bool, error) {
 	return storedKey != nil, nil
 }
 
-// CreateKey creates a new key in the key store.
-func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
+func (k *keystore) CreateKey(id string) (crypto.PrivKey, error) {
 	// FIXME: I kept Secp256k1 for compatibility with OrbitDB, should we change this?
 	priv, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
 	if err != nil {
@@ -88,8 +81,7 @@ func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 	return priv, nil
 }
 
-// GetKey retrieves a key from the keystore.
-func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
+func (k *keystore) GetKey(id string) (crypto.PrivKey, error) {
 	var err error
 	var keyBytes []byte
 
@@ -116,4 +108,4 @@ func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 	return privateKey, nil
 }
 
-var _ Interface = &Keystore{}
+var _ Keystore = &keystore{}

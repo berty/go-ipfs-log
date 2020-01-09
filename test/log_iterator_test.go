@@ -1,21 +1,20 @@
 package test
 
 import (
-	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/test/logcreator"
 	"context"
 	"fmt"
-	"github.com/ipfs/go-cid"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 
 	ipfslog "berty.tech/go-ipfs-log"
-
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
+	"berty.tech/go-ipfs-log/iface"
 	ks "berty.tech/go-ipfs-log/keystore"
+	"berty.tech/go-ipfs-log/test/logcreator"
+	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
 	ipfsCore "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreapi"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLogIterator(t *testing.T) {
@@ -23,7 +22,7 @@ func TestLogIterator(t *testing.T) {
 
 	Convey("IPFSLog - Iterator", t, FailureHalts, func(c C) {
 		datastore := dssync.MutexWrap(NewIdentityDataStore())
-		keystore, err := ks.NewKeystore(datastore)
+		keystore, err := ks.New(datastore)
 		if err != nil {
 			panic(err)
 		}
@@ -31,12 +30,7 @@ func TestLogIterator(t *testing.T) {
 		var identities [3]*idp.Identity
 
 		for i, char := range []rune{'A', 'B', 'C'} {
-			identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-				Keystore: keystore,
-				ID:       fmt.Sprintf("user%c", char),
-				Type:     "orbitdb",
-			})
-
+			identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 			if err != nil {
 				panic(err)
 			}
@@ -49,7 +43,7 @@ func TestLogIterator(t *testing.T) {
 
 		ipfs, err := coreapi.NewCoreAPI(core)
 
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ ID: "X" })
+		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 		c.So(err, ShouldBeNil)
 
 		for i := 0; i <= 100; i++ {
@@ -66,7 +60,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
+					LTE:    []cid.Cid{parsedCid},
 					Amount: &amount,
 				}, resultChan)
 
@@ -82,7 +76,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
+					LTE:    []cid.Cid{parsedCid},
 					Amount: &amount,
 				}, resultChan)
 
@@ -90,7 +84,7 @@ func TestLogIterator(t *testing.T) {
 
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
 					i++
 				}
 			})
@@ -103,7 +97,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
+					LT:     []cid.Cid{parsedCid},
 					Amount: &amount,
 				}, resultChan)
 
@@ -119,7 +113,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
+					LT:     []cid.Cid{parsedCid},
 					Amount: &amount,
 				}, resultChan)
 
@@ -127,7 +121,7 @@ func TestLogIterator(t *testing.T) {
 
 				i := 1
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
 					i++
 				}
 			})
@@ -140,14 +134,14 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
+					GT:     &parsedCid,
 					Amount: &amount,
 				}, resultChan)
 
 				c.So(err, ShouldBeNil)
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72-i))
 					i++
 				}
 			})
@@ -160,7 +154,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
+					GT:     &parsedCid,
 					Amount: &amount,
 				}, resultChan)
 
@@ -176,14 +170,14 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
+					GTE:    &parsedCid,
 					Amount: &amount,
 				}, resultChan)
 
 				c.So(err, ShouldBeNil)
 				i := 1
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72-i))
 					i++
 				}
 			})
@@ -196,7 +190,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
+					GTE:    &parsedCid,
 					Amount: &amount,
 				}, resultChan)
 
@@ -241,7 +235,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCidLT},
+					LT:  []cid.Cid{parsedCidLT},
 					GTE: &parsedCidGT,
 				}, resultChan)
 
@@ -268,7 +262,7 @@ func TestLogIterator(t *testing.T) {
 
 				err = log1.Iterator(&ipfslog.IteratorOptions{
 					LTE: []cid.Cid{parsedCidLT},
-					GT: &parsedCidGT,
+					GT:  &parsedCidGT,
 				}, resultChan)
 
 				c.So(err, ShouldBeNil)
@@ -336,7 +330,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100-i))
 					i++
 				}
 			})
@@ -368,7 +362,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100-i))
 					i++
 				}
 			})
@@ -400,7 +394,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 66 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 66-i))
 					i++
 				}
 			})
@@ -433,7 +427,7 @@ func TestLogIterator(t *testing.T) {
 				c.So(err, ShouldBeNil)
 				i := 0
 				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
+					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
 					i++
 				}
 
@@ -472,7 +466,7 @@ func TestLogIterator(t *testing.T) {
 
 				err := fixture.Log.Iterator(&ipfslog.IteratorOptions{
 					Amount: intPtr(6),
-					LTE: headsCids,
+					LTE:    headsCids,
 				}, resultChan)
 
 				var foundEntries []string
@@ -481,7 +475,6 @@ func TestLogIterator(t *testing.T) {
 				for e := range resultChan {
 					foundEntries = append(foundEntries, string(e.GetPayload()))
 				}
-
 
 				c.So(err, ShouldBeNil)
 				c.So(foundEntries, ShouldResemble, expectedEntries)

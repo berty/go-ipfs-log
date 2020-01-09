@@ -1,16 +1,12 @@
-// Package accesscontroller defines a default access controller for IPFS Log, it won't actually check anything.
-package accesscontroller // import "berty.tech/go-ipfs-log/accesscontroller"
+package accesscontroller
 
-import (
-	"berty.tech/go-ipfs-log/identityprovider"
-)
+import "berty.tech/go-ipfs-log/identity"
 
-type Default struct {
-}
+type Default struct{}
 
 // CanAppend Checks whether a given identity can append an entry to the log.
 // This implementation allows anyone to write to the log.
-func (d *Default) CanAppend(LogEntry, identityprovider.Interface, CanAppendAdditionalContext) error {
+func (d *Default) CanAppend(LogEntry, identity.Provider, CanAppendAdditionalContext) error {
 	return nil
 }
 

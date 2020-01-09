@@ -1,18 +1,18 @@
-package entry // import "berty.tech/go-ipfs-log/entry"
+package entry
 
 import (
-	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
 	"context"
 	"fmt"
+
+	"berty.tech/go-ipfs-log/identity"
+	"berty.tech/go-ipfs-log/io"
 	"github.com/ipfs/go-cid"
+	"github.com/pkg/errors"
 )
 
-type FetchOptions = iface.FetchOptions
-
 // FetchParallel retrieves IPFS log entries.
-func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
-	var entries []iface.IPFSLogEntry
+func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+	var entries []*Entry
 
 	for _, h := range hashes {
 		entries = append(entries, FetchAll(ctx, ipfs, []cid.Cid{h}, options)...)
@@ -25,8 +25,8 @@ func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, 
 }
 
 // FetchAll gets entries from their CIDs.
-func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
-	var result []iface.IPFSLogEntry
+func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []*Entry {
+	var result []*Entry
 	cache := NewOrderedMap()
 	loadingQueue := append(hashes[:0:0], hashes...)
 	length := -1
@@ -83,4 +83,31 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 	}
 
 	return result
+}
+
+// fromMultihash creates an Entry from a hash.
+func fromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identity.Provider) (*Entry, error) {
+	if ipfs == nil {
+		return nil, errors.New("ipfs instance not defined")
+	}
+
+	result, err := io.ReadCBOR(ctx, ipfs, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	obj := &CborEntry{}
+	err = cbornode.DecodeInto(result.RawData(), obj)
+	if err != nil {
+		return nil, err
+	}
+
+	obj.Hash = hash
+
+	entry, err := obj.ToEntry(provider)
+	if err != nil {
+		return nil, err
+	}
+
+	return entry, nil
 }

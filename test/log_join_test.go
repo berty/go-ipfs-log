@@ -1,22 +1,21 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	ipfslog "berty.tech/go-ipfs-log"
+	"berty.tech/go-ipfs-log/iface"
 
+	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
 	ks "berty.tech/go-ipfs-log/keystore"
 	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -27,7 +26,7 @@ func TestLogJoin(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := ks.New(datastore)
 	if err != nil {
 		panic(err)
 	}
@@ -36,12 +35,7 @@ func TestLogJoin(t *testing.T) {
 
 	for i, char := range []rune{'C', 'B', 'D', 'A'} {
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-			Keystore: keystore,
-			ID:       fmt.Sprintf("user%c", char),
-			Type:     "orbitdb",
-		})
-
+		identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 		if err != nil {
 			panic(err)
 		}

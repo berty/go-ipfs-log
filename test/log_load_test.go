@@ -1,7 +1,6 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"context"
 	"fmt"
@@ -12,20 +11,54 @@ import (
 	"time"
 
 	ipfslog "berty.tech/go-ipfs-log"
-
-	"berty.tech/go-ipfs-log/entry/sorting"
-
 	"berty.tech/go-ipfs-log/entry"
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/entry/sorting"
+	idp "berty.tech/go-ipfs-log/identity"
+	"berty.tech/go-ipfs-log/iface"
 	ks "berty.tech/go-ipfs-log/keystore"
 	"berty.tech/go-ipfs-log/test/logcreator"
 	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func BadComparatorReturnsZero(a, b iface.IPFSLogEntry) (int, error) {
+const bigLogString = `DONE
+└─EOF
+  └─entryC10
+    └─entryB10
+      └─entryA10
+    └─entryC9
+      └─entryB9
+        └─entryA9
+      └─entryC8
+        └─entryB8
+          └─entryA8
+        └─entryC7
+          └─entryB7
+            └─entryA7
+          └─entryC6
+            └─entryB6
+              └─entryA6
+            └─entryC5
+              └─entryB5
+                └─entryA5
+              └─entryC4
+                └─entryB4
+                  └─entryA4
+└─3
+                └─entryC3
+                  └─entryB3
+                    └─entryA3
+  └─2
+                  └─entryC2
+                    └─entryB2
+                      └─entryA2
+    └─1
+                    └─entryC1
+                      └─entryB1
+                        └─entryA1`
+
+func badComparatorReturnsZero(a, b iface.IPFSLogEntry) (int, error) {
 	return 0, nil
 }
 
@@ -36,7 +69,7 @@ func TestLogLoad(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := ks.New(datastore)
 	if err != nil {
 		panic(err)
 	}
@@ -44,12 +77,7 @@ func TestLogLoad(t *testing.T) {
 	var identities [4]*idp.Identity
 
 	for i, char := range []rune{'C', 'B', 'D', 'A'} {
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-			Keystore: keystore,
-			ID:       fmt.Sprintf("user%c", char),
-			Type:     "orbitdb",
-		})
-
+		identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 		if err != nil {
 			panic(err)
 		}
@@ -123,7 +151,9 @@ func TestLogLoad(t *testing.T) {
 				json := fixture.JSON
 
 				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+				c.So(err, ShouldBeNil)
 				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+				c.So(err, ShouldBeNil)
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -141,7 +171,9 @@ func TestLogLoad(t *testing.T) {
 				json := fixture.JSON
 
 				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+				c.So(err, ShouldBeNil)
 				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+				c.So(err, ShouldBeNil)
 
 				_, err = log1.Join(log2, -1)
 				c.So(err, ShouldBeNil)
@@ -795,7 +827,7 @@ func TestLogLoad(t *testing.T) {
 				testLog, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
 				c.So(err, ShouldBeNil)
 
-				firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
+				firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: badComparatorReturnsZero})
 				c.So(err, ShouldBeNil)
 
 				_, err = firstWriteWinsLog.Join(testLog.Log, -1)

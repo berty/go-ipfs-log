@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	log "berty.tech/go-ipfs-log"
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	ipfslog "berty.tech/go-ipfs-log"
+	identity "berty.tech/go-ipfs-log/identity"
 	"berty.tech/go-ipfs-log/keystore"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -104,29 +104,21 @@ func Example_logAppend() {
 	}
 
 	// Create identity A
-	identityA, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-		Keystore: ks,
-		ID:       "userA",
-		Type:     "orbitdb",
-	})
+	identityA, err := identity.CreateIdentity(ks, &identity.CreateIdentityOptions{ID: "userA", Type: "orbitdb"})
 
 	if err != nil {
 		panic(err)
 	}
 
 	// Create identity B
-	identityB, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-		Keystore: ks,
-		ID:       "userB",
-		Type:     "orbitdb",
-	})
+	identityB, err := idp.CreateIdentity(ks, &identity.CreateIdentityOptions{ID: "userB", Type: "orbitdb"})
 
 	if err != nil {
 		panic(err)
 	}
 
 	// creating log
-	logA, err := log.NewLog(serviceA, identityA, &log.LogOptions{ID: "A"})
+	logA, err := ipfslog.NewLog(serviceA, identityA, &ipfslog.LogOptions{ID: "A"})
 	if err != nil {
 		panic(err)
 	}
@@ -142,7 +134,7 @@ func Example_logAppend() {
 		panic(fmt.Errorf("ToMultihash error: %s", err))
 	}
 
-	res, err := log.NewFromMultihash(ctx, serviceB, identityB, h, &log.LogOptions{}, &log.FetchOptions{})
+	res, err := ipfslog.NewFromMultihash(ctx, serviceB, identityB, h, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{})
 	if err != nil {
 		panic(fmt.Errorf("NewFromMultihash error: %s", err))
 	}

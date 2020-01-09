@@ -1,35 +1,47 @@
-package iface
+package ipfslog
 
 import (
-	"berty.tech/go-ipfs-log/accesscontroller"
-	"berty.tech/go-ipfs-log/identityprovider"
 	"context"
+	"time"
+
+	"berty.tech/go-ipfs-log/accesscontroller"
+	"berty.tech/go-ipfs-log/identity"
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
-	"time"
 )
 
-type CborLamportClock struct {
-	ID   string
-	Time int
+type Log interface {
+	GetID() string
+	Append(ctx context.Context, payload []byte, pointerCount int) (Entry, error)
+	Iterator(options *IteratorOptions, output chan<- Entry) error
+	Join(otherLog Log, size int) (Log, error)
+	ToString(payloadMapper func(Entry) string) string
+	ToSnapshot() *Snapshot
+	ToMultihash(ctx context.Context) (cid.Cid, error)
+	Values() OrderedEntries
+	ToJSON() *JSONLog
+	Heads() OrderedEntries
+	GetEntries() OrderedEntries
+	SetEntries(OrderedEntries)
+	RawHeads() OrderedEntries
 }
 
 type FetchOptions struct {
 	Length       *int
-	Exclude      []IPFSLogEntry
+	Exclude      []Entry
 	Concurrency  int
 	Timeout      time.Duration
-	ProgressChan chan IPFSLogEntry
-	Provider     identityprovider.Interface
+	ProgressChan chan Entry
+	Provider     identity.Provider
 }
 
 type LogOptions struct {
 	ID               string
 	AccessController accesscontroller.Interface
-	Entries          IPFSLogOrderedEntries
-	Heads            []IPFSLogEntry
-	Clock            IPFSLogLamportClock
-	SortFn           func(a, b IPFSLogEntry) (int, error)
+	Entries          OrderedEntries
+	Heads            []Entry
+	Clock            LamportClock
+	SortFn           func(a, b Entry) (int, error)
 }
 
 type JSONLog struct {
@@ -48,44 +60,28 @@ type IteratorOptions struct {
 type Snapshot struct {
 	ID     string
 	Heads  []cid.Cid
-	Values []IPFSLogEntry
-	Clock  IPFSLogLamportClock
+	Values []Entry
+	Clock  LamportClock
 }
 
-type IPFSLog interface {
-	GetID() string
-	Append(ctx context.Context, payload []byte, pointerCount int) (IPFSLogEntry, error)
-	Iterator(options *IteratorOptions, output chan<- IPFSLogEntry) error
-	Join(otherLog IPFSLog, size int) (IPFSLog, error)
-	ToString(payloadMapper func(IPFSLogEntry) string) string
-	ToSnapshot() *Snapshot
-	ToMultihash(ctx context.Context) (cid.Cid, error)
-	Values() IPFSLogOrderedEntries
-	ToJSON() *JSONLog
-	Heads() IPFSLogOrderedEntries
-	GetEntries() IPFSLogOrderedEntries
-	SetEntries(IPFSLogOrderedEntries)
-	RawHeads() IPFSLogOrderedEntries
-}
-
-type IPFSLogOrderedEntries interface {
+type OrderedEntries interface {
 	// Merge will fusion two OrderedMap of entries.
-	Merge(other IPFSLogOrderedEntries) IPFSLogOrderedEntries
+	Merge(other OrderedEntries) OrderedEntries
 
 	// Copy creates a copy of an OrderedMap.
-	Copy() IPFSLogOrderedEntries
+	Copy() OrderedEntries
 
 	// Get retrieves an Entry using its key.
-	Get(key string) (IPFSLogEntry, bool)
+	Get(key string) (Entry, bool)
 
 	// UnsafeGet retrieves an Entry using its key, returns nil if not found.
-	UnsafeGet(key string) IPFSLogEntry
+	UnsafeGet(key string) Entry
 
 	// Set defines an Entry in the map for a given key.
-	Set(key string, value IPFSLogEntry)
+	Set(key string, value Entry)
 
 	// Slice returns an ordered slice of the values existing in the map.
-	Slice() []IPFSLogEntry
+	Slice() []Entry
 
 	// Delete removes an Entry from the map for a given key.
 	Delete(key string)
@@ -103,10 +99,10 @@ type IPFSLogOrderedEntries interface {
 	Len() int
 
 	// At gets an item at the given index in the map, returns nil if not found.
-	At(index uint) IPFSLogEntry
+	At(index uint) Entry
 }
 
-type IPFSLogEntry interface {
+type Entry interface {
 	accesscontroller.LogEntry
 
 	GetLogID() string
@@ -115,7 +111,7 @@ type IPFSLogEntry interface {
 	GetKey() []byte
 	GetSig() []byte
 	GetHash() cid.Cid
-	GetClock() IPFSLogLamportClock
+	GetClock() LamportClock
 
 	SetPayload([]byte)
 	SetLogID(string)
@@ -123,23 +119,23 @@ type IPFSLogEntry interface {
 	SetV(uint64)
 	SetKey([]byte)
 	SetSig([]byte)
-	SetIdentity(*identityprovider.Identity)
+	SetIdentity(*identity.Identity)
 	SetHash(cid.Cid)
-	SetClock(IPFSLogLamportClock)
+	SetClock(LamportClock)
 
 	IsValid() bool
-	Verify(identity identityprovider.Interface) error
-	IsParent(b IPFSLogEntry) bool
+	Verify(identity identity.Provider) error
+	IsParent(b Entry) bool
 	ToCborEntry() interface{}
 }
 
-type IPFSLogLamportClock interface {
+type LamportClock interface {
 	GetID() []byte
 	GetTime() int
 
-	Tick() IPFSLogLamportClock
-	Merge(clock IPFSLogLamportClock) IPFSLogLamportClock
-	Compare(b IPFSLogLamportClock) int
+	Tick() LamportClock
+	Merge(clock LamportClock) LamportClock
+	Compare(b LamportClock) int
 
 	ToCborLamportClock() *CborLamportClock
 }

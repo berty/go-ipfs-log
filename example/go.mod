@@ -3,7 +3,7 @@ module berty.tech/go-ipfs-log/example
 go 1.13
 
 require (
-	berty.tech/go-ipfs-log v0.0.0
+	berty.tech/go-ipfs-log v1.0.0
 	github.com/ipfs/go-datastore v0.3.1
 	github.com/ipfs/go-ipfs v0.4.22-0.20191217161056-7cc392ba9dac
 	github.com/ipfs/go-ipfs-config v0.1.0

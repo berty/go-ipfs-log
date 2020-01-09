@@ -1,21 +1,10 @@
-package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
+package identity
 
-import (
-	"berty.tech/go-ipfs-log/keystore"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-)
+import "github.com/libp2p/go-libp2p-core/crypto"
 
-type CreateIdentityOptions struct {
-	IdentityKeysPath string
-	Type             string
-	Keystore         keystore.Interface
-	//Migrate          func(*MigrateOptions) error
-	ID string
-}
-
-type Interface interface {
+type Provider interface {
 	// GetID returns id of identity (to be signed by orbit-db public key).
-	GetID(*CreateIdentityOptions) (string, error)
+	GetID(id string) (string, error)
 
 	// SignIdentity returns signature of OrbitDB public key signature.
 	SignIdentity(data []byte, id string) ([]byte, error)

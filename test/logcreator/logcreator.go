@@ -5,8 +5,7 @@ import (
 	"fmt"
 
 	ipfslog "berty.tech/go-ipfs-log"
-
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
 	"berty.tech/go-ipfs-log/io"
 )
 
@@ -103,7 +102,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, iden
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
+func createLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
 	var expectedData []string
 	const amount = 100
 

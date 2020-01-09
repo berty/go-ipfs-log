@@ -1,10 +1,11 @@
-package ipfslog // import "berty.tech/go-ipfs-log"
+package ipfslog
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"errors"
 	"time"
+
+	"berty.tech/go-ipfs-log/iface"
 
 	"berty.tech/go-ipfs-log/entry/sorting"
 

@@ -1,4 +1,4 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
 	"context"
@@ -7,14 +7,11 @@ import (
 	"time"
 
 	ipfslog "berty.tech/go-ipfs-log"
-
 	"berty.tech/go-ipfs-log/entry"
-
-	idp "berty.tech/go-ipfs-log/identityprovider"
+	idp "berty.tech/go-ipfs-log/identity"
 	ks "berty.tech/go-ipfs-log/keystore"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -25,7 +22,7 @@ func TestLogHeadsTails(t *testing.T) {
 	ipfs := NewMemoryServices()
 
 	datastore := dssync.MutexWrap(ds.NewMapDatastore())
-	keystore, err := ks.NewKeystore(datastore)
+	keystore, err := ks.New(datastore)
 	if err != nil {
 		panic(err)
 	}
@@ -35,12 +32,7 @@ func TestLogHeadsTails(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		char := 'A' + i
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
-			Keystore: keystore,
-			ID:       fmt.Sprintf("user%c", char),
-			Type:     "orbitdb",
-		})
-
+		identity, err := idp.CreateIdentity(keystore, fmt.Sprintf("user%c", char))
 		if err != nil {
 			panic(err)
 		}

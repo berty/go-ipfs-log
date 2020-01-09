@@ -1,4 +1,4 @@
-package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
+package identity
 
 import (
 	"encoding/hex"
@@ -9,27 +9,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-type OrbitDBIdentityProvider struct {
-	keystore keystore.Interface
+// NewOrbitDBProvider creates a new identity for use with OrbitDB.
+func NewOrbitDBProvider(ks keystore.Keystore) Provider {
+	return &OrbitDBProvider{keystore: ks}
+}
+
+type OrbitDBProvider struct {
+	keystore keystore.Keystore
 }
 
 // VerifyIdentity checks an OrbitDB identity.
-func (p *OrbitDBIdentityProvider) VerifyIdentity(identity *Identity) error {
+func (p *OrbitDBProvider) VerifyIdentity(identity *Identity) error {
 	return nil
 }
 
-// NewOrbitDBIdentityProvider creates a new identity for use with OrbitDB.
-func NewOrbitDBIdentityProvider(options *CreateIdentityOptions) Interface {
-	return &OrbitDBIdentityProvider{
-		keystore: options.Keystore,
-	}
-}
-
 // GetID returns the identity's ID.
-func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string, error) {
-	private, err := p.keystore.GetKey(options.ID)
+func (p *OrbitDBProvider) GetID(id string) (string, error) {
+	// FIXME: confusing input/output variable names
+	private, err := p.keystore.GetKey(id)
 	if err != nil || private == nil {
-		private, err = p.keystore.CreateKey(options.ID)
+		private, err = p.keystore.CreateKey(id)
 		if err != nil {
 			return "", err
 		}
@@ -44,7 +43,7 @@ func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string,
 }
 
 // SignIdentity signs an OrbitDB identity.
-func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
+func (p *OrbitDBProvider) SignIdentity(data []byte, id string) ([]byte, error) {
 	key, err := p.keystore.GetKey(id)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Signing key for %s not found", id))
@@ -64,7 +63,7 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 }
 
 // Sign signs a value using the current.
-func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
+func (p *OrbitDBProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
 	key, err := p.keystore.GetKey(identity.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "private signing key not found from Keystore")
@@ -78,7 +77,7 @@ func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte,
 	return sig, nil
 }
 
-func (p *OrbitDBIdentityProvider) UnmarshalPublicKey(data []byte) (crypto.PubKey, error) {
+func (p *OrbitDBProvider) UnmarshalPublicKey(data []byte) (crypto.PubKey, error) {
 	pubKey, err := crypto.UnmarshalSecp256k1PublicKey(data)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to unmarshal public key")
@@ -88,8 +87,8 @@ func (p *OrbitDBIdentityProvider) UnmarshalPublicKey(data []byte) (crypto.PubKey
 }
 
 // GetType returns the current identity type.
-func (*OrbitDBIdentityProvider) GetType() string {
+func (*OrbitDBProvider) GetType() string {
 	return "orbitdb"
 }
 
-var _ Interface = &OrbitDBIdentityProvider{}
+var _ Provider = &OrbitDBProvider{}

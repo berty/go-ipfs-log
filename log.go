@@ -1,20 +1,18 @@
-// Package ipfslog implements an append-only log CRDT on IPFS
-package ipfslog // import "berty.tech/go-ipfs-log"
+package ipfslog
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"berty.tech/go-ipfs-log/entry/sorting"
-
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/entry/sorting"
 	"berty.tech/go-ipfs-log/errmsg"
-	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/identity"
+	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io"
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
@@ -23,66 +21,20 @@ import (
 	"github.com/polydawn/refmt/obj/atlas"
 )
 
-type Snapshot = iface.Snapshot
-type JSONLog = iface.JSONLog
-type LogOptions = iface.LogOptions
-type IteratorOptions = iface.IteratorOptions
-
-type Entry = iface.IPFSLogEntry
-type Log = iface.IPFSLog
-
 type IPFSLog struct {
 	Storage          io.IpfsServices
 	ID               string
 	AccessController accesscontroller.Interface
-	SortFn           func(a iface.IPFSLogEntry, b iface.IPFSLogEntry) (int, error)
-	Identity         *identityprovider.Identity
-	Entries          iface.IPFSLogOrderedEntries
-	heads            iface.IPFSLogOrderedEntries
-	Next             iface.IPFSLogOrderedEntries
-	Clock            iface.IPFSLogLamportClock
+	SortFn           func(a entry.Entry, b entry.Entry) (int, error)
+	Identity         *identity.Identity
+	Entries          OrderedEntries
+	heads            OrderedEntries
+	Next             OrderedEntries
+	Clock            LamportClock
 	lock             sync.RWMutex
 }
 
-func (l *IPFSLog) GetClock() iface.IPFSLogLamportClock {
-	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	return l.Clock
-}
-
-func (l *IPFSLog) SetEntries(entries iface.IPFSLogOrderedEntries) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-	l.Entries = entries
-}
-
-func (l *IPFSLog) RawHeads() iface.IPFSLogOrderedEntries {
-	l.lock.RLock()
-	heads := l.heads
-	l.lock.RUnlock()
-
-	return heads
-}
-
-// maxInt Returns the larger of x or y
-func maxInt(x, y int) int {
-	if x < y {
-		return y
-	}
-	return x
-}
-
-func maxClockTimeForEntries(entries []iface.IPFSLogEntry, defValue int) int {
-	max := defValue
-	for _, e := range entries {
-		max = maxInt(e.GetClock().GetTime(), max)
-	}
-
-	return max
-}
-
-// NewLog Creates creates a new IPFSLog for a given identity
+// NewLog creates a new IPFSLog for a given identity
 //
 // Each IPFSLog gets a unique ID, which can be passed in the options as ID.
 //
@@ -95,7 +47,7 @@ func maxClockTimeForEntries(entries []iface.IPFSLogEntry, defValue int) int {
 //
 // options.AccessController is an instance of accesscontroller.Interface,
 // which by default allows anyone to append to the IPFSLog.
-func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *LogOptions) (*IPFSLog, error) {
+func NewLog(services io.IpfsServices, identity *identity.Identity, options *LogOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -155,15 +107,36 @@ func NewLog(services io.IpfsServices, identity *identityprovider.Identity, optio
 	}, nil
 }
 
+func (l *IPFSLog) GetClock() iface.IPFSLogLamportClock {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.Clock
+}
+
+func (l *IPFSLog) SetEntries(entries iface.IPFSLogOrderedEntries) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	l.Entries = entries
+}
+
+func (l *IPFSLog) RawHeads() iface.IPFSLogOrderedEntries {
+	l.lock.RLock()
+	heads := l.heads
+	l.lock.RUnlock()
+
+	return heads
+}
+
 // addToStack Add an entry to the stack and traversed nodes index
-func (l *IPFSLog) addToStack(e iface.IPFSLogEntry, stack []iface.IPFSLogEntry, traversed *orderedmap.OrderedMap) ([]iface.IPFSLogEntry, *orderedmap.OrderedMap) {
+func (l *IPFSLog) addToStack(e entry.Entry, stack []entry.Entry, traversed *orderedmap.OrderedMap) ([]entry.Entry, *orderedmap.OrderedMap) {
 	// If we've already processed the entry, don't add it to the stack
 	if _, ok := traversed.Get(e.GetHash().String()); ok {
 		return stack, traversed
 	}
 
 	// Add the entry in front of the stack and sort
-	stack = append([]iface.IPFSLogEntry{e}, stack...)
+	stack = append([]entry.Entry{e}, stack...)
 	sorting.Sort(l.SortFn, stack)
 	sorting.Reverse(stack)
 
@@ -173,7 +146,7 @@ func (l *IPFSLog) addToStack(e iface.IPFSLogEntry, stack []iface.IPFSLogEntry, t
 	return stack, traversed
 }
 
-func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, endHash string) ([]iface.IPFSLogEntry, error) {
+func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, endHash string) ([]entry.Entry, error) {
 	if rootEntries == nil {
 		return nil, errmsg.EntriesNotDefined
 	}
@@ -187,7 +160,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 	// Cache for checking if we've processed an entry already
 	traversed := orderedmap.New()
 	// End result
-	var result []iface.IPFSLogEntry
+	var result []entry.Entry
 	// We keep a counter to check if we have traversed requested amount of entries
 	count := 0
 
@@ -226,7 +199,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 // Append Appends an entry to the log Returns the latest Entry
 //
 // payload is the data that will be in the Entry
-func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) (iface.IPFSLogEntry, error) {
+func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) (entry.Entry, error) {
 	// INFO: JS default value for pointerCount is 1
 	// Update the clock (find the latest clock)
 	l.lock.RLock()
@@ -283,7 +256,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, pointerCount int) 
 		l.Next.Set(nextEntry.GetHash().String(), e)
 	}
 
-	heads = entry.NewOrderedMapFromEntries([]iface.IPFSLogEntry{e})
+	heads = entry.NewOrderedMapFromEntries([]entry.Entry{e})
 
 	l.lock.Lock()
 	l.heads = heads
@@ -308,7 +281,7 @@ func (c *CanAppendContext) GetLogEntries() []accesscontroller.LogEntry {
 }
 
 /* Iterator Provides entries values on a channel */
-func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLogEntry) error {
+func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- entry.Entry) error {
 	amount := -1
 	if options == nil {
 		return errors.New("no options specified")
@@ -535,7 +508,7 @@ func difference(logA, logB iface.IPFSLog) iface.IPFSLogOrderedEntries {
 //
 // payloadMapper is a function to customize text representation,
 // use nil to use the default mapper which convert the payload as a string
-func (l *IPFSLog) ToString(payloadMapper func(iface.IPFSLogEntry) string) string {
+func (l *IPFSLog) ToString(payloadMapper func(entry.Entry) string) string {
 	values := l.Values().Slice()
 	sorting.Reverse(values)
 
@@ -575,7 +548,7 @@ func (l *IPFSLog) ToSnapshot() *Snapshot {
 	}
 }
 
-func entrySliceToCids(slice []iface.IPFSLogEntry) []cid.Cid {
+func entrySliceToCids(slice []entry.Entry) []cid.Cid {
 	var cids []cid.Cid
 
 	for _, e := range slice {
@@ -602,7 +575,7 @@ func (l *IPFSLog) ToMultihash(ctx context.Context) (cid.Cid, error) {
 // NewFromMultihash Creates a IPFSLog from a hash
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
+func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identity.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.IPFSNotDefined
 	}
@@ -629,7 +602,7 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 		return nil, errors.Wrap(err, "newfrommultihash failed")
 	}
 
-	var heads []iface.IPFSLogEntry
+	var heads []entry.Entry
 	for _, e := range data.Values {
 		for _, h := range data.Heads {
 			if e.GetHash().String() == h.String() {
@@ -652,7 +625,7 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 // NewFromEntryHash Creates a IPFSLog from a hash of an Entry
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
+func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identity.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -682,7 +655,7 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 // NewFromJSON Creates a IPFSLog from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identity.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}
@@ -713,7 +686,7 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 // NewFromEntry Creates a IPFSLog from an Entry
 //
 // Creating a log from an entry will retrieve entries from IPFS, thus causing side effects
-func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []iface.IPFSLogEntry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identity.Identity, sourceEntries []entry.Entry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.LogOptionsNotDefined
 	}

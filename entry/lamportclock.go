@@ -1,19 +1,24 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"encoding/hex"
 	"math"
 
-	"github.com/polydawn/refmt/obj/atlas"
-
-	cbornode "github.com/ipfs/go-ipld-cbor"
+	"berty.tech/go-ipfs-log/iface"
 )
 
 type LamportClock struct {
 	ID   []byte `json:"id,omitempty"`
 	Time int    `json:"time,omitempty"`
+}
+
+// NewLamportClock creates a new LamportClock instance.
+func NewLamportClock(identity []byte, time int) *LamportClock {
+	return &LamportClock{
+		ID:   identity,
+		Time: time,
+	}
 }
 
 func (l *LamportClock) GetID() []byte {
@@ -58,43 +63,11 @@ func (l *LamportClock) Compare(b iface.IPFSLogLamportClock) int {
 	return dist
 }
 
-// NewLamportClock creates a new LamportClock instance.
-func NewLamportClock(identity []byte, time int) *LamportClock {
-	return &LamportClock{
-		ID:   identity,
-		Time: time,
-	}
-}
-
-type CborLamportClock = iface.CborLamportClock
-
 func (l *LamportClock) ToCborLamportClock() *iface.CborLamportClock {
 	return &iface.CborLamportClock{
 		ID:   hex.EncodeToString(l.ID),
 		Time: l.Time,
 	}
-}
-
-func ToLamportClock(c *CborLamportClock) (*LamportClock, error) {
-	id, err := hex.DecodeString(c.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &LamportClock{
-		ID:   id,
-		Time: c.Time,
-	}, nil
-}
-
-func init() {
-	var AtlasLamportClock = atlas.BuildEntry(CborLamportClock{}).
-		StructMap().
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
-		Complete()
-
-	cbornode.RegisterCborType(AtlasLamportClock)
 }
 
 var _ iface.IPFSLogLamportClock = (*LamportClock)(nil)

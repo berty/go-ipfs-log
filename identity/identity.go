@@ -1,5 +1,4 @@
-// Package identityprovider defines a default identity provider for IPFS Log and OrbitDB.
-package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
+package identity
 
 import (
 	"encoding/base64"
@@ -26,7 +25,7 @@ type Identity struct {
 	PublicKey  []byte             `json:"publicKey,omitempty"`
 	Signatures *IdentitySignature `json:"signatures,omitempty"`
 	Type       string             `json:"type,omitempty"`
-	Provider   Interface
+	Provider   Provider
 }
 
 type CborIdentity struct {
@@ -113,7 +112,7 @@ func (i *Identity) ToCborIdentity() *CborIdentity {
 }
 
 // ToIdentity converts a CBOR serializable to a plain Identity object.
-func (c *CborIdentity) ToIdentity(provider Interface) (*Identity, error) {
+func (c *CborIdentity) ToIdentity(provider Provider) (*Identity, error) {
 	publicKey, err := hex.DecodeString(c.PublicKey)
 	if err != nil {
 		return nil, err

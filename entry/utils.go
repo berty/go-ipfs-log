@@ -1,11 +1,13 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"sort"
 
+	"berty.tech/go-ipfs-log/iface"
+
 	"github.com/iancoleman/orderedmap"
+	"github.com/ipfs/go-cid"
 )
 
 // Difference gets the list of values not present in both entries sets.
@@ -120,4 +122,56 @@ func FindHeads(entries iface.IPFSLogOrderedEntries) []iface.IPFSLogEntry {
 	})
 
 	return result
+}
+
+// FindChildren finds an entry's children from an Array of entries.
+//
+// Returns entry's children as an Array up to the last know child.
+func FindChildren(entry iface.IPFSLogEntry, values []iface.IPFSLogEntry) []iface.IPFSLogEntry {
+	var stack []iface.IPFSLogEntry
+
+	var parent iface.IPFSLogEntry
+	for _, e := range values {
+		if entry.IsParent(e) {
+			parent = e
+			break
+		}
+	}
+
+	for parent != nil {
+		stack = append(stack, parent)
+		prev := parent
+
+		for _, e := range values {
+			if prev.IsParent(e) {
+				parent = e
+				break
+			}
+
+			parent = nil
+		}
+	}
+
+	sort.SliceStable(stack, func(i, j int) bool {
+		return stack[i].GetClock().GetTime() <= stack[j].GetClock().GetTime()
+	})
+
+	return stack
+}
+
+// uniqueCIDs returns uniques CIDs from a given list.
+func uniqueCIDs(cids []cid.Cid) []cid.Cid {
+	foundCids := map[string]bool{}
+	out := []cid.Cid{}
+
+	for _, c := range cids {
+		if _, ok := foundCids[c.String()]; ok {
+			continue
+		}
+
+		foundCids[c.String()] = true
+		out = append(out, c)
+	}
+
+	return out
 }
