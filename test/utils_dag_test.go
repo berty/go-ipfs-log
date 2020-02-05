@@ -41,8 +41,4 @@ func (d *dagWrapper) Pinning() ipld.NodeAdder {
 	return d.dag
 }
 
-func (i *ipfsServices) Dag() core_iface.APIDagService {
-	return i.dag
-}
-
 var _ core_iface.APIDagService = &dagWrapper{}

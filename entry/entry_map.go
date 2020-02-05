@@ -1,15 +1,27 @@
 package entry
 
 import (
+	"sync"
+
 	"berty.tech/go-ipfs-log/iface"
 	"github.com/iancoleman/orderedmap"
-	"sync"
 )
 
 // OrderedMap is an ordered map of entries.
 type OrderedMap struct {
 	lock       sync.RWMutex
 	orderedMap *orderedmap.OrderedMap
+}
+
+func (o *OrderedMap) Reverse() iface.IPFSLogOrderedEntries {
+	e := o.Slice()
+
+	for i := len(e)/2 - 1; i >= 0; i-- {
+		opp := len(e) - 1 - i
+		e[i], e[opp] = e[opp], e[i]
+	}
+
+	return NewOrderedMapFromEntries(e)
 }
 
 // NewOrderedMap creates a new OrderedMap of entries.
@@ -109,6 +121,14 @@ func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
 	}
 
 	return out
+}
+
+func (o *OrderedMap) First(until uint) iface.IPFSLogOrderedEntries {
+	return NewOrderedMapFromEntries(o.Slice()[:until])
+}
+
+func (o *OrderedMap) Last(after uint) iface.IPFSLogOrderedEntries {
+	return NewOrderedMapFromEntries(o.Slice()[after:])
 }
 
 // Delete removes an Entry from the map for a given key.

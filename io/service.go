@@ -5,6 +5,4 @@ import (
 )
 
 // The IpfsServices interface with required IPFS services.
-type IpfsServices interface {
-	Dag() core_iface.APIDagService
-}
+type IpfsServices core_iface.CoreAPI

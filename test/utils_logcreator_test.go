@@ -1,4 +1,4 @@
-package logcreator // import "berty.tech/go-ipfs-log/test/logcreator"
+package test // import "berty.tech/go-ipfs-log/test/logcreator"
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type CreatedLog struct {
 	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, error) {
+func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
 	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
@@ -38,14 +38,14 @@ func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identitie
 	}
 
 	for i := 1; i <= 5; i++ {
-		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
+		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	for i := 1; i <= 5; i++ {
-		_, err := logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), 1)
+		_, err := logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +62,7 @@ func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identitie
 	}
 
 	for i := 6; i <= 10; i++ {
-		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), 1)
+		_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identitie
 		return nil, err
 	}
 
-	_, err = l.Append(ctx, []byte("entryC0"), 1)
+	_, err = l.Append(ctx, []byte("entryC0"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identitie
 	return l, nil
 }
 
-func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*CreatedLog, error) {
 	expectedData := []string{
 		"entryA1", "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
 		"entryA4", "entryB4", "entryA5", "entryB5",
@@ -103,7 +103,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, iden
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, identities [4]*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
+func createLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
 	var expectedData []string
 	const amount = 100
 
@@ -121,7 +121,7 @@ func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, ident
 		entryNameA := fmt.Sprintf("entryA%d", i)
 		entryNameB := fmt.Sprintf("entryB%d", i)
 
-		_, err := logA.Append(ctx, []byte(entryNameA), 1)
+		_, err := logA.Append(ctx, []byte(entryNameA), nil)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -130,7 +130,7 @@ func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, ident
 			return nil, nil, err
 		}
 
-		_, err = logB.Append(ctx, []byte(entryNameB), 1)
+		_, err = logB.Append(ctx, []byte(entryNameB), nil)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -146,7 +146,7 @@ func createLogWithHundredEntries(ctx context.Context,ipfs io.IpfsServices, ident
 	return logA, expectedData, nil
 }
 
-func CreateLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities [4]*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*CreatedLog, error) {
 	l, expectedData, err := createLogWithHundredEntries(ctx, ipfs, identities)
 	if err != nil {
 		return nil, err

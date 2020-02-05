@@ -1,18 +1,20 @@
 package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"errors"
 	"time"
 
+	"berty.tech/go-ipfs-log/iface"
+
 	"berty.tech/go-ipfs-log/entry/sorting"
+
+	"github.com/ipfs/go-cid"
+	cbornode "github.com/ipfs/go-ipld-cbor"
 
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/io"
-	"github.com/ipfs/go-cid"
-	cbornode "github.com/ipfs/go-ipld-cbor"
 )
 
 type FetchOptions struct {
@@ -20,14 +22,16 @@ type FetchOptions struct {
 	Exclude      []iface.IPFSLogEntry
 	ProgressChan chan iface.IPFSLogEntry
 	Timeout      time.Duration
+	Concurrency  int
+	SortFn       iface.EntrySortFn
 }
 
 func toMultihash(ctx context.Context, services io.IpfsServices, log *IPFSLog) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
-		return cid.Cid{}, errors.New(`can't serialize an empty log`)
+		return cid.Undef, errors.New(`can't serialize an empty log`)
 	}
 
-	return io.WriteCBOR(ctx, services, log.ToJSON())
+	return io.WriteCBOR(ctx, services, log.ToJSON(), nil)
 }
 
 func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
@@ -42,41 +46,39 @@ func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, 
 		return nil, err
 	}
 
+	// Use user provided sorting function or the default one
+	sortFn := sorting.NoZeroes(sorting.LastWriteWins)
+	if options.SortFn != nil {
+		sortFn = options.SortFn
+	}
+
 	entries := entry.FetchAll(ctx, services, logData.Heads, &iface.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
+		Concurrency:  options.Concurrency,
+		Timeout:      options.Timeout,
 		ProgressChan: options.ProgressChan,
 	})
 
-	// Find latest clock
-	var clock iface.IPFSLogLamportClock
-	for _, e := range entries {
-		if clock == nil || e.GetClock().GetTime() > clock.GetTime() {
-			clock = entry.NewLamportClock(e.GetClock().GetID(), e.GetClock().GetTime())
-		}
+	if options.Length != nil && *options.Length > -1 {
+		sorting.Sort(sortFn, entries)
+
+		entries = entrySlice(entries, -*options.Length)
 	}
 
-	sorting.Sort(sorting.Compare, entries)
-
-	var heads []iface.IPFSLogEntry
+	var heads []cid.Cid
 	for _, e := range entries {
 		for _, h := range logData.Heads {
 			if h.String() == e.GetHash().String() {
-				heads = append(heads, e)
+				heads = append(heads, e.GetHash())
 			}
 		}
-	}
-
-	var headsCids []cid.Cid
-	for _, head := range heads {
-		headsCids = append(headsCids, head.GetHash())
 	}
 
 	return &Snapshot{
 		ID:     logData.ID,
 		Values: entries,
-		Heads:  headsCids,
-		Clock:  clock,
+		Heads:  heads,
 	}, nil
 }
 
@@ -95,18 +97,26 @@ func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.C
 		length = maxInt(*options.Length, 1)
 	}
 
-	entries := entry.FetchParallel(ctx, services, hashes, &iface.FetchOptions{
+	all := entry.FetchParallel(ctx, services, hashes, &iface.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
+		Timeout:      options.Timeout,
+		Concurrency:  options.Concurrency,
 	})
 
-	sliced := entries
-	if length > -1 {
-		sliced = entrySlice(sliced, -length)
+	sortFn := sorting.NoZeroes(sorting.LastWriteWins)
+	if options.SortFn != nil {
+		sortFn = options.SortFn
 	}
 
-	return sliced, nil
+	entries := all
+	if length > -1 {
+		sorting.Sort(sortFn, entries)
+		entries = entrySlice(all, -length)
+	}
+
+	return entries, nil
 }
 
 func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
@@ -120,9 +130,8 @@ func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, o
 
 	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &iface.FetchOptions{
 		Length:       options.Length,
-		Exclude:      []iface.IPFSLogEntry{},
 		ProgressChan: options.ProgressChan,
-		Concurrency:  16,
+		Concurrency:  options.Concurrency,
 		Timeout:      options.Timeout,
 	})
 
@@ -161,10 +170,13 @@ func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []if
 		Length:       &length,
 		Exclude:      options.Exclude,
 		ProgressChan: options.ProgressChan,
+		Timeout:      options.Timeout,
+		Concurrency:  options.Concurrency,
 	})
 
 	// Combine the fetches with the source entries and take only uniques
 	combined := append(sourceEntries, entries...)
+	combined = append(combined, options.Exclude...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
 	sorting.Sort(sorting.Compare, uniques)
 

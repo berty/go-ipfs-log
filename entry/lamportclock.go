@@ -1,10 +1,11 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"encoding/hex"
 	"math"
+
+	"berty.tech/go-ipfs-log/iface"
 
 	"github.com/polydawn/refmt/obj/atlas"
 
@@ -56,6 +57,11 @@ func (l *LamportClock) Compare(b iface.IPFSLogLamportClock) int {
 	}
 
 	return dist
+}
+
+// CopyLamportClock returns a copy of a lamport clock
+func CopyLamportClock(clock iface.IPFSLogLamportClock) *LamportClock {
+	return NewLamportClock(clock.GetID(), clock.GetTime())
 }
 
 // NewLamportClock creates a new LamportClock instance.

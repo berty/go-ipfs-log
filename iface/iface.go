@@ -1,12 +1,13 @@
 package iface
 
 import (
+	"context"
+	"time"
+
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/identityprovider"
-	"context"
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
-	"time"
 )
 
 type CborLamportClock struct {
@@ -30,6 +31,12 @@ type LogOptions struct {
 	Heads            []IPFSLogEntry
 	Clock            IPFSLogLamportClock
 	SortFn           func(a, b IPFSLogEntry) (int, error)
+	Concurrency      uint
+}
+
+type CreateEntryOptions struct {
+	Pin       bool
+	PreSigned bool
 }
 
 type JSONLog struct {
@@ -38,8 +45,8 @@ type JSONLog struct {
 }
 
 type IteratorOptions struct {
-	GT     *cid.Cid
-	GTE    *cid.Cid
+	GT     cid.Cid
+	GTE    cid.Cid
 	LT     []cid.Cid
 	LTE    []cid.Cid
 	Amount *int
@@ -52,9 +59,14 @@ type Snapshot struct {
 	Clock  IPFSLogLamportClock
 }
 
+type AppendOptions struct {
+	PointerCount int
+	Pin          bool
+}
+
 type IPFSLog interface {
 	GetID() string
-	Append(ctx context.Context, payload []byte, pointerCount int) (IPFSLogEntry, error)
+	Append(ctx context.Context, payload []byte, opts *AppendOptions) (IPFSLogEntry, error)
 	Iterator(options *IteratorOptions, output chan<- IPFSLogEntry) error
 	Join(otherLog IPFSLog, size int) (IPFSLog, error)
 	ToString(payloadMapper func(IPFSLogEntry) string) string
@@ -66,7 +78,10 @@ type IPFSLog interface {
 	GetEntries() IPFSLogOrderedEntries
 	SetEntries(IPFSLogOrderedEntries)
 	RawHeads() IPFSLogOrderedEntries
+	SetIdentity(identity *identityprovider.Identity)
 }
+
+type EntrySortFn func(IPFSLogEntry, IPFSLogEntry) (int, error)
 
 type IPFSLogOrderedEntries interface {
 	// Merge will fusion two OrderedMap of entries.
@@ -87,6 +102,12 @@ type IPFSLogOrderedEntries interface {
 	// Slice returns an ordered slice of the values existing in the map.
 	Slice() []IPFSLogEntry
 
+	// First
+	First(until uint) IPFSLogOrderedEntries
+
+	// Last
+	Last(after uint) IPFSLogOrderedEntries
+
 	// Delete removes an Entry from the map for a given key.
 	Delete(key string)
 
@@ -104,6 +125,8 @@ type IPFSLogOrderedEntries interface {
 
 	// At gets an item at the given index in the map, returns nil if not found.
 	At(index uint) IPFSLogEntry
+
+	Reverse() IPFSLogOrderedEntries
 }
 
 type IPFSLogEntry interface {
@@ -111,6 +134,7 @@ type IPFSLogEntry interface {
 
 	GetLogID() string
 	GetNext() []cid.Cid
+	GetRefs() []cid.Cid
 	GetV() uint64
 	GetKey() []byte
 	GetSig() []byte
@@ -120,6 +144,7 @@ type IPFSLogEntry interface {
 	SetPayload([]byte)
 	SetLogID(string)
 	SetNext([]cid.Cid)
+	SetRefs([]cid.Cid)
 	SetV(uint64)
 	SetKey([]byte)
 	SetSig([]byte)

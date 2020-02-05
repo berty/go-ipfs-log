@@ -2,11 +2,13 @@
 package sorting
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"bytes"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
+
+	"berty.tech/go-ipfs-log/iface"
 
 	errors2 "github.com/pkg/errors"
 )
@@ -54,6 +56,23 @@ func LastWriteWins(a, b iface.IPFSLogEntry) (int, error) {
 	}
 
 	return sortByEntryClocks(a, b)
+}
+
+func SortByEntryHash(a, b iface.IPFSLogEntry) (int, error) {
+	// Ultimate conflict resolution (compare hashes)
+	compareHash := func(a, b iface.IPFSLogEntry) (int, error) {
+		return strings.Compare(a.GetHash().String(), b.GetHash().String()), nil
+	}
+
+	// Sort two entries by their clock id, if the same then compare hashes
+	sortByID := func(a, b iface.IPFSLogEntry) (int, error) {
+		return SortByClockID(a, b, compareHash)
+	}
+
+	// Sort two entries by their clock time, if concurrent,
+	// determine sorting using provided conflict resolution function
+	// Sort entries by clock time as the primary sort criteria
+	return SortByClocks(a, b, sortByID)
 }
 
 func NoZeroes(compFunc func(a, b iface.IPFSLogEntry) (int, error)) func(a, b iface.IPFSLogEntry) (int, error) {
