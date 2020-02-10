@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	"github.com/multiformats/go-multibase"
-	"github.com/pkg/errors"
 	"github.com/polydawn/refmt/obj/atlas"
 
+	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io"
@@ -268,19 +268,19 @@ func init() {
 // CreateEntry creates an Entry.
 func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
 	if ipfsInstance == nil {
-		return nil, errors.New("ipfs instance not defined")
+		return nil, errmsg.IPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errors.New("identity is required")
+		return nil, errmsg.IdentityNotDefined
 	}
 
 	if data == nil {
-		return nil, errors.New("data is not defined")
+		return nil, errmsg.PayloadNotDefined
 	}
 
 	if data.LogID == "" {
-		return nil, errors.New("'LogID' is required")
+		return nil, errmsg.LogIDNotDefined
 	}
 
 	data = data.copy()
@@ -375,7 +375,7 @@ func cidB58(c cid.Cid) (string, error) {
 // toBuffer converts a hashable entry to bytes.
 func toBuffer(e *Hashable) ([]byte, error) {
 	if e == nil {
-		return nil, errors.New("entry is not defined")
+		return nil, errmsg.EntryNotDefined
 	}
 
 	jsonBytes, err := json.Marshal(map[string]interface{}{
@@ -442,41 +442,41 @@ func (e *Entry) IsValid() bool {
 // Verify checks the entry's signature.
 func (e *Entry) Verify(identity identityprovider.Interface) error {
 	if e == nil {
-		return errors.New("entry is not defined")
+		return errmsg.EntryNotDefined
 	}
 
 	if len(e.Key) == 0 {
-		return errors.New("entry doesn't have a key")
+		return errmsg.KeyNotDefined
 	}
 
 	if len(e.Sig) == 0 {
-		return errors.New("entry doesn't have a signature")
+		return errmsg.SigNotDefined
 	}
 
 	// TODO: Check against trusted keys
 
 	hashable, err := e.toHashable()
 	if err != nil {
-		return errors.Wrap(err, "unable to make a hashable entry")
+		return errmsg.EntryNotHashable.Wrap(err)
 	}
 
 	jsonBytes, err := toBuffer(hashable)
 	if err != nil {
-		return errors.Wrap(err, "unable to build string buffer")
+		return errmsg.EntryNotHashable.Wrap(err)
 	}
 
 	pubKey, err := identity.UnmarshalPublicKey(e.Key)
 	if err != nil {
-		return errors.Wrap(err, "unable to unmarshal public key")
+		return errmsg.InvalidPubKeyFormat.Wrap(err)
 	}
 
 	ok, err := pubKey.Verify(jsonBytes, e.Sig)
 	if err != nil {
-		return errors.Wrap(err, "error whild verifying signature")
+		return errmsg.SigNotVerified.Wrap(err)
 	}
 
 	if !ok {
-		return errors.New("unable to verify entry signature")
+		return errmsg.SigNotVerified
 	}
 
 	return nil
@@ -489,22 +489,20 @@ func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices, o
 	}
 
 	if e == nil {
-		return cid.Undef, errors.New("entry is not defined")
+		return cid.Undef, errmsg.EntryNotDefined
 	}
 
 	if ipfsInstance == nil {
-		return cid.Undef, errors.New("ipfs instance not defined")
+		return cid.Undef, errmsg.IPFSNotDefined
 	}
 
 	data := e.copyNormalizedEntry(&normalizeEntryOpts{
 		preSigned: opts.PreSigned,
 	})
 
-	entryCID, err := io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry(), &io.WriteOpts{
+	return io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry(), &io.WriteOpts{
 		Pin: opts.Pin,
 	})
-
-	return entryCID, err
 }
 
 type normalizeEntryOpts struct {
@@ -550,7 +548,7 @@ func (e *Entry) copyNormalizedEntry(opts *normalizeEntryOpts) *Entry {
 // FromMultihash creates an Entry from a hash.
 func FromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
-		return nil, errors.New("ipfs instance not defined")
+		return nil, errmsg.IPFSNotDefined
 	}
 
 	result, err := io.ReadCBOR(ctx, ipfs, hash)

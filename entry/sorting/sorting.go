@@ -3,11 +3,11 @@ package sorting
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
+	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/iface"
 
 	errors2 "github.com/pkg/errors"
@@ -82,7 +82,7 @@ func NoZeroes(compFunc func(a, b iface.IPFSLogEntry) (int, error)) func(a, b ifa
 			return ret, err
 		}
 
-		return 0, errors.New(`err: Your log's tiebreaker function has returned zero and therefore cannot be`)
+		return 0, errmsg.TiebreakerBogus
 	}
 }
 

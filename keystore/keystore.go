@@ -6,9 +6,10 @@ import (
 	"encoding/base64"
 
 	lru "github.com/hashicorp/golang-lru"
-	datastore "github.com/ipfs/go-datastore"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/pkg/errors"
+	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"berty.tech/go-ipfs-log/errmsg"
 )
 
 type Keystore struct {
@@ -29,7 +30,7 @@ func (k *Keystore) Verify(signature []byte, publicKey crypto.PubKey, data []byte
 	}
 
 	if !ok {
-		return errors.New("signature is not valid for the supplied data")
+		return errmsg.SigNotVerified
 	}
 
 	return nil
@@ -98,19 +99,19 @@ func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
 		keyBytes, err = k.store.Get(datastore.NewKey(id))
 
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to fetch a private key from keystore")
+			return nil, errmsg.KeyNotInKeystore
 		}
 		k.cache.Add(id, base64.StdEncoding.EncodeToString(keyBytes))
 	} else {
 		keyBytes, err = base64.StdEncoding.DecodeString(cachedKey.(string))
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to cast private key to bytes")
+			return nil, errmsg.InvalidPrivKeyFormat
 		}
 	}
 
 	privateKey, err := crypto.UnmarshalSecp256k1PrivateKey(keyBytes)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.InvalidPrivKeyFormat.Wrap(err)
 	}
 
 	return privateKey, nil

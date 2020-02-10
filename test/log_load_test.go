@@ -14,6 +14,7 @@ import (
 
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/entry/sorting"
+	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/iface"
 
 	ipfslog "berty.tech/go-ipfs-log"
@@ -989,7 +990,7 @@ func TestLogLoad(t *testing.T) {
 			c.Convey("throws an error if ipfs is not defined", FailureContinues, func(c C) {
 				_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []iface.IPFSLogEntry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
 				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldContainSubstring, "ipfs instance not defined")
+				c.So(err.Error(), ShouldContainSubstring, errmsg.IPFSNotDefined.Error())
 			})
 
 			c.Convey("fetches a log", FailureContinues, func(c C) {

@@ -2,7 +2,6 @@ package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"berty.tech/go-ipfs-log/iface"
@@ -28,7 +27,7 @@ type FetchOptions struct {
 
 func toMultihash(ctx context.Context, services io.IpfsServices, log *IPFSLog) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
-		return cid.Undef, errors.New(`can't serialize an empty log`)
+		return cid.Undef, errmsg.EmptyLogSerialization
 	}
 
 	return io.WriteCBOR(ctx, services, log.ToJSON(), nil)

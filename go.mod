@@ -9,7 +9,6 @@ require (
 	github.com/ipfs/go-cid v0.0.4
 	github.com/ipfs/go-datastore v0.3.1
 	github.com/ipfs/go-ipfs v0.4.22-0.20191217161056-7cc392ba9dac
-	github.com/ipfs/go-ipfs-http-client v0.0.5
 	github.com/ipfs/go-ipld-cbor v0.0.3
 	github.com/ipfs/go-ipld-format v0.0.2
 	github.com/ipfs/interface-go-ipfs-core v0.2.5

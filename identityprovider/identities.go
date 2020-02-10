@@ -2,12 +2,12 @@ package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"encoding/hex"
-	"fmt"
 
-	"berty.tech/go-ipfs-log/keystore"
 	"github.com/btcsuite/btcd/btcec"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/pkg/errors"
+	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"berty.tech/go-ipfs-log/errmsg"
+	"berty.tech/go-ipfs-log/keystore"
 )
 
 var supportedTypes = map[string]func(*CreateIdentityOptions) Interface{
@@ -20,7 +20,7 @@ type Identities struct {
 
 func getHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, error) {
 	if !IsSupported(typeName) {
-		return nil, errors.New(fmt.Sprintf("IdentityProvider type '%s' is not supported", typeName))
+		return nil, errmsg.IdentityProviderNotSupported
 	}
 
 	return supportedTypes[typeName], nil
@@ -176,7 +176,7 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	ks := options.Keystore
 	if ks == nil {
-		return nil, errors.New("a keystore is required")
+		return nil, errmsg.KeystoreNotDefined
 	}
 
 	identities := newIdentities(ks)
@@ -194,7 +194,7 @@ func IsSupported(typeName string) bool {
 // AddIdentityProvider registers an new identity provider.
 func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface) error {
 	if identityProvider == nil {
-		return errors.New("'IdentityProvider' class needs to be given as an option")
+		return errmsg.IdentityProviderNotDefined
 	}
 
 	supportedTypes[identityProvider(nil).GetType()] = identityProvider

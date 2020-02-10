@@ -11,7 +11,6 @@ import (
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/pkg/errors"
 	"github.com/polydawn/refmt/obj/atlas"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
@@ -327,7 +326,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 	// Get the required amount of hashes to next entries (as per current state of the log)
 	all, err := l.traverse(heads, maxInt(pointerCount, heads.Len()), "")
 	if err != nil {
-		return nil, errors.Wrap(err, "append failed")
+		return nil, errmsg.LogAppendFailed.Wrap(err)
 	}
 
 	references := getEveryPow2(all, minInt(pointerCount, all.Len()))
@@ -373,11 +372,11 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "append failed")
+		return nil, errmsg.LogAppendFailed.Wrap(err)
 	}
 
 	if err := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); err != nil {
-		return nil, errors.Wrap(err, "append failed")
+		return nil, errmsg.LogAppendDenied.Wrap(err)
 	}
 
 	l.Entries.Set(e.Hash.String(), e)
@@ -412,11 +411,11 @@ func (c *CanAppendContext) GetLogEntries() []accesscontroller.LogEntry {
 func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLogEntry) error {
 	amount := -1
 	if options == nil {
-		return errors.New("no options specified")
+		return errmsg.IteratorOptionsNotDefined
 	}
 
 	if output == nil {
-		return errors.New("no output channel specified")
+		return errmsg.OutputChannelNotDefined
 	}
 
 	if options.Amount != nil {
@@ -434,7 +433,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LTE {
 			e, ok := l.Get(c)
 			if !ok {
-				return errors.New("entry specified at LTE not found")
+				return errmsg.FilterLTENotFound
 			}
 			start = append(start, e)
 		}
@@ -442,14 +441,14 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LT {
 			e, ok := l.Get(c)
 			if !ok {
-				return errors.New("entry specified at LT not found")
+				return errmsg.FilterLTNotFound
 			}
 
 			start = nil
 			for _, n := range e.GetNext() {
 				e, ok := l.Get(n)
 				if !ok {
-					return errors.New("entry specified at LT not found")
+					return errmsg.FilterLTNotFound
 				}
 				start = append(start, e)
 			}
@@ -470,7 +469,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 
 	entriesMap, err := l.traverse(entry.NewOrderedMapFromEntries(start), count, endHash)
 	if err != nil {
-		return errors.Wrap(err, "iterator failed")
+		return errmsg.LogTraverseFailed.Wrap(err)
 	}
 
 	entries := entriesMap.Slice()
@@ -521,17 +520,17 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 
 			e := newItems.UnsafeGet(k)
 			if e == nil {
-				err = errors.Errorf("join failed")
+				err = errmsg.LogJoinFailed
 				return
 			}
 
 			if inErr := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); inErr != nil {
-				err = errors.Wrap(inErr, "join failed")
+				err = errmsg.LogJoinFailed.Wrap(inErr)
 				return
 			}
 
 			if inErr := e.Verify(l.Identity.Provider); inErr != nil {
-				err = errors.Wrap(inErr, "unable to check signature")
+				err = errmsg.LogJoinFailed.Wrap(errmsg.SigNotVerified.Wrap(inErr))
 				return
 			}
 		}(k)
@@ -745,7 +744,7 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "newfrommultihash failed")
+		return nil, errmsg.LogFromMultiHash.Wrap(err)
 	}
 
 	entries := entry.NewOrderedMapFromEntries(data.Values)
@@ -791,7 +790,7 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 		Concurrency:  fetchOptions.Concurrency,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "newfromentryhash failed")
+		return nil, errmsg.LogFromEntryHash.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{
@@ -822,7 +821,7 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "newfromjson failed")
+		return nil, errmsg.LogFromJSON.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{
@@ -854,7 +853,7 @@ func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *ident
 		Concurrency:  fetchOptions.Concurrency,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "newfromentry failed")
+		return nil, errmsg.LogFromEntry.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{

@@ -2,7 +2,6 @@ package test // import "berty.tech/go-ipfs-log/test"
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -11,11 +10,12 @@ import (
 
 	"berty.tech/go-ipfs-log/accesscontroller"
 
+	dssync "github.com/ipfs/go-datastore/sync"
+
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -24,7 +24,7 @@ type DenyAll struct {
 }
 
 func (*DenyAll) CanAppend(accesscontroller.LogEntry, idp.Interface, accesscontroller.CanAppendAdditionalContext) error {
-	return errors.New("denied")
+	return fmt.Errorf("denied")
 }
 
 type TestACL struct {
@@ -33,7 +33,7 @@ type TestACL struct {
 
 func (t *TestACL) CanAppend(e accesscontroller.LogEntry, p idp.Interface, _ accesscontroller.CanAppendAdditionalContext) error {
 	if e.GetIdentity().ID == t.refIdentity.ID {
-		return errors.New("denied")
+		return fmt.Errorf("denied")
 	}
 
 	return nil
@@ -167,7 +167,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "entry doesn't have a key")
+			c.So(err.Error(), ShouldContainSubstring, errmsg.KeyNotDefined.Error())
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge an entry that doesn't have a signature", FailureHalts, func(c C) {
@@ -187,7 +187,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "entry doesn't have a signature")
+			c.So(err.Error(), ShouldContainSubstring, errmsg.SigNotDefined.Error())
 		})
 
 		c.Convey("throws an error if log is signed but the signature doesn't verify", FailureHalts, func(c C) {
@@ -207,7 +207,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "unable to verify entry signature")
+			c.So(err.Error(), ShouldContainSubstring, errmsg.SigNotVerified.Error())
 
 			c.So(l1.Values().Len(), ShouldEqual, 1)
 			c.So(l1.Values().At(0).GetPayload(), ShouldResemble, []byte("one"))
@@ -225,7 +225,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l2.Append(ctx, []byte("two"), nil)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "append failed: denied")
+			c.So(err.Error(), ShouldContainSubstring, errmsg.LogAppendDenied.Error())
 		})
 
 		c.Convey("throws an error upon join if entry doesn't have append access", FailureHalts, func(c C) {
@@ -243,7 +243,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, "join failed: denied")
+			c.So(err.Error(), ShouldContainSubstring, errmsg.LogJoinFailed.Error())
 		})
 	})
 }

@@ -12,6 +12,7 @@ import (
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/io"
 	ks "berty.tech/go-ipfs-log/keystore"
@@ -119,25 +120,29 @@ func TestEntry(t *testing.T) {
 			c.Convey("returns an error if ipfs is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, nil, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(e, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "ipfs instance not defined")
+				c.So(err, ShouldNotBeNil)
+				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined)
 			})
 
 			c.Convey("returns an error if identity is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, nil, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(e, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "identity is required")
+				c.So(err, ShouldNotBeNil)
+				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined)
 			})
 
 			c.Convey("returns an error if data is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, identity, nil, nil)
 				c.So(e, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "data is not defined")
+				c.So(err, ShouldNotBeNil)
+				c.So(err.Error(), ShouldEqual, errmsg.PayloadNotDefined)
 			})
 
 			c.Convey("returns an error if LogID is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello")}, nil)
 				c.So(e, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, "'LogID' is required")
+				c.So(err, ShouldNotBeNil)
+				c.So(err.Error(), ShouldEqual, errmsg.LogIDNotDefined)
 			})
 		})
 

@@ -7,19 +7,16 @@ import (
 	"testing"
 	"time"
 
+	dssync "github.com/ipfs/go-datastore/sync"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-
-	"berty.tech/go-ipfs-log/iface"
+	. "github.com/smartystreets/goconvey/convey"
 
 	ipfslog "berty.tech/go-ipfs-log"
-	"berty.tech/go-ipfs-log/errmsg"
-
 	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
 	ks "berty.tech/go-ipfs-log/keystore"
-	dssync "github.com/ipfs/go-datastore/sync"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLog(t *testing.T) {
@@ -94,7 +91,6 @@ func TestLog(t *testing.T) {
 					Type:     "orbitdb",
 				})
 				c.So(err, ShouldBeNil)
-				// TODO: Use time=0 and known public keys for all 3 entries
 				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A", Clock: entry.NewLamportClock(id1.PublicKey, 0)}, nil)
 				c.So(err, ShouldBeNil)
 				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A", Clock: entry.NewLamportClock(id2.PublicKey, 1)}, nil)
@@ -163,13 +159,13 @@ func TestLog(t *testing.T) {
 			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined.Error())
+				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined)
 			})
 
 			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined.Error())
+				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined)
 			})
 		})
 
