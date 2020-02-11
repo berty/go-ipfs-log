@@ -114,7 +114,7 @@ func TestLogJoin(t *testing.T) {
 
 			c.Convey("returns error if log parameter is not defined", FailureHalts, func() {
 				_, err := logs[0].Join(nil, -1)
-				c.So(err, ShouldEqual, errmsg.LogJoinNotDefined)
+				c.So(err, ShouldEqual, errmsg.ErrLogJoinNotDefined)
 			})
 
 			c.Convey("joins only unique items", FailureHalts, func() {

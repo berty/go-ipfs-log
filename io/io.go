@@ -10,6 +10,8 @@ import (
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/interface-go-ipfs-core/path"
+
+	"berty.tech/go-ipfs-log/errmsg"
 )
 
 var debug = false
@@ -30,7 +32,7 @@ func WriteCBOR(ctx context.Context, ipfs IpfsServices, obj interface{}, opts *Wr
 
 	cborNode, err := cbornode.WrapObject(obj, math.MaxUint64, -1)
 	if err != nil {
-		return cid.Undef, err
+		return cid.Undef, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	if debug {
@@ -39,12 +41,12 @@ func WriteCBOR(ctx context.Context, ipfs IpfsServices, obj interface{}, opts *Wr
 
 	err = ipfs.Dag().Add(ctx, cborNode)
 	if err != nil {
-		return cid.Undef, err
+		return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
 	if opts.Pin {
 		if err = ipfs.Pin().Add(ctx, path.IpfsPath(cborNode.Cid())); err != nil {
-			return cid.Undef, err
+			return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
 		}
 	}
 

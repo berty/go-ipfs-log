@@ -171,22 +171,22 @@ type CborEntryV2 = CborEntry
 func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
 	key, err := hex.DecodeString(c.Key)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrKeyDeserialization.Wrap(err)
 	}
 
 	sig, err := hex.DecodeString(c.Sig)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigDeserialization.Wrap(err)
 	}
 
 	clock, err := ToLamportClock(c.Clock)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrClockDeserialization.Wrap(err)
 	}
 
 	identity, err := c.Identity.ToIdentity(provider)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
 	}
 
 	return &Entry{
@@ -268,19 +268,19 @@ func init() {
 // CreateEntry creates an Entry.
 func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
 	if ipfsInstance == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errmsg.IdentityNotDefined
+		return nil, errmsg.ErrIdentityNotDefined
 	}
 
 	if data == nil {
-		return nil, errmsg.PayloadNotDefined
+		return nil, errmsg.ErrPayloadNotDefined
 	}
 
 	if data.LogID == "" {
-		return nil, errmsg.LogIDNotDefined
+		return nil, errmsg.ErrLogIDNotDefined
 	}
 
 	data = data.copy()
@@ -294,18 +294,18 @@ func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *id
 
 	hashable, err := data.toHashable()
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	jsonBytes, err := toBuffer(hashable)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	signature, err := identity.Provider.Sign(identity, jsonBytes)
 
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	data.Key = identity.PublicKey
@@ -314,17 +314,17 @@ func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *id
 	data.Identity = identity.Filtered()
 	data.Hash, err = data.ToMultihash(ctx, ipfsInstance, opts)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
 	nd, err := cbornode.WrapObject(data.ToCborEntry(), math.MaxUint64, -1)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	err = ipfsInstance.Dag().Add(ctx, nd)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
 	return data, nil
@@ -366,7 +366,7 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 func cidB58(c cid.Cid) (string, error) {
 	e, err := multibase.NewEncoder(multibase.Base58BTC)
 	if err != nil {
-		return "", err
+		return "", errmsg.ErrMultibaseOperationFailed.Wrap(err)
 	}
 
 	return c.Encode(e), nil
@@ -375,7 +375,7 @@ func cidB58(c cid.Cid) (string, error) {
 // toBuffer converts a hashable entry to bytes.
 func toBuffer(e *Hashable) ([]byte, error) {
 	if e == nil {
-		return nil, errmsg.EntryNotDefined
+		return nil, errmsg.ErrEntryNotDefined
 	}
 
 	jsonBytes, err := json.Marshal(map[string]interface{}{
@@ -391,7 +391,7 @@ func toBuffer(e *Hashable) ([]byte, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrJSONSerializationFailed.Wrap(err)
 	}
 
 	return jsonBytes, nil
@@ -405,7 +405,7 @@ func (e *Entry) toHashable() (*Hashable, error) {
 	for _, n := range e.Next {
 		c, err := cidB58(n)
 		if err != nil {
-			return nil, err
+			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
 		}
 
 		nexts = append(nexts, c)
@@ -414,7 +414,7 @@ func (e *Entry) toHashable() (*Hashable, error) {
 	for _, r := range e.Refs {
 		c, err := cidB58(r)
 		if err != nil {
-			return nil, err
+			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
 		}
 
 		refs = append(refs, c)
@@ -442,41 +442,41 @@ func (e *Entry) IsValid() bool {
 // Verify checks the entry's signature.
 func (e *Entry) Verify(identity identityprovider.Interface) error {
 	if e == nil {
-		return errmsg.EntryNotDefined
+		return errmsg.ErrEntryNotDefined
 	}
 
 	if len(e.Key) == 0 {
-		return errmsg.KeyNotDefined
+		return errmsg.ErrKeyNotDefined
 	}
 
 	if len(e.Sig) == 0 {
-		return errmsg.SigNotDefined
+		return errmsg.ErrSigNotDefined
 	}
 
 	// TODO: Check against trusted keys
 
 	hashable, err := e.toHashable()
 	if err != nil {
-		return errmsg.EntryNotHashable.Wrap(err)
+		return errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	jsonBytes, err := toBuffer(hashable)
 	if err != nil {
-		return errmsg.EntryNotHashable.Wrap(err)
+		return errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	pubKey, err := identity.UnmarshalPublicKey(e.Key)
 	if err != nil {
-		return errmsg.InvalidPubKeyFormat.Wrap(err)
+		return errmsg.ErrInvalidPubKeyFormat.Wrap(err)
 	}
 
 	ok, err := pubKey.Verify(jsonBytes, e.Sig)
 	if err != nil {
-		return errmsg.SigNotVerified.Wrap(err)
+		return errmsg.ErrSigNotVerified.Wrap(err)
 	}
 
 	if !ok {
-		return errmsg.SigNotVerified
+		return errmsg.ErrSigNotVerified
 	}
 
 	return nil
@@ -489,11 +489,11 @@ func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices, o
 	}
 
 	if e == nil {
-		return cid.Undef, errmsg.EntryNotDefined
+		return cid.Undef, errmsg.ErrEntryNotDefined
 	}
 
 	if ipfsInstance == nil {
-		return cid.Undef, errmsg.IPFSNotDefined
+		return cid.Undef, errmsg.ErrIPFSNotDefined
 	}
 
 	data := e.copyNormalizedEntry(&normalizeEntryOpts{
@@ -548,25 +548,25 @@ func (e *Entry) copyNormalizedEntry(opts *normalizeEntryOpts) *Entry {
 // FromMultihash creates an Entry from a hash.
 func FromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	result, err := io.ReadCBOR(ctx, ipfs, hash)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	obj := &CborEntry{}
 	err = cbornode.DecodeInto(result.RawData(), obj)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	obj.Hash = hash
 
 	entry, err := obj.ToEntry(provider)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
 	}
 
 	entry.Hash = hash

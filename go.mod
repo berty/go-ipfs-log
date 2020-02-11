@@ -15,7 +15,6 @@ require (
 	github.com/libp2p/go-libp2p v0.5.0
 	github.com/libp2p/go-libp2p-core v0.3.0
 	github.com/multiformats/go-multibase v0.0.1
-	github.com/pkg/errors v0.8.1
 	github.com/polydawn/refmt v0.0.0-20190408063855-01bf1e26dd14
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a
 )

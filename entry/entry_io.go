@@ -15,37 +15,46 @@ type FetchOptions = iface.FetchOptions
 
 // FetchParallel retrieves IPFS log entries.
 func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
-	entries := []iface.IPFSLogEntry(nil)
+	var (
+		entries        = []iface.IPFSLogEntry(nil)
+		fetchedEntries = make([][]iface.IPFSLogEntry, len(hashes))
+		wg             = sync.WaitGroup{}
+	)
 
-	wg := sync.WaitGroup{}
 	wg.Add(len(hashes))
 
-	for _, h := range hashes {
-		go func(h cid.Cid) {
+	for i, h := range hashes {
+		go func(h cid.Cid, i int) {
 			defer wg.Done()
 
-			entries = append(entries, FetchAll(ctx, ipfs, []cid.Cid{h}, options)...)
-		}(h)
+			fetchedEntries[i] = FetchAll(ctx, ipfs, []cid.Cid{h}, options)
+		}(h, i)
 	}
 
 	wg.Wait()
+
+	for i := range hashes {
+		entries = append(entries, fetchedEntries[i]...)
+	}
 
 	return entries
 }
 
 // FetchAll gets entries from their CIDs.
 func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
-	lock := sync.Mutex{}
-	result := []iface.IPFSLogEntry(nil)
-	cache := map[cid.Cid]bool{}
-	loadingCache := map[cid.Cid]bool{}
-	loadingQueue := map[int][]cid.Cid{0: hashes}
-	running := 0  // keep track of how many entries are being fetched at any time
-	maxClock := 0 // keep track of the latest clock time during load
-	minClock := 0 // keep track of the minimum clock time during load
-	concurrency := 1
-	done := make(chan bool)
-	length := -1
+	var (
+		lock         = sync.Mutex{}
+		result       = []iface.IPFSLogEntry(nil)
+		cache        = map[cid.Cid]bool{}
+		loadingCache = map[cid.Cid]bool{}
+		loadingQueue = map[int][]cid.Cid{0: hashes}
+		running      = 0 // keep track of how many entries are being fetched at any time
+		maxClock     = 0 // keep track of the latest clock time during load
+		minClock     = 0 // keep track of the minimum clock time during load
+		concurrency  = 1
+		done         = make(chan bool)
+		length       = -1
+	)
 
 	if options.Length != nil {
 		length = *options.Length
@@ -54,6 +63,9 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 	if options.Concurrency > concurrency {
 		concurrency = options.Concurrency
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Add a multihash to the loading queue
 	addToLoadingQueue := func(e cid.Cid, idx int) {

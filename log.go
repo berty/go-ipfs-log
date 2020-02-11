@@ -107,11 +107,11 @@ func maxClockTimeForEntries(entries []iface.IPFSLogEntry, defValue int) int {
 // which by default allows anyone to append to the IPFSLog.
 func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *LogOptions) (*IPFSLog, error) {
 	if services == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errmsg.IdentityNotDefined
+		return nil, errmsg.ErrIdentityNotDefined
 	}
 
 	if options == nil {
@@ -205,7 +205,7 @@ func (l *IPFSLog) addToStack(e iface.IPFSLogEntry, stack []iface.IPFSLogEntry, t
 
 func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, endHash string) (iface.IPFSLogOrderedEntries, error) {
 	if rootEntries == nil {
-		return nil, errmsg.EntriesNotDefined
+		return nil, errmsg.ErrEntriesNotDefined
 	}
 
 	// Sort the given given root entries and use as the starting stack
@@ -326,7 +326,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 	// Get the required amount of hashes to next entries (as per current state of the log)
 	all, err := l.traverse(heads, maxInt(pointerCount, heads.Len()), "")
 	if err != nil {
-		return nil, errmsg.LogAppendFailed.Wrap(err)
+		return nil, errmsg.ErrLogAppendFailed.Wrap(err)
 	}
 
 	references := getEveryPow2(all, minInt(pointerCount, all.Len()))
@@ -372,11 +372,11 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 	})
 
 	if err != nil {
-		return nil, errmsg.LogAppendFailed.Wrap(err)
+		return nil, errmsg.ErrLogAppendFailed.Wrap(err)
 	}
 
 	if err := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); err != nil {
-		return nil, errmsg.LogAppendDenied.Wrap(err)
+		return nil, errmsg.ErrLogAppendDenied.Wrap(err)
 	}
 
 	l.Entries.Set(e.Hash.String(), e)
@@ -411,11 +411,11 @@ func (c *CanAppendContext) GetLogEntries() []accesscontroller.LogEntry {
 func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLogEntry) error {
 	amount := -1
 	if options == nil {
-		return errmsg.IteratorOptionsNotDefined
+		return errmsg.ErrIteratorOptionsNotDefined
 	}
 
 	if output == nil {
-		return errmsg.OutputChannelNotDefined
+		return errmsg.ErrOutputChannelNotDefined
 	}
 
 	if options.Amount != nil {
@@ -433,7 +433,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LTE {
 			e, ok := l.Get(c)
 			if !ok {
-				return errmsg.FilterLTENotFound
+				return errmsg.ErrFilterLTENotFound
 			}
 			start = append(start, e)
 		}
@@ -441,14 +441,14 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LT {
 			e, ok := l.Get(c)
 			if !ok {
-				return errmsg.FilterLTNotFound
+				return errmsg.ErrFilterLTNotFound
 			}
 
 			start = nil
 			for _, n := range e.GetNext() {
 				e, ok := l.Get(n)
 				if !ok {
-					return errmsg.FilterLTNotFound
+					return errmsg.ErrFilterLTNotFound
 				}
 				start = append(start, e)
 			}
@@ -469,7 +469,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 
 	entriesMap, err := l.traverse(entry.NewOrderedMapFromEntries(start), count, endHash)
 	if err != nil {
-		return errmsg.LogTraverseFailed.Wrap(err)
+		return errmsg.ErrLogTraverseFailed.Wrap(err)
 	}
 
 	entries := entriesMap.Slice()
@@ -500,7 +500,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) {
 	// INFO: JS default size is -1
 	if otherLog == nil {
-		return nil, errmsg.LogJoinNotDefined
+		return nil, errmsg.ErrLogJoinNotDefined
 	}
 
 	if l.ID != otherLog.GetID() {
@@ -520,17 +520,17 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 
 			e := newItems.UnsafeGet(k)
 			if e == nil {
-				err = errmsg.LogJoinFailed
+				err = errmsg.ErrLogJoinFailed
 				return
 			}
 
 			if inErr := l.AccessController.CanAppend(e, l.Identity.Provider, &CanAppendContext{log: l}); inErr != nil {
-				err = errmsg.LogJoinFailed.Wrap(inErr)
+				err = inErr
 				return
 			}
 
 			if inErr := e.Verify(l.Identity.Provider); inErr != nil {
-				err = errmsg.LogJoinFailed.Wrap(errmsg.SigNotVerified.Wrap(inErr))
+				err = errmsg.ErrSigNotVerified.Wrap(inErr)
 				return
 			}
 		}(k)
@@ -538,7 +538,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 
 	wg.Wait()
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrLogJoinFailed.Wrap(err)
 	}
 
 	for _, k := range newItems.Keys() {
@@ -719,19 +719,19 @@ func (l *IPFSLog) ToMultihash(ctx context.Context) (cid.Cid, error) {
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
 func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if services == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errmsg.IdentityNotDefined
+		return nil, errmsg.ErrIdentityNotDefined
 	}
 
 	if logOptions == nil {
-		return nil, errmsg.LogOptionsNotDefined
+		return nil, errmsg.ErrLogOptionsNotDefined
 	}
 
 	if fetchOptions == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	data, err := fromMultihash(ctx, services, hash, &FetchOptions{
@@ -744,7 +744,7 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 	})
 
 	if err != nil {
-		return nil, errmsg.LogFromMultiHash.Wrap(err)
+		return nil, errmsg.ErrLogFromMultiHash.Wrap(err)
 	}
 
 	entries := entry.NewOrderedMapFromEntries(data.Values)
@@ -774,11 +774,11 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
 func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
-		return nil, errmsg.LogOptionsNotDefined
+		return nil, errmsg.ErrLogOptionsNotDefined
 	}
 
 	if fetchOptions == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	// TODO: need to verify the entries with 'key'
@@ -790,7 +790,7 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 		Concurrency:  fetchOptions.Concurrency,
 	})
 	if err != nil {
-		return nil, errmsg.LogFromEntryHash.Wrap(err)
+		return nil, errmsg.ErrLogFromEntryHash.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{
@@ -806,11 +806,11 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
 func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
-		return nil, errmsg.LogOptionsNotDefined
+		return nil, errmsg.ErrLogOptionsNotDefined
 	}
 
 	if fetchOptions == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	// TODO: need to verify the entries with 'key'
@@ -821,7 +821,7 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 		ProgressChan: fetchOptions.ProgressChan,
 	})
 	if err != nil {
-		return nil, errmsg.LogFromJSON.Wrap(err)
+		return nil, errmsg.ErrLogFromJSON.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{
@@ -837,11 +837,11 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 // Creating a log from an entry will retrieve entries from IPFS, thus causing side effects
 func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []iface.IPFSLogEntry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
-		return nil, errmsg.LogOptionsNotDefined
+		return nil, errmsg.ErrLogOptionsNotDefined
 	}
 
 	if fetchOptions == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	// TODO: need to verify the entries with 'key'
@@ -853,7 +853,7 @@ func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *ident
 		Concurrency:  fetchOptions.Concurrency,
 	})
 	if err != nil {
-		return nil, errmsg.LogFromEntry.Wrap(err)
+		return nil, errmsg.ErrLogFromEntry.Wrap(err)
 	}
 
 	return NewLog(services, identity, &LogOptions{

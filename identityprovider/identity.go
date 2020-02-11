@@ -72,7 +72,7 @@ var atlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
 		func(x ic.Secp256k1PublicKey) (string, error) {
 			keyBytes, err := x.Raw()
 			if err != nil {
-				return "", err
+				return "", errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 			}
 
 			return base64.StdEncoding.EncodeToString(keyBytes), nil
@@ -81,16 +81,16 @@ var atlasPubKey = atlas.BuildEntry(ic.Secp256k1PublicKey{}).
 		func(x string) (ic.Secp256k1PublicKey, error) {
 			keyBytes, err := base64.StdEncoding.DecodeString(x)
 			if err != nil {
-				return ic.Secp256k1PublicKey{}, errmsg.NotSecp256k1PubKey.Wrap(err)
+				return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 			}
 
 			key, err := ic.UnmarshalSecp256k1PublicKey(keyBytes)
 			if err != nil {
-				return ic.Secp256k1PublicKey{}, errmsg.NotSecp256k1PubKey.Wrap(err)
+				return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 			}
 			secpKey, ok := key.(*ic.Secp256k1PublicKey)
 			if !ok {
-				return ic.Secp256k1PublicKey{}, errmsg.NotSecp256k1PubKey
+				return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey
 			}
 
 			return *secpKey, nil
@@ -117,12 +117,12 @@ func (i *Identity) ToCborIdentity() *CborIdentity {
 func (c *CborIdentity) ToIdentity(provider Interface) (*Identity, error) {
 	publicKey, err := hex.DecodeString(c.PublicKey)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
 	}
 
 	idSignatures, err := c.Signatures.ToIdentitySignature()
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
 	}
 
 	return &Identity{
@@ -146,12 +146,12 @@ func (i *IdentitySignature) ToCborIdentitySignature() *CborIdentitySignature {
 func (c *CborIdentitySignature) ToIdentitySignature() (*IdentitySignature, error) {
 	publicKey, err := hex.DecodeString(c.PublicKey)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentitySigDeserialization.Wrap(err)
 	}
 
 	id, err := hex.DecodeString(c.ID)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentitySigDeserialization.Wrap(err)
 	}
 
 	return &IdentitySignature{

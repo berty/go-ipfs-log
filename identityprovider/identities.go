@@ -20,7 +20,7 @@ type Identities struct {
 
 func getHandlerFor(typeName string) (func(*CreateIdentityOptions) Interface, error) {
 	if !IsSupported(typeName) {
-		return nil, errmsg.IdentityProviderNotSupported
+		return nil, errmsg.ErrIdentityProviderNotSupported
 	}
 
 	return supportedTypes[typeName], nil
@@ -35,12 +35,12 @@ func newIdentities(keyStore keystore.Interface) *Identities {
 func (i *Identities) Sign(identity *Identity, data []byte) ([]byte, error) {
 	privKey, err := i.keyStore.GetKey(identity.ID)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrKeyNotInKeystore.Wrap(err)
 	}
 
 	sig, err := i.keyStore.Sign(privKey, data)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	return sig, nil
@@ -60,7 +60,7 @@ func (i *Identities) Verify(signature []byte, publicKey crypto.PubKey, data []by
 func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 	pubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 	}
 
 	if !btcec.IsCompressedPubKey(pubKeyBytes) {
@@ -74,13 +74,13 @@ func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	NewIdentityProvider, err := getHandlerFor(options.Type)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityProviderNotSupported.Wrap(err)
 	}
 
 	identityProvider := NewIdentityProvider(options)
 	id, err := identityProvider.GetID(options)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityUnknown.Wrap(err)
 	}
 
 	// FIXME ?
@@ -92,25 +92,25 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 
 	publicKey, idSignature, err := i.signID(id)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	publicKeyBytes, err := publicKey.Raw()
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 	}
 
 	// JS version of IPFS Log expects an uncompressed Secp256k1 key
 	if publicKey.Type().String() == "Secp256k1" {
 		publicKeyBytes, err = compressedToUncompressedS256Key(publicKeyBytes)
 		if err != nil {
-			return nil, err
+			return nil, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
 		}
 	}
 
 	pubKeyIDSignature, err := identityProvider.SignIdentity(append(publicKeyBytes, idSignature...), options.ID)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityCreationFailed.Wrap(err)
 	}
 
 	return &Identity{
@@ -131,13 +131,13 @@ func (i *Identities) signID(id string) (crypto.PubKey, []byte, error) {
 		privKey, err = i.keyStore.CreateKey(id)
 
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errmsg.ErrSigSign.Wrap(err)
 		}
 	}
 
 	idSignature, err := i.keyStore.Sign(privKey, []byte(id))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	return privKey.GetPublic(), idSignature, nil
@@ -147,12 +147,12 @@ func (i *Identities) signID(id string) (crypto.PubKey, []byte, error) {
 func (i *Identities) VerifyIdentity(identity *Identity) error {
 	pubKey, err := identity.GetPublicKey()
 	if err != nil {
-		return err
+		return errmsg.ErrPubKeyDeserialization.Wrap(err)
 	}
 
 	idBytes, err := hex.DecodeString(identity.ID)
 	if err != nil {
-		return err
+		return errmsg.ErrIdentityDeserialization.Wrap(err)
 	}
 
 	err = i.keyStore.Verify(
@@ -161,12 +161,12 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 		idBytes,
 	)
 	if err != nil {
-		return err
+		return errmsg.ErrSigNotVerified.Wrap(err)
 	}
 
 	identityProvider, err := getHandlerFor(identity.Type)
 	if err != nil {
-		return err
+		return errmsg.ErrSigNotVerified.Wrap(err)
 	}
 
 	return identityProvider(nil).VerifyIdentity(identity)
@@ -176,7 +176,7 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 	ks := options.Keystore
 	if ks == nil {
-		return nil, errmsg.KeystoreNotDefined
+		return nil, errmsg.ErrKeystoreNotDefined
 	}
 
 	identities := newIdentities(ks)
@@ -194,7 +194,7 @@ func IsSupported(typeName string) bool {
 // AddIdentityProvider registers an new identity provider.
 func AddIdentityProvider(identityProvider func(*CreateIdentityOptions) Interface) error {
 	if identityProvider == nil {
-		return errmsg.IdentityProviderNotDefined
+		return errmsg.ErrIdentityProviderNotDefined
 	}
 
 	supportedTypes[identityProvider(nil).GetType()] = identityProvider

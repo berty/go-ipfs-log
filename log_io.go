@@ -27,7 +27,7 @@ type FetchOptions struct {
 
 func toMultihash(ctx context.Context, services io.IpfsServices, log *IPFSLog) (cid.Cid, error) {
 	if log.Values().Len() < 1 {
-		return cid.Undef, errmsg.EmptyLogSerialization
+		return cid.Undef, errmsg.ErrEmptyLogSerialization
 	}
 
 	return io.WriteCBOR(ctx, services, log.ToJSON(), nil)
@@ -36,13 +36,13 @@ func toMultihash(ctx context.Context, services io.IpfsServices, log *IPFSLog) (c
 func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
 	result, err := io.ReadCBOR(ctx, services, hash)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	logData := &JSONLog{}
 	err = cbornode.DecodeInto(result.RawData(), logData)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	// Use user provided sorting function or the default one
@@ -83,11 +83,11 @@ func fromMultihash(ctx context.Context, services io.IpfsServices, hash cid.Cid, 
 
 func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.Cid, options *FetchOptions) ([]iface.IPFSLogEntry, error) {
 	if services == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if options == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	// Fetch given length, return size at least the given input entries
@@ -120,11 +120,11 @@ func fromEntryHash(ctx context.Context, services io.IpfsServices, hashes []cid.C
 
 func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if options == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &iface.FetchOptions{
@@ -145,11 +145,11 @@ func fromJSON(ctx context.Context, services io.IpfsServices, jsonLog *JSONLog, o
 
 func fromEntry(ctx context.Context, services io.IpfsServices, sourceEntries []iface.IPFSLogEntry, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
-		return nil, errmsg.IPFSNotDefined
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if options == nil {
-		return nil, errmsg.FetchOptionsNotDefined
+		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
 	// Fetch given length, return size at least the given input entries

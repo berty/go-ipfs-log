@@ -121,28 +121,28 @@ func TestEntry(t *testing.T) {
 				e, err := entry.CreateEntry(ctx, nil, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(e, ShouldBeNil)
 				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIPFSNotDefined)
 			})
 
 			c.Convey("returns an error if identity is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, nil, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 				c.So(e, ShouldBeNil)
 				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIdentityNotDefined)
 			})
 
 			c.Convey("returns an error if data is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, identity, nil, nil)
 				c.So(e, ShouldBeNil)
 				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.PayloadNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrPayloadNotDefined)
 			})
 
 			c.Convey("returns an error if LogID is not set", FailureContinues, func(c C) {
 				e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello")}, nil)
 				c.So(e, ShouldBeNil)
 				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.LogIDNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrLogIDNotDefined)
 			})
 		})
 

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"math"
 
+	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/iface"
 
 	"github.com/polydawn/refmt/obj/atlas"
@@ -84,7 +85,7 @@ func (l *LamportClock) ToCborLamportClock() *iface.CborLamportClock {
 func ToLamportClock(c *CborLamportClock) (*LamportClock, error) {
 	id, err := hex.DecodeString(c.ID)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrClockDeserialization.Wrap(err)
 	}
 
 	return &LamportClock{

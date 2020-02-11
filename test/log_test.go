@@ -159,13 +159,13 @@ func TestLog(t *testing.T) {
 			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIPFSNotDefined)
 			})
 
 			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined)
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIdentityNotDefined)
 			})
 		})
 

@@ -123,7 +123,7 @@ func TestSignedLog(t *testing.T) {
 
 		c.Convey("doesn't sign entries when identity is not defined", FailureHalts, func(c C) {
 			_, err := ipfslog.NewLog(ipfs, nil, nil)
-			c.So(err, ShouldEqual, errmsg.IdentityNotDefined)
+			c.So(err, ShouldEqual, errmsg.ErrIdentityNotDefined)
 		})
 
 		c.Convey("doesn't join logs with different IDs", FailureHalts, func(c C) {
@@ -167,7 +167,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, errmsg.KeyNotDefined.Error())
+			c.So(err.Error(), ShouldContainSubstring, errmsg.ErrKeyNotDefined.Error())
 		})
 
 		c.Convey("throws an error if log is signed but trying to merge an entry that doesn't have a signature", FailureHalts, func(c C) {
@@ -187,7 +187,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, errmsg.SigNotDefined.Error())
+			c.So(err.Error(), ShouldContainSubstring, errmsg.ErrSigNotDefined.Error())
 		})
 
 		c.Convey("throws an error if log is signed but the signature doesn't verify", FailureHalts, func(c C) {
@@ -207,7 +207,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, errmsg.SigNotVerified.Error())
+			c.So(err.Error(), ShouldContainSubstring, errmsg.ErrSigNotVerified.Error())
 
 			c.So(l1.Values().Len(), ShouldEqual, 1)
 			c.So(l1.Values().At(0).GetPayload(), ShouldResemble, []byte("one"))
@@ -225,7 +225,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l2.Append(ctx, []byte("two"), nil)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, errmsg.LogAppendDenied.Error())
+			c.So(err.Error(), ShouldContainSubstring, errmsg.ErrLogAppendDenied.Error())
 		})
 
 		c.Convey("throws an error upon join if entry doesn't have append access", FailureHalts, func(c C) {
@@ -243,7 +243,7 @@ func TestSignedLog(t *testing.T) {
 
 			_, err = l1.Join(l2, -1)
 			c.So(err, ShouldNotBeNil)
-			c.So(err.Error(), ShouldContainSubstring, errmsg.LogJoinFailed.Error())
+			c.So(err.Error(), ShouldContainSubstring, errmsg.ErrLogJoinFailed.Error())
 		})
 	})
 }

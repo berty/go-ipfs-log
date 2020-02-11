@@ -9,8 +9,6 @@ import (
 
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/iface"
-
-	errors2 "github.com/pkg/errors"
 )
 
 func SortByClocks(a, b iface.IPFSLogEntry, resolveConflict func(a iface.IPFSLogEntry, b iface.IPFSLogEntry) (int, error)) (int, error) {
@@ -43,7 +41,11 @@ func First(_, _ iface.IPFSLogEntry) (int, error) {
 func FirstWriteWins(a, b iface.IPFSLogEntry) (int, error) {
 	res, err := LastWriteWins(a, b)
 
-	return res * -1, err
+	if err != nil {
+		return 0, errmsg.ErrTiebreakerFailed.Wrap(err)
+	}
+
+	return res * -1, nil
 }
 
 func LastWriteWins(a, b iface.IPFSLogEntry) (int, error) {
@@ -78,11 +80,15 @@ func SortByEntryHash(a, b iface.IPFSLogEntry) (int, error) {
 func NoZeroes(compFunc func(a, b iface.IPFSLogEntry) (int, error)) func(a, b iface.IPFSLogEntry) (int, error) {
 	return func(a, b iface.IPFSLogEntry) (int, error) {
 		ret, err := compFunc(a, b)
-		if ret != 0 || err != nil {
-			return ret, err
+		if err != nil {
+			return 0, errmsg.ErrTiebreakerFailed.Wrap(err)
 		}
 
-		return 0, errmsg.TiebreakerBogus
+		if ret != 0 {
+			return ret, nil
+		}
+
+		return 0, errmsg.ErrTiebreakerBogus
 	}
 }
 
@@ -96,7 +102,7 @@ func Reverse(a []iface.IPFSLogEntry) {
 func Compare(a, b iface.IPFSLogEntry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
 	if a == nil || b == nil {
-		return 0, errors2.New("entry is not defined")
+		return 0, errmsg.ErrEntryNotDefined
 	}
 
 	return a.GetClock().Compare(b.GetClock()), nil
