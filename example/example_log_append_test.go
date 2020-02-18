@@ -132,7 +132,7 @@ func Example_logAppend() {
 	}
 
 	// nodeA Append data (hello world)"
-	_, err = logA.Append(ctx, []byte("hello world"), 1)
+	_, err = logA.Append(ctx, []byte("hello world"), nil)
 	if err != nil {
 		panic(fmt.Errorf("append error: %s", err))
 	}

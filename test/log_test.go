@@ -1,34 +1,36 @@
 package test // import "berty.tech/go-ipfs-log/test"
 
 import (
-	"berty.tech/go-ipfs-log/iface"
 	"context"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
-	ipfslog "berty.tech/go-ipfs-log"
-	"berty.tech/go-ipfs-log/errmsg"
-
-	"berty.tech/go-ipfs-log/entry"
-	idp "berty.tech/go-ipfs-log/identityprovider"
-	ks "berty.tech/go-ipfs-log/keystore"
 	dssync "github.com/ipfs/go-datastore/sync"
-
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	. "github.com/smartystreets/goconvey/convey"
+
+	ipfslog "berty.tech/go-ipfs-log"
+	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/errmsg"
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
+	ks "berty.tech/go-ipfs-log/keystore"
 )
 
 func TestLog(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ipfs := NewMemoryServices()
+	m := mocknet.New(ctx)
+	ipfs, closeNode := NewMemoryServices(ctx, t, m)
+	defer closeNode()
 
-	datastore := dssync.MutexWrap(NewIdentityDataStore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	var identities []*idp.Identity
@@ -43,7 +45,7 @@ func TestLog(t *testing.T) {
 		})
 
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
 		identities = append(identities, identity)
@@ -89,12 +91,11 @@ func TestLog(t *testing.T) {
 					Type:     "orbitdb",
 				})
 				c.So(err, ShouldBeNil)
-				// TODO: Use time=0 and known public keys for all 3 entries
-				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A"}, entry.NewLamportClock(id1.PublicKey, 0))
+				e1, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA"), LogID: "A", Clock: entry.NewLamportClock(id1.PublicKey, 0)}, nil)
 				c.So(err, ShouldBeNil)
-				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A"}, entry.NewLamportClock(id2.PublicKey, 1))
+				e2, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryB"), LogID: "A", Clock: entry.NewLamportClock(id2.PublicKey, 1)}, nil)
 				c.So(err, ShouldBeNil)
-				e3, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A"}, entry.NewLamportClock(id3.PublicKey, 2))
+				e3, err := entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryC"), LogID: "A", Clock: entry.NewLamportClock(id3.PublicKey, 2)}, nil)
 				c.So(err, ShouldBeNil)
 
 				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", Entries: entry.NewOrderedMapFromEntries([]iface.IPFSLogEntry{e1, e2, e3})})
@@ -158,13 +159,13 @@ func TestLog(t *testing.T) {
 			c.Convey("returns an error if ipfs is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(nil, identities[0], nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IPFSNotDefined.Error())
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIPFSNotDefined)
 			})
 
 			c.Convey("returns an error if identity is not net", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, nil, nil)
 				c.So(log1, ShouldBeNil)
-				c.So(err.Error(), ShouldEqual, errmsg.IdentityNotDefined.Error())
+				c.So(err.Error(), ShouldEqual, errmsg.ErrIdentityNotDefined)
 			})
 		})
 
@@ -173,7 +174,7 @@ func TestLog(t *testing.T) {
 			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
 			c.So(err, ShouldBeNil)
 			for _, val := range []string{"one", "two", "three", "four", "five"} {
-				_, err := log1.Append(ctx, []byte(val), 1)
+				_, err := log1.Append(ctx, []byte(val), nil)
 				c.So(err, ShouldBeNil)
 			}
 

@@ -2,11 +2,11 @@ package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
 	"encoding/hex"
-	"fmt"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
+
+	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/keystore"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/pkg/errors"
 )
 
 type OrbitDBIdentityProvider struct {
@@ -31,13 +31,13 @@ func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string,
 	if err != nil || private == nil {
 		private, err = p.keystore.CreateKey(options.ID)
 		if err != nil {
-			return "", err
+			return "", errmsg.ErrKeyStoreCreateEntry.Wrap(err)
 		}
 	}
 
 	pubBytes, err := private.GetPublic().Raw()
 	if err != nil {
-		return "", err
+		return "", errmsg.ErrPubKeySerialization.Wrap(err)
 	}
 
 	return hex.EncodeToString(pubBytes), nil
@@ -47,7 +47,7 @@ func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string,
 func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
 	key, err := p.keystore.GetKey(id)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Signing key for %s not found", id))
+		return nil, errmsg.ErrKeyNotInKeystore
 	}
 
 	//data, _ = hex.DecodeString(hex.EncodeToString(data))
@@ -57,7 +57,7 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 
 	signature, err := key.Sign(data)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Signing key for %s not found", id))
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	return signature, nil
@@ -67,12 +67,12 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
 	key, err := p.keystore.GetKey(identity.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "private signing key not found from Keystore")
+		return nil, errmsg.ErrKeyNotInKeystore.Wrap(err)
 	}
 
 	sig, err := key.Sign(data)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	return sig, nil
@@ -81,7 +81,7 @@ func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte,
 func (p *OrbitDBIdentityProvider) UnmarshalPublicKey(data []byte) (crypto.PubKey, error) {
 	pubKey, err := crypto.UnmarshalSecp256k1PublicKey(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to unmarshal public key")
+		return nil, errmsg.ErrInvalidPubKeyFormat
 	}
 
 	return pubKey, nil

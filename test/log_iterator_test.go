@@ -1,34 +1,35 @@
 package test
 
 import (
-	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/test/logcreator"
 	"context"
 	"fmt"
-	"github.com/ipfs/go-cid"
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	"github.com/ipfs/go-cid"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	. "github.com/smartystreets/goconvey/convey"
+
+	"berty.tech/go-ipfs-log/iface"
 
 	ipfslog "berty.tech/go-ipfs-log"
 
+	dssync "github.com/ipfs/go-datastore/sync"
+
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
-	dssync "github.com/ipfs/go-datastore/sync"
-	ipfsCore "github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/core/coreapi"
 )
 
 func TestLogIterator(t *testing.T) {
 	ctx := context.Background()
 
-	Convey("IPFSLog - Iterator", t, FailureHalts, func(c C) {
-		datastore := dssync.MutexWrap(NewIdentityDataStore())
+	Convey("IPFSLog - Iterator", t, FailureContinues, func(c C) {
+		datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 		keystore, err := ks.NewKeystore(datastore)
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
-		var identities [3]*idp.Identity
+		identities := make([]*idp.Identity, 4)
 
 		for i, char := range []rune{'A', 'B', 'C'} {
 			identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
@@ -38,480 +39,430 @@ func TestLogIterator(t *testing.T) {
 			})
 
 			if err != nil {
-				panic(err)
+				t.Fatal(err)
 			}
 
 			identities[i] = identity
 		}
 
-		core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{})
-		c.So(err, ShouldBeNil)
+		m := mocknet.New(ctx)
+		ipfs, closeNode := NewMemoryServices(ctx, t, m)
+		defer closeNode()
 
-		ipfs, err := coreapi.NewCoreAPI(core)
-
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ ID: "X" })
+		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 		c.So(err, ShouldBeNil)
 
 		for i := 0; i <= 100; i++ {
-			_, err := log1.Append(ctx, []byte(fmt.Sprintf("entry%d", i)), 1)
+			_, err := log1.Append(ctx, []byte(fmt.Sprintf("entry%d", i)), nil)
 			c.So(err, ShouldBeNil)
 		}
 
-		c.Convey("Basic iterator functionality", FailureHalts, func(c C) {
-			c.Convey("returns length with lte and amount", FailureHalts, func(c C) {
-				amount := 10
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
-
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
-					Amount: &amount,
-				}, resultChan)
-
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, amount)
-			})
-
-			c.Convey("returns entries with lte and amount", FailureHalts, func(c C) {
-				amount := 10
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
-
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
-					Amount: &amount,
-				}, resultChan)
-
-				c.So(err, ShouldBeNil)
-
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
-					i++
-				}
-			})
-
-			c.Convey("returns length with lt and amount", FailureHalts, func(c C) {
-				amount := 10
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
-
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
-					Amount: &amount,
-				}, resultChan)
-
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, amount)
-			})
-
-			c.Convey("returns entries with lt and amount", FailureHalts, func(c C) {
-				amount := 10
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
-
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
-					Amount: &amount,
-				}, resultChan)
-
-				c.So(err, ShouldBeNil)
-
-				i := 1
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
-					i++
-				}
-			})
-
-			c.Convey("returns entries with gt and amount", FailureHalts, func(c C) {
-				amount := 5
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
-
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
-					Amount: &amount,
-				}, resultChan)
-
-				c.So(err, ShouldBeNil)
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72 - i))
-					i++
-				}
-			})
-
-			c.Convey("returns length with gt and amount", FailureHalts, func(c C) {
-				amount := 12
-				resultChan := make(chan iface.IPFSLogEntry, 110)
-
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		// Basic iterator functionality
+		// returns length with lte and amount
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
-					Amount: &amount,
-				}, resultChan)
+		amount := 10
+		resultChan := make(chan iface.IPFSLogEntry, 110)
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, amount)
-			})
+		idLTE := MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-			c.Convey("returns entries with gte and amount", FailureHalts, func(c C) {
-				amount := 5
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE:    []cid.Cid{idLTE},
+			Amount: &amount,
+		}, resultChan)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, amount)
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
-					Amount: &amount,
-				}, resultChan)
+		// returns entries with lte and amount
 
-				c.So(err, ShouldBeNil)
-				i := 1
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72 - i))
-					i++
-				}
-			})
+		amount = 10
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-			c.Convey("returns length with gte and amount", FailureHalts, func(c C) {
-				amount := 12
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		idLTE = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE:    []cid.Cid{idLTE},
+			Amount: &amount,
+		}, resultChan)
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
-					Amount: &amount,
-				}, resultChan)
+		c.So(err, ShouldBeNil)
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, amount)
-			})
+		i := 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
+			i++
+		}
 
-			c.Convey("iterates with lt and gt", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		// returns length with lt and amount
 
-				parsedCidLT, err := cid.Parse("bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(err, ShouldBeNil)
+		amount = 10
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-				parsedCidGT, err := cid.Parse("bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(err, ShouldBeNil)
+		idLT := MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCidLT},
-					GT: &parsedCidGT,
-				}, resultChan)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LT:     []cid.Cid{idLT},
+			Amount: &amount,
+		}, resultChan)
 
-				c.So(err, ShouldBeNil)
-				var hashes []string
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, amount)
 
-				for e := range resultChan {
-					hashes = append(hashes, string(e.GetPayload()))
-				}
+		// returns entries with lt and amount
 
-				c.So(hashes, ShouldNotContain, "bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(hashes, ShouldNotContain, "bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(len(hashes), ShouldEqual, 10)
+		amount = 10
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-			})
+		idLT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-			c.Convey("iterates with lt and gte", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LT:     []cid.Cid{idLT},
+			Amount: &amount,
+		}, resultChan)
 
-				parsedCidLT, err := cid.Parse("bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(err, ShouldBeNil)
+		c.So(err, ShouldBeNil)
 
-				parsedCidGT, err := cid.Parse("bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(err, ShouldBeNil)
+		i = 1
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
+			i++
+		}
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCidLT},
-					GTE: &parsedCidGT,
-				}, resultChan)
+		// returns entries with gt and amount
 
-				c.So(err, ShouldBeNil)
-				var hashes []string
+		amount = 5
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-				for e := range resultChan {
-					hashes = append(hashes, e.GetHash().String())
-				}
+		idGT := MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				c.So(hashes, ShouldContain, "bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(hashes, ShouldNotContain, "bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(len(hashes), ShouldEqual, 11)
-			})
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GT:     idGT,
+			Amount: &amount,
+		}, resultChan)
 
-			c.Convey("iterates with lte and gt", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(err, ShouldBeNil)
+		i = 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72-i))
+			i++
+		}
 
-				parsedCidLT, err := cid.Parse("bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(err, ShouldBeNil)
+		// returns length with gt and amount
 
-				parsedCidGT, err := cid.Parse("bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(err, ShouldBeNil)
+		amount = 12
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCidLT},
-					GT: &parsedCidGT,
-				}, resultChan)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GT:     idGT,
+			Amount: &amount,
+		}, resultChan)
 
-				c.So(err, ShouldBeNil)
-				var hashes []string
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, amount)
 
-				for e := range resultChan {
-					hashes = append(hashes, e.GetHash().String())
-				}
+		// returns entries with gte and amount
 
-				c.So(hashes, ShouldNotContain, "bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(hashes, ShouldContain, "bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(len(hashes), ShouldEqual, 11)
-			})
+		amount = 5
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-			c.Convey("iterates with lte and gte", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		idGTE := MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				parsedCidLT, err := cid.Parse("bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(err, ShouldBeNil)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GTE:    idGTE,
+			Amount: &amount,
+		}, resultChan)
 
-				parsedCidGT, err := cid.Parse("bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(err, ShouldBeNil)
+		c.So(err, ShouldBeNil)
+		i = 1
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 72-i))
+			i++
+		}
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCidLT},
-					GTE: &parsedCidGT,
-				}, resultChan)
+		// returns length with gte and amount
 
-				c.So(err, ShouldBeNil)
-				var hashes []string
+		amount = 12
+		resultChan = make(chan iface.IPFSLogEntry, 110)
 
-				for e := range resultChan {
-					hashes = append(hashes, e.GetHash().String())
-				}
+		idGTE = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				c.So(hashes, ShouldContain, "bafyreiffkf2s7k56eaubd4qfuz6rnpahvqjg2c2hjm3bbms4zgarf3q7gq")
-				c.So(hashes, ShouldContain, "bafyreiba2tj5pwleed6czd2p4n3xhwurnninp6bux3zopdstpughhy7ohy")
-				c.So(len(hashes), ShouldEqual, 12)
-			})
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GTE:    idGTE,
+			Amount: &amount,
+		}, resultChan)
 
-			c.Convey("returns length with gt and default amount", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, amount)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		// iterates with lt and gt
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
-				}, resultChan)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGT = MustCID(t, "zdpuAymZUrYbHgwfYK76xXYhzxNqwaXRWWrn5kmRsZJFdqBEz")
+		idLT = MustCID(t, "zdpuAoDcWRiChLXnGskymcGrM1VdAjsaFrsXvNZmcDattA7AF")
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 33)
-			})
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GT: idGT,
+			LT: []cid.Cid{idLT},
+		}, resultChan)
 
-			c.Convey("returns entries with gt and default amount", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(err, ShouldBeNil)
+		hashes := []string(nil)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		for e := range resultChan {
+			hashes = append(hashes, string(e.GetPayload()))
+		}
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GT: &parsedCid,
-				}, resultChan)
+		c.So(hashes, ShouldNotContain, idLT.String())
+		c.So(hashes, ShouldNotContain, idGT.String())
+		c.So(len(hashes), ShouldEqual, 10)
 
-				c.So(err, ShouldBeNil)
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100 - i))
-					i++
-				}
-			})
+		// iterates with lt and gte
 
-			c.Convey("returns length with gte and default amount", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGTE = MustCID(t, "zdpuAt7YtNE1i9APJitGyKomcmxjc2BDHa57wkrjq4onqBNaR")
+		idLT = MustCID(t, "zdpuAr8N4vzqcB5sh5JLcr6Eszo4HnYefBWDbBBwwrTPo6kU6")
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LT:  []cid.Cid{idLT},
+			GTE: idGTE,
+		}, resultChan)
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
-				}, resultChan)
+		c.So(err, ShouldBeNil)
+		hashes = []string(nil)
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 34)
-			})
+		for e := range resultChan {
+			hashes = append(hashes, e.GetHash().String())
+		}
 
-			c.Convey("returns entries with gte and default amount", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(hashes, ShouldContain, idGTE.String())
+		c.So(hashes, ShouldNotContain, idLT.String())
+		c.So(len(hashes), ShouldEqual, 25)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		// iterates with lte and gt
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					GTE: &parsedCid,
-				}, resultChan)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGT = MustCID(t, "zdpuAqUrGrPa4AaZAQbCH4yxQfEjB32rdFY743XCgyGW8iAuU")
+		idLTE = MustCID(t, "zdpuAwkagwE9D2jUtLnDiCPqBGh9xhpnaX8iEDQ3K7HRmjggi")
 
-				c.So(err, ShouldBeNil)
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100 - i))
-					i++
-				}
-			})
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE: []cid.Cid{idLTE},
+			GT:  idGT,
+		}, resultChan)
 
-			c.Convey("returns length with lt and default amount value", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(err, ShouldBeNil)
+		hashes = []string(nil)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		for e := range resultChan {
+			hashes = append(hashes, e.GetHash().String())
+		}
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
-				}, resultChan)
+		c.So(hashes, ShouldNotContain, idGT.String())
+		c.So(hashes, ShouldContain, idLTE.String())
+		c.So(len(hashes), ShouldEqual, 4)
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 67)
-			})
+		// iterates with lte and gte
 
-			c.Convey("returns entries with lt and default amount value", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGTE = MustCID(t, "zdpuAzG5AD1GdeNffSskTErjjPbAb95QiNyoaQSrbB62eqYSD")
+		idLTE = MustCID(t, "zdpuAuujURnUUxVw338Xwh47zGEFjjbaZXXARHPik6KYUcUVk")
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE: []cid.Cid{idLTE},
+			GTE: idGTE,
+		}, resultChan)
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LT: []cid.Cid{parsedCid},
-				}, resultChan)
+		c.So(err, ShouldBeNil)
+		hashes = []string(nil)
 
-				c.So(err, ShouldBeNil)
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 66 - i))
-					i++
-				}
-			})
+		for e := range resultChan {
+			hashes = append(hashes, e.GetHash().String())
+		}
 
-			c.Convey("returns length with lte and default amount value", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(hashes, ShouldContain, idGTE.String())
+		c.So(hashes, ShouldContain, idLTE.String())
+		c.So(len(hashes), ShouldEqual, 10)
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		// returns length with gt and default amount
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
-				}, resultChan)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 68)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GT: idGT,
+		}, resultChan)
 
-			})
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 33)
 
-			c.Convey("returns entries with lte and default amount value", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		// returns entries with gt and default amount
 
-				parsedCid, err := cid.Parse("bafyreigrbir6zv5cii7y7tw3z5fegsfujedcagd4ws45gzbtig52j4k2my")
-				c.So(err, ShouldBeNil)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
+		c.So(err, ShouldBeNil)
 
-				err = log1.Iterator(&ipfslog.IteratorOptions{
-					LTE: []cid.Cid{parsedCid},
-				}, resultChan)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GT: idGT,
+		}, resultChan)
 
-				c.So(err, ShouldBeNil)
-				i := 0
-				for e := range resultChan {
-					c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67 - i))
-					i++
-				}
+		c.So(err, ShouldBeNil)
+		i = 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100-i))
+			i++
+		}
 
-			})
-		})
+		// returns length with gte and default amount
 
-		c.Convey("Iteration over forked/joined logs", FailureHalts, func(c C) {
-			identities := [4]*idp.Identity{identities[2], identities[1], identities[2], identities[0]}
-			fixture, err := logcreator.CreateLogWithSixteenEntries(ctx, ipfs, identities)
-			c.So(err, ShouldBeNil)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGTE = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-			c.Convey("returns the full length from all heads", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GTE: idGTE,
+		}, resultChan)
 
-				var headsCids []cid.Cid
-				for _, h := range fixture.Log.Heads().Slice() {
-					headsCids = append(headsCids, h.GetHash())
-				}
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 34)
 
-				err := fixture.Log.Iterator(&ipfslog.IteratorOptions{
-					LTE: headsCids,
-				}, resultChan)
+		// returns entries with gte and default amount
 
-				c.So(err, ShouldBeNil)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idGTE = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				c.So(len(resultChan), ShouldEqual, 16)
-			})
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			GTE: idGTE,
+		}, resultChan)
 
-			c.Convey("returns partial entries from all heads", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		c.So(err, ShouldBeNil)
+		i = 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 100-i))
+			i++
+		}
 
-				var headsCids []cid.Cid
-				for _, h := range fixture.Log.Heads().Slice() {
-					headsCids = append(headsCids, h.GetHash())
-				}
+		// returns length with lt and default amount value
 
-				err := fixture.Log.Iterator(&ipfslog.IteratorOptions{
-					Amount: intPtr(6),
-					LTE: headsCids,
-				}, resultChan)
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idLT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-				var foundEntries []string
-				expectedEntries := []string{"entryA10", "entryA9", "entryA8", "entryA7", "entryC0", "entryA6"}
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LT: []cid.Cid{idLT},
+		}, resultChan)
 
-				for e := range resultChan {
-					foundEntries = append(foundEntries, string(e.GetPayload()))
-				}
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 67)
 
+		// returns entries with lt and default amount value
 
-				c.So(err, ShouldBeNil)
-				c.So(foundEntries, ShouldResemble, expectedEntries)
-			})
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idLT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-			c.Convey("returns partial logs from single heads #1", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LT: []cid.Cid{idLT},
+		}, resultChan)
 
-				headsCids := []cid.Cid{fixture.Log.Heads().At(0).GetHash()}
+		c.So(err, ShouldBeNil)
+		i = 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 66-i))
+			i++
+		}
 
-				err := fixture.Log.Iterator(&ipfslog.IteratorOptions{
-					LTE: headsCids,
-				}, resultChan)
+		// returns length with lte and default amount value
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 10)
-			})
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idLT = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
 
-			c.Convey("returns partial logs from single heads #2", FailureHalts, func(c C) {
-				resultChan := make(chan iface.IPFSLogEntry, 110)
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE: []cid.Cid{idLT},
+		}, resultChan)
 
-				headsCids := []cid.Cid{fixture.Log.Heads().At(1).GetHash()}
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 68)
 
-				err := fixture.Log.Iterator(&ipfslog.IteratorOptions{
-					LTE: headsCids,
-				}, resultChan)
+		// returns entries with lte and default amount value
 
-				c.So(err, ShouldBeNil)
-				c.So(len(resultChan), ShouldEqual, 11)
-			})
-		})
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		idLTE = MustCID(t, "zdpuAuNuQ4YBeXY5YStfrsJx6ykz4yBV2XnNcBR4uGmiojQde")
+
+		err = log1.Iterator(&ipfslog.IteratorOptions{
+			LTE: []cid.Cid{idLTE},
+		}, resultChan)
+
+		c.So(err, ShouldBeNil)
+		i = 0
+		for e := range resultChan {
+			c.So(string(e.GetPayload()), ShouldEqual, fmt.Sprintf("entry%d", 67-i))
+			i++
+		}
+
+		// Iteration over forked/joined logs
+
+		identities = []*idp.Identity{identities[2], identities[1], identities[2], identities[0]}
+		fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+		c.So(err, ShouldBeNil)
+
+		// returns the full length from all heads
+
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		headsCids := []cid.Cid(nil)
+		for _, h := range fixture.Log.Heads().Slice() {
+			headsCids = append(headsCids, h.GetHash())
+		}
+
+		err = fixture.Log.Iterator(&ipfslog.IteratorOptions{
+			LTE: headsCids,
+		}, resultChan)
+
+		c.So(err, ShouldBeNil)
+
+		c.So(len(resultChan), ShouldEqual, 16)
+
+		// returns partial entries from all heads
+
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		headsCids = []cid.Cid(nil)
+		for _, h := range fixture.Log.Heads().Slice() {
+			headsCids = append(headsCids, h.GetHash())
+		}
+
+		err = fixture.Log.Iterator(&ipfslog.IteratorOptions{
+			Amount: intPtr(6),
+			LTE:    headsCids,
+		}, resultChan)
+
+		var foundEntries []string
+		expectedEntries := []string{"entryA10", "entryA9", "entryA8", "entryA7", "entryC0", "entryA6"}
+
+		for e := range resultChan {
+			foundEntries = append(foundEntries, string(e.GetPayload()))
+		}
+
+		c.So(err, ShouldBeNil)
+		c.So(foundEntries, ShouldResemble, expectedEntries)
+
+		// returns partial logs from single heads #1
+
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		headsCids = []cid.Cid{fixture.Log.Heads().At(0).GetHash()}
+
+		err = fixture.Log.Iterator(&ipfslog.IteratorOptions{
+			LTE: headsCids,
+		}, resultChan)
+
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 10)
+
+		// returns partial logs from single heads #2
+
+		resultChan = make(chan iface.IPFSLogEntry, 110)
+		headsCids = []cid.Cid{fixture.Log.Heads().At(1).GetHash()}
+
+		err = fixture.Log.Iterator(&ipfslog.IteratorOptions{
+			LTE: headsCids,
+		}, resultChan)
+
+		c.So(err, ShouldBeNil)
+		c.So(len(resultChan), ShouldEqual, 11)
 	})
 }

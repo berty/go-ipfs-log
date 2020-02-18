@@ -3,29 +3,35 @@ package test // import "berty.tech/go-ipfs-log/test"
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
-	"time"
+
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
+	"berty.tech/go-ipfs-log/iface"
+
+	dssync "github.com/ipfs/go-datastore/sync"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/keystore"
-	dssync "github.com/ipfs/go-datastore/sync"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLogAppend(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ipfs := NewMemoryServices()
+	m := mocknet.New(ctx)
+	ipfs, closeNode := NewMemoryServices(ctx, t, m)
+	defer closeNode()
 
-	datastore := dssync.MutexWrap(NewIdentityDataStore())
+	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := keystore.NewKeystore(datastore)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
@@ -35,7 +41,7 @@ func TestLogAppend(t *testing.T) {
 	})
 
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	Convey("IPFSLog - Append", t, FailureHalts, func(c C) {
@@ -43,7 +49,7 @@ func TestLogAppend(t *testing.T) {
 			c.Convey("append one", FailureHalts, func(c C) {
 				log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
 				c.So(err, ShouldBeNil)
-				_, err = log1.Append(ctx, []byte("hello1"), 1)
+				_, err = log1.Append(ctx, []byte("hello1"), nil)
 				c.So(err, ShouldBeNil)
 
 				c.So(log1.Entries.Len(), ShouldEqual, 1)
@@ -68,7 +74,9 @@ func TestLogAppend(t *testing.T) {
 				nextPointerAmount := 64
 
 				for i := 0; i < 100; i++ {
-					_, err := log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), nextPointerAmount)
+					_, err := log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), &iface.AppendOptions{
+						PointerCount: nextPointerAmount,
+					})
 					c.So(err, ShouldBeNil)
 
 					values := log1.Values()
@@ -90,7 +98,14 @@ func TestLogAppend(t *testing.T) {
 					c.So(string(v.GetPayload()), ShouldEqual, fmt.Sprintf("hello%d", i))
 					c.So(v.GetClock().GetTime(), ShouldEqual, i+1)
 					c.So(v.GetClock().GetID(), ShouldResemble, identity.PublicKey)
-					c.So(len(v.GetNext()), ShouldEqual, minInt(i, nextPointerAmount))
+
+					if i == 0 {
+						c.So(len(v.GetRefs()), ShouldEqual, 0)
+					} else {
+						expected := math.Ceil(math.Log2(math.Min(float64(nextPointerAmount), float64(i))))
+
+						c.So(len(v.GetRefs()), ShouldEqual, int(expected))
+					}
 				}
 			})
 		})

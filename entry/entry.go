@@ -2,30 +2,43 @@
 package entry // import "berty.tech/go-ipfs-log/entry"
 
 import (
-	"berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/ipfs/go-cid"
-	cbornode "github.com/ipfs/go-ipld-cbor"
-	"github.com/pkg/errors"
-	"github.com/polydawn/refmt/obj/atlas"
 	"math"
 	"sort"
+
+	"github.com/ipfs/go-cid"
+	cbornode "github.com/ipfs/go-ipld-cbor"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	"github.com/multiformats/go-multibase"
+	"github.com/polydawn/refmt/obj/atlas"
+
+	"berty.tech/go-ipfs-log/errmsg"
+	"berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
+	"berty.tech/go-ipfs-log/io"
 )
 
 type Entry struct {
 	Payload  []byte                     `json:"payload,omitempty"`
 	LogID    string                     `json:"id,omitempty"`
 	Next     []cid.Cid                  `json:"next,omitempty"`
+	Refs     []cid.Cid                  `json:"refs,omitempty"`
 	V        uint64                     `json:"v,omitempty"`
 	Key      []byte                     `json:"key,omitempty"`
 	Sig      []byte                     `json:"sig,omitempty"`
 	Identity *identityprovider.Identity `json:"identity,omitempty"`
 	Hash     cid.Cid                    `json:"hash,omitempty"`
 	Clock    *LamportClock              `json:"clock,omitempty"`
+}
+
+func (e *Entry) GetRefs() []cid.Cid {
+	return e.Refs
+}
+
+func (e *Entry) SetRefs(refs []cid.Cid) {
+	e.Refs = refs
 }
 
 func (e *Entry) GetPayload() []byte {
@@ -108,6 +121,7 @@ type Hashable struct {
 	ID      string
 	Payload []byte
 	Next    []string
+	Refs    []string
 	V       uint64
 	Clock   iface.IPFSLogLamportClock
 	Key     []byte
@@ -119,6 +133,7 @@ var _ = atlas.BuildEntry(Hashable{}).
 	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
 	AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
 	AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+	AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
 	AddField("V", atlas.StructMapEntry{SerialName: "v"}).
 	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 	Complete()
@@ -131,31 +146,48 @@ type CborEntry struct {
 	Sig      string
 	Hash     interface{}
 	Next     []cid.Cid
+	Refs     []cid.Cid
 	Clock    *CborLamportClock
 	Payload  string
 	Identity *identityprovider.CborIdentity
 }
 
+// CborEntryV1 CBOR representable version of Entry v1
+type CborEntryV1 struct {
+	V        uint64
+	LogID    string
+	Key      string
+	Sig      string
+	Hash     interface{}
+	Next     []cid.Cid
+	Clock    *CborLamportClock
+	Payload  string
+	Identity *identityprovider.CborIdentity
+}
+
+// CborEntryV2 CBOR representable version of Entry v2
+type CborEntryV2 = CborEntry
+
 // ToEntry returns a plain Entry from a CBOR serialized version
 func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
 	key, err := hex.DecodeString(c.Key)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrKeyDeserialization.Wrap(err)
 	}
 
 	sig, err := hex.DecodeString(c.Sig)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigDeserialization.Wrap(err)
 	}
 
 	clock, err := ToLamportClock(c.Clock)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrClockDeserialization.Wrap(err)
 	}
 
 	identity, err := c.Identity.ToIdentity(provider)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
 	}
 
 	return &Entry{
@@ -164,6 +196,7 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 		Key:      key,
 		Sig:      sig,
 		Next:     c.Next,
+		Refs:     c.Refs,
 		Clock:    clock,
 		Payload:  []byte(c.Payload),
 		Identity: identity,
@@ -172,6 +205,20 @@ func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error)
 
 // ToCborEntry creates a CBOR serializable version of an entry
 func (e *Entry) ToCborEntry() interface{} {
+	if e.V == 1 {
+		return &CborEntryV1{
+			V:        e.V,
+			LogID:    e.LogID,
+			Key:      hex.EncodeToString(e.Key),
+			Sig:      hex.EncodeToString(e.Sig),
+			Hash:     nil,
+			Next:     e.Next,
+			Clock:    e.Clock.ToCborLamportClock(),
+			Payload:  string(e.Payload),
+			Identity: e.Identity.ToCborIdentity(),
+		}
+	}
+
 	return &CborEntry{
 		V:        e.V,
 		LogID:    e.LogID,
@@ -179,6 +226,7 @@ func (e *Entry) ToCborEntry() interface{} {
 		Sig:      hex.EncodeToString(e.Sig),
 		Hash:     nil,
 		Next:     e.Next,
+		Refs:     e.Refs,
 		Clock:    e.Clock.ToCborLamportClock(),
 		Payload:  string(e.Payload),
 		Identity: e.Identity.ToCborIdentity(),
@@ -194,71 +242,90 @@ func init() {
 		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
 		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
 		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+		AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
 		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
 		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
 		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
 		Complete()
 
 	cbornode.RegisterCborType(AtlasEntry)
+
+	AtlasEntryV1 := atlas.BuildEntry(CborEntryV1{}).
+		StructMap().
+		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
+		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
+		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
+		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
+		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
+		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
+		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
+		Complete()
+
+	cbornode.RegisterCborType(AtlasEntryV1)
 }
 
 // CreateEntry creates an Entry.
-func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, clock iface.IPFSLogLamportClock) (*Entry, error) {
+func CreateEntry(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
 	if ipfsInstance == nil {
-		return nil, errors.New("ipfs instance not defined")
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	if identity == nil {
-		return nil, errors.New("identity is required")
+		return nil, errmsg.ErrIdentityNotDefined
 	}
 
 	if data == nil {
-		return nil, errors.New("data is not defined")
+		return nil, errmsg.ErrPayloadNotDefined
 	}
 
 	if data.LogID == "" {
-		return nil, errors.New("'LogID' is required")
-	}
-
-	if clock == nil {
-		clock = NewLamportClock(identity.PublicKey, 0)
+		return nil, errmsg.ErrLogIDNotDefined
 	}
 
 	data = data.copy()
-	data.Clock = &LamportClock{
-		ID:   clock.GetID(),
-		Time: clock.GetTime(),
-	}
-	data.V = 1
 
-	jsonBytes, err := toBuffer(data.toHashable())
+	if data.Clock != nil {
+		data.Clock = CopyLamportClock(data.GetClock())
+	} else {
+		data.Clock = NewLamportClock(identity.PublicKey, 0)
+	}
+	data.V = 2
+
+	hashable, err := data.toHashable()
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrEntryNotHashable.Wrap(err)
+	}
+
+	jsonBytes, err := toBuffer(hashable)
+	if err != nil {
+		return nil, errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	signature, err := identity.Provider.Sign(identity, jsonBytes)
 
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
 
 	data.Key = identity.PublicKey
 	data.Sig = signature
 
 	data.Identity = identity.Filtered()
-	data.Hash, err = data.ToMultihash(ctx, ipfsInstance)
+	data.Hash, err = data.ToMultihash(ctx, ipfsInstance, opts)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
 	nd, err := cbornode.WrapObject(data.ToCborEntry(), math.MaxUint64, -1)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	err = ipfsInstance.Dag().Add(ctx, nd)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
 	return data, nil
@@ -270,6 +337,7 @@ func (e *Entry) copy() *Entry {
 		Payload:  e.Payload,
 		LogID:    e.LogID,
 		Next:     uniqueCIDs(e.Next),
+		Refs:     uniqueCIDs(e.Refs),
 		V:        e.V,
 		Key:      e.Key,
 		Sig:      e.Sig,
@@ -296,10 +364,19 @@ func uniqueCIDs(cids []cid.Cid) []cid.Cid {
 	return out
 }
 
+func cidB58(c cid.Cid) (string, error) {
+	e, err := multibase.NewEncoder(multibase.Base58BTC)
+	if err != nil {
+		return "", errmsg.ErrMultibaseOperationFailed.Wrap(err)
+	}
+
+	return c.Encode(e), nil
+}
+
 // toBuffer converts a hashable entry to bytes.
 func toBuffer(e *Hashable) ([]byte, error) {
 	if e == nil {
-		return nil, errors.New("entry is not defined")
+		return nil, errmsg.ErrEntryNotDefined
 	}
 
 	jsonBytes, err := json.Marshal(map[string]interface{}{
@@ -307,6 +384,7 @@ func toBuffer(e *Hashable) ([]byte, error) {
 		"id":      e.ID,
 		"payload": string(e.Payload),
 		"next":    e.Next,
+		"refs":    e.Refs,
 		"v":       e.V,
 		"clock": map[string]interface{}{
 			"id":   hex.EncodeToString(e.Clock.GetID()),
@@ -314,18 +392,33 @@ func toBuffer(e *Hashable) ([]byte, error) {
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrJSONSerializationFailed.Wrap(err)
 	}
 
 	return jsonBytes, nil
 }
 
 // toHashable Converts an entry to hashable.
-func (e *Entry) toHashable() *Hashable {
-	nexts := []string{}
+func (e *Entry) toHashable() (*Hashable, error) {
+	nexts := make([]string, len(e.Next))
+	refs := make([]string, len(e.Refs))
 
-	for _, n := range e.Next {
-		nexts = append(nexts, n.String())
+	for i, n := range e.Next {
+		c, err := cidB58(n)
+		if err != nil {
+			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
+		}
+
+		nexts[i] = c
+	}
+
+	for i, r := range e.Refs {
+		c, err := cidB58(r)
+		if err != nil {
+			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
+		}
+
+		refs[i] = c
 	}
 
 	return &Hashable{
@@ -333,114 +426,151 @@ func (e *Entry) toHashable() *Hashable {
 		ID:      e.LogID,
 		Payload: e.Payload,
 		Next:    nexts,
+		Refs:    refs,
 		V:       e.V,
 		Clock:   e.Clock,
 		Key:     e.Key,
-	}
+	}, nil
 }
 
 // isValid checks that an entry is valid.
 func (e *Entry) IsValid() bool {
-	return e.LogID != "" && len(e.Payload) > 0 && e.V <= 1
+	ok := e.LogID != "" && len(e.Payload) > 0 && e.V <= 2
+
+	return ok
 }
 
 // Verify checks the entry's signature.
 func (e *Entry) Verify(identity identityprovider.Interface) error {
 	if e == nil {
-		return errors.New("entry is not defined")
+		return errmsg.ErrEntryNotDefined
 	}
 
 	if len(e.Key) == 0 {
-		return errors.New("entry doesn't have a key")
+		return errmsg.ErrKeyNotDefined
 	}
 
 	if len(e.Sig) == 0 {
-		return errors.New("entry doesn't have a signature")
+		return errmsg.ErrSigNotDefined
 	}
 
 	// TODO: Check against trusted keys
 
-	jsonBytes, err := toBuffer(e.toHashable())
+	hashable, err := e.toHashable()
 	if err != nil {
-		return errors.Wrap(err, "unable to build string buffer")
+		return errmsg.ErrEntryNotHashable.Wrap(err)
+	}
+
+	jsonBytes, err := toBuffer(hashable)
+	if err != nil {
+		return errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
 	pubKey, err := identity.UnmarshalPublicKey(e.Key)
 	if err != nil {
-		return errors.Wrap(err, "unable to unmarshal public key")
+		return errmsg.ErrInvalidPubKeyFormat.Wrap(err)
 	}
 
 	ok, err := pubKey.Verify(jsonBytes, e.Sig)
 	if err != nil {
-		return errors.Wrap(err, "error whild verifying signature")
+		return errmsg.ErrSigNotVerified.Wrap(err)
 	}
 
 	if !ok {
-		return errors.New("unable to verify entry signature")
+		return errmsg.ErrSigNotVerified
 	}
 
 	return nil
 }
 
 // ToMultihash gets the multihash of an Entry.
-func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices) (cid.Cid, error) {
+func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions) (cid.Cid, error) {
+	if opts == nil {
+		opts = &iface.CreateEntryOptions{}
+	}
+
 	if e == nil {
-		return cid.Cid{}, errors.New("entry is not defined")
+		return cid.Undef, errmsg.ErrEntryNotDefined
 	}
 
 	if ipfsInstance == nil {
-		return cid.Cid{}, errors.New("ipfs instance not defined")
+		return cid.Undef, errmsg.ErrIPFSNotDefined
+	}
+
+	data := e.copyNormalizedEntry(&normalizeEntryOpts{
+		preSigned: opts.PreSigned,
+	})
+
+	return io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry(), &io.WriteOpts{
+		Pin: opts.Pin,
+	})
+}
+
+type normalizeEntryOpts struct {
+	preSigned   bool
+	includeHash bool
+}
+
+func (e *Entry) copyNormalizedEntry(opts *normalizeEntryOpts) *Entry {
+	if opts == nil {
+		opts = &normalizeEntryOpts{}
 	}
 
 	data := &Entry{
-		Hash:    cid.Cid{},
 		LogID:   e.LogID,
 		Payload: e.Payload,
 		Next:    e.Next,
 		V:       e.V,
-		Clock:   e.Clock,
+		Clock:   CopyLamportClock(e.GetClock()),
 	}
 
-	if e.Key != nil {
-		data.Key = e.Key
+	if opts.includeHash {
+		data.Hash = e.Hash
 	}
 
-	if e.Identity != nil {
-		data.Identity = e.Identity
+	if e.V > 1 {
+		data.Refs = e.Refs
+	}
+
+	data.Key = e.Key
+	data.Identity = e.Identity
+
+	if opts.preSigned {
+		return data
 	}
 
 	if len(e.Sig) > 0 {
 		data.Sig = e.Sig
 	}
 
-	entryCID, err := io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry())
-
-	return entryCID, err
+	return data
 }
 
-// fromMultihash creates an Entry from a hash.
-func fromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+// FromMultihash creates an Entry from a hash.
+func FromMultihash(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
-		return nil, errors.New("ipfs instance not defined")
+		return nil, errmsg.ErrIPFSNotDefined
 	}
 
 	result, err := io.ReadCBOR(ctx, ipfs, hash)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	obj := &CborEntry{}
 	err = cbornode.DecodeInto(result.RawData(), obj)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
 	obj.Hash = hash
 
 	entry, err := obj.ToEntry(provider)
 	if err != nil {
-		return nil, err
+		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
 	}
+
+	entry.Hash = hash
 
 	return entry, nil
 }

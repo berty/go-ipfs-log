@@ -7,5 +7,5 @@ lint:
 
 .PHONY: test
 test:
-	go test -race -covermode=atomic -coverpkg=all -coverprofile=coverage.txt -cover -v ./...
+	go test -race -covermode=atomic -coverpkg=all -coverprofile=coverage.txt -cover -v ./... -test.timeout=5m
 	cd example && go test -v ./...
