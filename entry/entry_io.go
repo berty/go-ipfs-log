@@ -6,15 +6,15 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
 )
 
 type FetchOptions = iface.FetchOptions
 
 // FetchParallel retrieves IPFS log entries.
-func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
+func FetchParallel(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
 	var (
 		entries        = []iface.IPFSLogEntry(nil)
 		fetchedEntries = make([][]iface.IPFSLogEntry, len(hashes))
@@ -41,7 +41,7 @@ func FetchParallel(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, 
 }
 
 // FetchAll gets entries from their CIDs.
-func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
+func FetchAll(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
 	var (
 		lock         = sync.Mutex{}
 		result       = []iface.IPFSLogEntry(nil)
@@ -52,7 +52,6 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 		maxClock     = 0 // keep track of the latest clock time during load
 		minClock     = 0 // keep track of the minimum clock time during load
 		concurrency  = 1
-		done         = make(chan bool)
 		length       = -1
 	)
 
@@ -64,7 +63,11 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 		concurrency = options.Concurrency
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
+	if options.Timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Second*options.Timeout)
+	}
+
 	defer cancel()
 
 	// Add a multihash to the loading queue
@@ -220,6 +223,10 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 	go func() {
 		// Does the loading queue have more to process?
 		for loadingQueueHasItems() {
+			if ctx.Err() != nil {
+				break
+			}
+
 			if running < concurrency {
 				nexts := getNextFromQueue(concurrency)
 				running += len(nexts)
@@ -230,21 +237,12 @@ func FetchAll(ctx context.Context, ipfs io.IpfsServices, hashes []cid.Cid, optio
 				running -= len(nexts)
 			}
 		}
-		done <- true
+		cancel()
 	}()
 
 	// Resolve the promise after a timeout (if given) in order to
 	// not get stuck loading a block that is unreachable
-	if options.Timeout != 0 {
-		select {
-		case <-time.After(options.Timeout):
-			return result
-		case <-done:
-			return result
-		}
-	}
-
-	<-done
+	<-ctx.Done()
 
 	return result
 }

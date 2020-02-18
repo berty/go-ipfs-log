@@ -9,6 +9,7 @@ import (
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/path"
 
 	"berty.tech/go-ipfs-log/errmsg"
@@ -25,7 +26,7 @@ type WriteOpts struct {
 }
 
 // WriteCBOR writes a CBOR representation of a given object in IPFS' DAG.
-func WriteCBOR(ctx context.Context, ipfs IpfsServices, obj interface{}, opts *WriteOpts) (cid.Cid, error) {
+func WriteCBOR(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *WriteOpts) (cid.Cid, error) {
 	if opts == nil {
 		opts = &WriteOpts{}
 	}
@@ -54,6 +55,6 @@ func WriteCBOR(ctx context.Context, ipfs IpfsServices, obj interface{}, opts *Wr
 }
 
 // ReadCBOR reads a CBOR representation of a given object from IPFS' DAG.
-func ReadCBOR(ctx context.Context, ipfs IpfsServices, contentIdentifier cid.Cid) (format.Node, error) {
+func ReadCBOR(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
 	return ipfs.Dag().Get(ctx, contentIdentifier)
 }

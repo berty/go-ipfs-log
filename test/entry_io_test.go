@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
@@ -23,7 +22,7 @@ import (
 )
 
 func TestEntryPersistence(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	m := mocknet.New(ctx)

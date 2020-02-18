@@ -11,6 +11,7 @@ import (
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/polydawn/refmt/obj/atlas"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
@@ -19,7 +20,6 @@ import (
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
 )
 
 type Snapshot = iface.Snapshot
@@ -33,7 +33,7 @@ type AppendOptions = iface.AppendOptions
 type SortFn = iface.EntrySortFn
 
 type IPFSLog struct {
-	Storage          io.IpfsServices
+	Storage          core_iface.CoreAPI
 	ID               string
 	AccessController accesscontroller.Interface
 	SortFn           iface.EntrySortFn
@@ -44,6 +44,7 @@ type IPFSLog struct {
 	Clock            iface.IPFSLogLamportClock
 	concurrency      uint
 	lock             sync.RWMutex
+	lockAppend       sync.Mutex
 }
 
 func (l *IPFSLog) GetClock() iface.IPFSLogLamportClock {
@@ -105,7 +106,7 @@ func maxClockTimeForEntries(entries []iface.IPFSLogEntry, defValue int) int {
 //
 // options.AccessController is an instance of accesscontroller.Interface,
 // which by default allows anyone to append to the IPFSLog.
-func NewLog(services io.IpfsServices, identity *identityprovider.Identity, options *LogOptions) (*IPFSLog, error) {
+func NewLog(services core_iface.CoreAPI, identity *identityprovider.Identity, options *LogOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -140,7 +141,7 @@ func NewLog(services io.IpfsServices, identity *identityprovider.Identity, optio
 		options.Entries = entry.NewOrderedMap()
 	}
 
-	if len(options.Heads) == 0 && len(options.Entries.Keys()) > 0 {
+	if len(options.Heads) == 0 && options.Entries.Len() > 0 {
 		options.Heads = entry.FindHeads(options.Entries)
 	}
 
@@ -295,6 +296,9 @@ func (l *IPFSLog) Has(c cid.Cid) bool {
 //
 // payload is the data that will be in the Entry
 func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOptions) (iface.IPFSLogEntry, error) {
+	l.lockAppend.Lock()
+	defer l.lockAppend.Unlock()
+
 	// next and refs are empty slices instead of nil
 	next := []cid.Cid{}
 	refs := []cid.Cid{}
@@ -606,7 +610,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 }
 
 func difference(logA, logB iface.IPFSLog) iface.IPFSLogOrderedEntries {
-	if logA == nil || logA.GetEntries() == nil || logA.GetEntries().Len() == 0 || logB == nil {
+	if logA == nil || logA.GetEntries() == nil || logA.GetEntries().Len() == 0 || logA.Heads().Len() == 0 || logB == nil {
 		return entry.NewOrderedMap()
 	}
 
@@ -717,7 +721,7 @@ func (l *IPFSLog) ToMultihash(ctx context.Context) (cid.Cid, error) {
 // NewFromMultihash Creates a IPFSLog from a hash
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
+func NewFromMultihash(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -772,7 +776,7 @@ func NewFromMultihash(ctx context.Context, services io.IpfsServices, identity *i
 // NewFromEntryHash Creates a IPFSLog from a hash of an Entry
 //
 // Creating a log from a hash will retrieve entries from IPFS, thus causing side effects
-func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
+func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, hash cid.Cid, logOptions *LogOptions, fetchOptions *FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.ErrLogOptionsNotDefined
 	}
@@ -804,7 +808,7 @@ func NewFromEntryHash(ctx context.Context, services io.IpfsServices, identity *i
 // NewFromJSON Creates a IPFSLog from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.ErrLogOptionsNotDefined
 	}
@@ -835,7 +839,7 @@ func NewFromJSON(ctx context.Context, services io.IpfsServices, identity *identi
 // NewFromEntry Creates a IPFSLog from an Entry
 //
 // Creating a log from an entry will retrieve entries from IPFS, thus causing side effects
-func NewFromEntry(ctx context.Context, services io.IpfsServices, identity *identityprovider.Identity, sourceEntries []iface.IPFSLogEntry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromEntry(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, sourceEntries []iface.IPFSLogEntry, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.ErrLogOptionsNotDefined
 	}

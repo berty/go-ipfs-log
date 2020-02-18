@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/ipfs/go-cid"
+
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/identityprovider"
-	"github.com/iancoleman/orderedmap"
-	"github.com/ipfs/go-cid"
 )
 
 type CborLamportClock struct {
@@ -113,12 +113,6 @@ type IPFSLogOrderedEntries interface {
 
 	// Keys retrieves the ordered list of keys in the map.
 	Keys() []string
-
-	// SortKeys orders the map keys using your sort func.
-	SortKeys(sortFunc func(keys []string))
-
-	// Sort orders the map using your sort func.
-	Sort(lessFunc func(a *orderedmap.Pair, b *orderedmap.Pair) bool)
 
 	// Len gets the length of the map.
 	Len() int

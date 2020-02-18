@@ -10,6 +10,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/multiformats/go-multibase"
 	"github.com/polydawn/refmt/obj/atlas"
 
@@ -266,7 +267,7 @@ func init() {
 }
 
 // CreateEntry creates an Entry.
-func CreateEntry(ctx context.Context, ipfsInstance io.IpfsServices, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
+func CreateEntry(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -399,25 +400,25 @@ func toBuffer(e *Hashable) ([]byte, error) {
 
 // toHashable Converts an entry to hashable.
 func (e *Entry) toHashable() (*Hashable, error) {
-	nexts := []string{}
-	refs := []string{}
+	nexts := make([]string, len(e.Next))
+	refs := make([]string, len(e.Refs))
 
-	for _, n := range e.Next {
+	for i, n := range e.Next {
 		c, err := cidB58(n)
 		if err != nil {
 			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
 		}
 
-		nexts = append(nexts, c)
+		nexts[i] = c
 	}
 
-	for _, r := range e.Refs {
+	for i, r := range e.Refs {
 		c, err := cidB58(r)
 		if err != nil {
 			return nil, errmsg.ErrCIDSerializationFailed.Wrap(err)
 		}
 
-		refs = append(refs, c)
+		refs[i] = c
 	}
 
 	return &Hashable{
@@ -483,7 +484,7 @@ func (e *Entry) Verify(identity identityprovider.Interface) error {
 }
 
 // ToMultihash gets the multihash of an Entry.
-func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance io.IpfsServices, opts *iface.CreateEntryOptions) (cid.Cid, error) {
+func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions) (cid.Cid, error) {
 	if opts == nil {
 		opts = &iface.CreateEntryOptions{}
 	}
@@ -546,7 +547,7 @@ func (e *Entry) copyNormalizedEntry(opts *normalizeEntryOpts) *Entry {
 }
 
 // FromMultihash creates an Entry from a hash.
-func FromMultihash(ctx context.Context, ipfs io.IpfsServices, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+func FromMultihash(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
 	if ipfs == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}

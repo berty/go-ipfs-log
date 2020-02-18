@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -21,7 +20,7 @@ import (
 )
 
 func TestEntry(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	m := mocknet.New(ctx)

@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
+
 	ipfslog "berty.tech/go-ipfs-log"
 
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
 )
 
 type CreatedLog struct {
@@ -16,7 +17,7 @@ type CreatedLog struct {
 	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
+func createLogsFor16Entries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
 	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func createLogsFor16Entries(ctx context.Context, ipfs io.IpfsServices, identitie
 	return l, nil
 }
 
-func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithSixteenEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*CreatedLog, error) {
 	expectedData := []string{
 		"entryA1", "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
 		"entryA4", "entryB4", "entryA5", "entryB5",
@@ -103,7 +104,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs io.IpfsServices, iden
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSON()}, nil
 }
 
-func createLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
+func createLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
 	var expectedData []string
 	const amount = 100
 
@@ -146,7 +147,7 @@ func createLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, iden
 	return logA, expectedData, nil
 }
 
-func CreateLogWithHundredEntries(ctx context.Context, ipfs io.IpfsServices, identities []*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*CreatedLog, error) {
 	l, expectedData, err := createLogWithHundredEntries(ctx, ipfs, identities)
 	if err != nil {
 		return nil, err

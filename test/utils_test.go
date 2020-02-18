@@ -7,13 +7,13 @@ import (
 	ipfsCore "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreapi"
 	mock "github.com/ipfs/go-ipfs/core/mock"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
 	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
 )
 
-func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (io.IpfsServices, func()) {
+func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (core_iface.CoreAPI, func()) {
 	t.Helper()
 
 	core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{

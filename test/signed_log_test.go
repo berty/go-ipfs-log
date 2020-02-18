@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
@@ -40,7 +39,7 @@ func (t *TestACL) CanAppend(e accesscontroller.LogEntry, p idp.Interface, _ acce
 }
 
 func TestSignedLog(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	m := mocknet.New(ctx)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 
@@ -12,16 +11,17 @@ import (
 
 	"berty.tech/go-ipfs-log/entry"
 
-	idp "berty.tech/go-ipfs-log/identityprovider"
-	ks "berty.tech/go-ipfs-log/keystore"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	ks "berty.tech/go-ipfs-log/keystore"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestLogHeadsTails(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	m := mocknet.New(ctx)

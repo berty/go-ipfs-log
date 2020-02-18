@@ -51,8 +51,7 @@ func NewOrderedMapFromEntries(entries []iface.IPFSLogEntry) iface.IPFSLogOrdered
 func (o *OrderedMap) Merge(other iface.IPFSLogOrderedEntries) iface.IPFSLogOrderedEntries {
 	newMap := o.Copy()
 
-	otherKeys := other.Keys()
-	for _, k := range otherKeys {
+	for _, k := range other.Keys() {
 		val, _ := other.Get(k)
 		newMap.Set(k, val)
 	}
@@ -66,9 +65,8 @@ func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
 	defer o.lock.RUnlock()
 
 	newMap := NewOrderedMap()
-	keys := o.Keys()
 
-	for _, k := range keys {
+	for _, k := range o.Keys() {
 		val, _ := o.Get(k)
 		newMap.Set(k, val)
 	}
@@ -82,12 +80,16 @@ func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
 	defer o.lock.RUnlock()
 
 	val, exists := o.orderedMap.Get(key)
-	entry, ok := val.(iface.IPFSLogEntry)
-	if !ok {
-		exists = false
+	if !exists {
+		return nil, false
 	}
 
-	return entry, exists
+	entry, ok := val.(iface.IPFSLogEntry)
+	if !ok {
+		return nil, false
+	}
+
+	return entry, true
 }
 
 // UnsafeGet retrieves an Entry using its key, returns nil if not found.
@@ -113,22 +115,44 @@ func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
-	var out []iface.IPFSLogEntry
-
 	keys := o.orderedMap.Keys()
-	for _, k := range keys {
-		out = append(out, o.UnsafeGet(k))
+	out := make([]iface.IPFSLogEntry, len(keys))
+
+	for i, k := range keys {
+		out[i] = o.UnsafeGet(k)
 	}
 
 	return out
 }
 
 func (o *OrderedMap) First(until uint) iface.IPFSLogOrderedEntries {
-	return NewOrderedMapFromEntries(o.Slice()[:until])
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
+	keys := o.Keys()
+	entries := make([]iface.IPFSLogEntry, until)
+
+	for i := uint(0); i < until; i++ {
+		entries[i] = o.UnsafeGet(keys[i])
+	}
+
+	return NewOrderedMapFromEntries(entries)
 }
 
 func (o *OrderedMap) Last(after uint) iface.IPFSLogOrderedEntries {
-	return NewOrderedMapFromEntries(o.Slice()[after:])
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
+	keys := o.Keys()
+	entries := make([]iface.IPFSLogEntry, uint(len(keys))-after)
+	j := 0
+
+	for i := uint(len(keys)); i > after; i-- {
+		entries[j] = o.UnsafeGet(keys[i])
+		j++
+	}
+
+	return NewOrderedMapFromEntries(entries)
 }
 
 // Delete removes an Entry from the map for a given key.
@@ -144,7 +168,7 @@ func (o *OrderedMap) Keys() []string {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
-	return append([]string(nil), o.orderedMap.Keys()...)
+	return o.orderedMap.Keys()
 }
 
 // SortKeys orders the map keys using your sort func.
@@ -182,7 +206,7 @@ func (o *OrderedMap) At(index uint) iface.IPFSLogEntry {
 		return nil
 	}
 
-	if uint(len(keys)) < index {
+	if uint(len(keys)) <= index {
 		return nil
 	}
 
