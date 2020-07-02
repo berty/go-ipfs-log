@@ -4,12 +4,12 @@ go 1.13
 
 require (
 	berty.tech/go-ipfs-log v0.0.0
-	github.com/ipfs/go-datastore v0.3.1
-	github.com/ipfs/go-ipfs v0.4.22-0.20191217161056-7cc392ba9dac
-	github.com/ipfs/go-ipfs-config v0.1.0
-	github.com/libp2p/go-libp2p v0.5.0
-	github.com/libp2p/go-libp2p-core v0.3.0
-	github.com/libp2p/go-libp2p-peerstore v0.1.4
+	github.com/ipfs/go-datastore v0.4.4
+	github.com/ipfs/go-ipfs v0.6.0
+	github.com/ipfs/go-ipfs-config v0.8.0
+	github.com/libp2p/go-libp2p v0.10.0
+	github.com/libp2p/go-libp2p-core v0.6.0
+	github.com/libp2p/go-libp2p-peerstore v0.2.6
 )
 
 replace berty.tech/go-ipfs-log v0.0.0 => ../
