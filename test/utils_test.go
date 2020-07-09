@@ -1,16 +1,16 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
 	"context"
 	"testing"
 
+	"berty.tech/go-ipfs-log/iface"
 	ipfsCore "github.com/ipfs/go-ipfs/core"
 	"github.com/ipfs/go-ipfs/core/coreapi"
 	mock "github.com/ipfs/go-ipfs/core/mock"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-
-	"berty.tech/go-ipfs-log/iface"
+	"github.com/stretchr/testify/require"
 )
 
 func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (core_iface.CoreAPI, func()) {
@@ -23,20 +23,13 @@ func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (co
 			"pubsub": true,
 		},
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	api, err := coreapi.NewCoreAPI(core)
+	require.NoError(t, err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return api, func() {
-		core.Close()
-	}
+	close := func() { core.Close() }
+	return api, close
 }
 
 func lastEntry(entries []iface.IPFSLogEntry) iface.IPFSLogEntry {
