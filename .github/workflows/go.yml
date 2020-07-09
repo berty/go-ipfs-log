@@ -52,8 +52,11 @@ jobs:
           git --no-pager diff --quiet go.mod go.sum
       - name: Build tests
         run: go test -i ./...
-      - name: Run tests
-        run: make test
+      - name: Run tests with race, without goleak
+        run: go test -race -covermode=atomic -coverpkg=all -coverprofile=coverage.txt -cover -v ./... -test.timeout=10m
+      # temporarily disabled, because not stable enough
+      #- name: Run tests without race, with goleak
+      #  run: go test -v -tags=goleak -test.timeout=10m ./...
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:

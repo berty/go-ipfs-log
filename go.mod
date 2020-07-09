@@ -15,6 +15,7 @@ require (
 	github.com/libp2p/go-libp2p v0.10.0
 	github.com/libp2p/go-libp2p-core v0.6.0
 	github.com/multiformats/go-multibase v0.0.3
-	github.com/polydawn/refmt v0.0.0-20190408063855-01bf1e26dd14
+	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1
 	github.com/stretchr/testify v1.6.1
+	go.uber.org/goleak v1.0.0
 )
