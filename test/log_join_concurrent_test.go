@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	dssync "github.com/ipfs/go-datastore/sync"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-	. "github.com/smartystreets/goconvey/convey"
-
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry/sorting"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	ks "berty.tech/go-ipfs-log/keystore"
+	dssync "github.com/ipfs/go-datastore/sync"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLogJoinConcurrent(t *testing.T) {
@@ -25,89 +24,88 @@ func TestLogJoinConcurrent(t *testing.T) {
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
-	if err != nil {
-		t.Fatal(err)
-	}
-	Convey("join", t, FailureHalts, func(c C) {
+	require.NoError(t, err)
+
+	t.Run("join", func(t *testing.T) {
 		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       "userA",
 			Type:     "orbitdb",
 		})
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		log2, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		// joins consistently
 		for i := 0; i < 10; i++ {
 			_, err = log1.Append(ctx, []byte(fmt.Sprintf("hello1-%d", i)), nil)
-			c.So(err, ShouldBeNil)
+			require.NoError(t, err)
 
 			_, err = log2.Append(ctx, []byte(fmt.Sprintf("hello2-%d", i)), nil)
-			c.So(err, ShouldBeNil)
+			require.NoError(t, err)
 		}
 
 		_, err = log1.Join(log2, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		_, err = log2.Join(log1, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		hash1, err := log1.ToMultihash(ctx)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		hash2, err := log2.ToMultihash(ctx)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		c.So(hash1.Equals(hash2), ShouldBeTrue)
-		c.So(log1.Values().Len(), ShouldEqual, 20)
-		c.So(log1.ToString(nil), ShouldEqual, log2.ToString(nil))
+		require.True(t, hash1.Equals(hash2))
+		require.Equal(t, log1.Values().Len(), 20)
+		require.Equal(t, log1.ToString(nil), log2.ToString(nil))
 
 		// Concurrently appending same payload after join results in same state
 		for i := 10; i < 20; i++ {
 			_, err = log1.Append(ctx, []byte(fmt.Sprintf("hello1-%d", i)), nil)
-			c.So(err, ShouldBeNil)
+			require.NoError(t, err)
 
 			_, err = log2.Append(ctx, []byte(fmt.Sprintf("hello2-%d", i)), nil)
-			c.So(err, ShouldBeNil)
+			require.NoError(t, err)
 		}
 
 		_, err = log1.Join(log2, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		_, err = log2.Join(log1, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("same"), nil)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		_, err = log2.Append(ctx, []byte("same"), nil)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		hash1, err = log1.ToMultihash(ctx)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		hash2, err = log2.ToMultihash(ctx)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		c.So(hash1.Equals(hash2), ShouldBeTrue)
-		c.So(log1.Values().Len(), ShouldEqual, 41)
-		c.So(log2.Values().Len(), ShouldEqual, 41)
-		c.So(log1.ToString(nil), ShouldEqual, log2.ToString(nil))
+		require.True(t, hash1.Equals(hash2))
+		require.Equal(t, log1.Values().Len(), 41)
+		require.Equal(t, log2.Values().Len(), 41)
+		require.Equal(t, log1.ToString(nil), log2.ToString(nil))
 
 		// Joining after concurrently appending same payload joins entry once
 		_, err = log1.Join(log2, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
 		_, err = log2.Join(log1, -1)
-		c.So(err, ShouldBeNil)
+		require.NoError(t, err)
 
-		c.So(log1.Entries.Len(), ShouldEqual, log2.Entries.Len())
-		c.So(log1.Entries.Len(), ShouldEqual, 41)
-		c.So(log1.ToString(nil), ShouldEqual, log2.ToString(nil))
+		require.Equal(t, log1.Entries.Len(), log2.Entries.Len())
+		require.Equal(t, log1.Entries.Len(), 41)
+		require.Equal(t, log1.ToString(nil), log2.ToString(nil))
 	})
 }

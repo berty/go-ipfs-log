@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	dssync "github.com/ipfs/go-datastore/sync"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-
 	ipfslog "berty.tech/go-ipfs-log"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/keystore"
+	dssync "github.com/ipfs/go-datastore/sync"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkAdd(b *testing.B) {
@@ -23,9 +23,7 @@ func BenchmarkAdd(b *testing.B) {
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(b))
 	ks, err := keystore.NewKeystore(datastore)
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
 
 	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
 		Keystore: ks,
@@ -34,15 +32,12 @@ func BenchmarkAdd(b *testing.B) {
 	})
 
 	log, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
-	if err != nil {
-		b.Fatal(err)
-	}
+	require.NoError(b, err)
 
 	b.ResetTimer()
 	// Start the main loop
 	for n := 0; n < b.N; n++ {
-		if _, err := log.Append(ctx, []byte(fmt.Sprintf("%d", n)), nil); err != nil {
-			b.Fatal(err)
-		}
+		_, err = log.Append(ctx, []byte(fmt.Sprintf("%d", n)), nil)
+		require.NoError(b, err)
 	}
 }

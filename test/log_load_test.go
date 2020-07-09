@@ -1,4 +1,4 @@
-package test // import "berty.tech/go-ipfs-log/test"
+package test
 
 import (
 	"bytes"
@@ -10,22 +10,17 @@ import (
 	"testing"
 	"time"
 
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-
+	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/entry/sorting"
 	"berty.tech/go-ipfs-log/errmsg"
-	"berty.tech/go-ipfs-log/iface"
-
-	ipfslog "berty.tech/go-ipfs-log"
-
-	"github.com/ipfs/go-cid"
-	dssync "github.com/ipfs/go-datastore/sync"
-
 	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
 	ks "berty.tech/go-ipfs-log/keystore"
-
-	. "github.com/smartystreets/goconvey/convey"
+	cid "github.com/ipfs/go-cid"
+	dssync "github.com/ipfs/go-datastore/sync"
+	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func BadComparatorReturnsZero(a, b iface.IPFSLogEntry) (int, error) {
@@ -42,9 +37,7 @@ func TestLogLoad(t *testing.T) {
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	identities := make([]*idp.Identity, 4)
 
@@ -54,10 +47,7 @@ func TestLogLoad(t *testing.T) {
 			ID:       fmt.Sprintf("user%c", char),
 			Type:     "orbitdb",
 		})
-
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		identities[i] = identity
 	}
@@ -71,1016 +61,1014 @@ func TestLogLoad(t *testing.T) {
 
 	_ = firstWriteExpectedData
 
-	Convey("IPFSLog - Load", t, FailureContinues, func(c C) {
-		c.Convey("fromJSON", FailureContinues, func(c C) {
-			c.Convey("creates a log from an entry", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
-				c.So(err, ShouldBeNil)
+	t.Run("fromJSON", func(t *testing.T) {
+		t.Run("creates a log from an entry", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+			require.NoError(t, err)
 
-				data := fixture.Log
-				json := fixture.JSON
+			data := fixture.Log
+			json := fixture.JSON
 
-				// TODO: Is this useless?
-				//heads := map[string]*entry.Entry{}
-				//
-				//for _, h := range json.Heads {
-				//	e, err := entry.fromMultihash(ipfs, h, identities[0].Provider)
-				//	c.So(err, ShouldBeNil)
-				//
-				//	heads[e.Hash.String()] = e
-				//}
+			// TODO: Is this useless?
+			//heads := map[string]*entry.Entry{}
+			//
+			//for _, h := range json.Heads {
+			//	e, err := entry.fromMultihash(ipfs, h, identities[0].Provider)
+			//	require.NoError(t, err)
+			//
+			//	heads[e.Hash.String()] = e
+			//}
 
-				l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
-				c.So(err, ShouldBeNil)
+			l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
+			require.NoError(t, err)
 
-				values := l.Values()
+			values := l.Values()
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(values.Len(), ShouldEqual, 16)
-				c.So(entriesAsStrings(values), ShouldResemble, fixture.ExpectedData)
-			})
-
-			c.Convey("creates a log from an entry with custom tiebreaker", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
-				c.So(err, ShouldBeNil)
-
-				data := fixture.Log
-				json := fixture.JSON
-
-				l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
-				c.So(err, ShouldBeNil)
-
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(l.Values().Len(), ShouldEqual, 16)
-				// TODO: found out why firstWriteExpectedData is what it is in JS test
-
-				c.So(entriesAsStrings(l.Values()), ShouldResemble, firstWriteExpectedData)
-				_ = firstWriteExpectedData
-			})
+			require.Equal(t, l.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, values.Len(), 16)
+			require.Equal(t, entriesAsStrings(values), fixture.ExpectedData)
 		})
 
-		c.Convey("fromEntryHash", FailureContinues, func(c C) {
-			c.Convey("creates a log from an entry hash", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
-				c.So(err, ShouldBeNil)
+		t.Run("creates a log from an entry with custom tiebreaker", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+			require.NoError(t, err)
 
-				data := fixture.Log
-				json := fixture.JSON
+			data := fixture.Log
+			json := fixture.JSON
 
-				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
-				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+			l, err := ipfslog.NewFromJSON(ctx, ipfs, identities[0], json, &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+			require.NoError(t, err)
 
-				_, err = log1.Join(log2, -1)
-				c.So(err, ShouldBeNil)
+			require.Equal(t, l.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, l.Values().Len(), 16)
+			// TODO: found out why firstWriteExpectedData is what it is in JS test
 
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(log1.Values().Len(), ShouldEqual, 16)
-				c.So(entriesAsStrings(log1.Values()), ShouldResemble, fixture.ExpectedData)
-			})
+			require.Equal(t, entriesAsStrings(l.Values()), firstWriteExpectedData)
+			_ = firstWriteExpectedData
+		})
+	})
 
-			c.Convey("creates a log from an entry hash with custom tiebreaker", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
-				c.So(err, ShouldBeNil)
+	t.Run("fromEntryHash", func(t *testing.T) {
+		t.Run("creates a log from an entry hash", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+			require.NoError(t, err)
 
-				data := fixture.Log
-				json := fixture.JSON
+			data := fixture.Log
+			json := fixture.JSON
 
-				log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
-				log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+			log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
+			log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X"}, &ipfslog.FetchOptions{})
 
-				_, err = log1.Join(log2, -1)
-				c.So(err, ShouldBeNil)
+			_, err = log1.Join(log2, -1)
+			require.NoError(t, err)
 
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(log1.Values().Len(), ShouldEqual, 16)
-				c.So(entriesAsStrings(log1.Values()), ShouldResemble, firstWriteExpectedData)
-			})
+			require.Equal(t, log1.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, log1.Values().Len(), 16)
+			require.Equal(t, entriesAsStrings(log1.Values()), fixture.ExpectedData)
 		})
 
-		c.Convey("fromEntry", FailureContinues, func(c C) {
-			resortedIdentities := []*idp.Identity{identities[2], identities[1], identities[0], identities[3]}
+		t.Run("creates a log from an entry hash with custom tiebreaker", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+			require.NoError(t, err)
 
-			c.Convey("creates a log from an entry", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
+			data := fixture.Log
+			json := fixture.JSON
 
-				data := fixture.Log
+			log1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[0], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
+			log2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identities[0], json.Heads[1], &ipfslog.LogOptions{ID: "X", SortFn: sorting.FirstWriteWins}, &ipfslog.FetchOptions{})
 
-				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
-				c.So(err, ShouldBeNil)
+			_, err = log1.Join(log2, -1)
+			require.NoError(t, err)
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(l.Values().Len(), ShouldEqual, 16)
-				c.So(entriesAsStrings(l.Values()), ShouldResemble, fixture.ExpectedData)
-			})
+			require.Equal(t, log1.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, log1.Values().Len(), 16)
+			require.Equal(t, entriesAsStrings(log1.Values()), firstWriteExpectedData)
+		})
+	})
 
-			c.Convey("creates a log from an entry with custom tiebreaker", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
+	t.Run("fromEntry", func(t *testing.T) {
+		resortedIdentities := []*idp.Identity{identities[2], identities[1], identities[0], identities[3]}
 
-				data := fixture.Log
+		t.Run("creates a log from an entry", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
 
-				l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
-				c.So(err, ShouldBeNil)
+			data := fixture.Log
 
-				c.So(l.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(l.Values().Len(), ShouldEqual, 16)
-				c.So(entriesAsStrings(l.Values()), ShouldResemble, firstWriteExpectedData)
-			})
+			l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{})
+			require.NoError(t, err)
 
-			c.Convey("keeps the original heads", FailureContinues, func(c C) {
-				fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
+			require.Equal(t, l.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, l.Values().Len(), 16)
+			require.Equal(t, entriesAsStrings(l.Values()), fixture.ExpectedData)
+		})
 
-				data := fixture.Log
+		t.Run("creates a log from an entry with custom tiebreaker", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
 
-				log1, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
+			data := fixture.Log
 
-				c.So(err, ShouldBeNil)
-				c.So(log1.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(log1.Values().Len(), ShouldEqual, data.Heads().Len())
-				c.So(string(log1.Values().At(0).GetPayload()), ShouldEqual, "entryC0")
-				c.So(string(log1.Values().At(1).GetPayload()), ShouldEqual, "entryA10")
+			l, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{SortFn: sorting.FirstWriteWins}, &entry.FetchOptions{Length: intPtr(-1)})
+			require.NoError(t, err)
 
-				log2, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
+			require.Equal(t, l.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, l.Values().Len(), 16)
+			require.Equal(t, entriesAsStrings(l.Values()), firstWriteExpectedData)
+		})
 
-				c.So(err, ShouldBeNil)
-				c.So(log2.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(log2.Values().Len(), ShouldEqual, 4)
-				c.So(string(log2.Values().At(0).GetPayload()), ShouldEqual, "entryC0")
-				c.So(string(log2.Values().At(1).GetPayload()), ShouldEqual, "entryA8")
-				c.So(string(log2.Values().At(2).GetPayload()), ShouldEqual, "entryA9")
-				c.So(string(log2.Values().At(3).GetPayload()), ShouldEqual, "entryA10")
+		t.Run("keeps the original heads", func(t *testing.T) {
+			fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
 
-				log3, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
+			data := fixture.Log
 
-				c.So(err, ShouldBeNil)
-				c.So(log3.ID, ShouldEqual, data.Heads().At(0).GetLogID())
-				c.So(log3.Values().Len(), ShouldEqual, 7)
-				c.So(string(log3.Values().At(0).GetPayload()), ShouldEqual, "entryB5")
-				c.So(string(log3.Values().At(1).GetPayload()), ShouldEqual, "entryA6")
-				c.So(string(log3.Values().At(2).GetPayload()), ShouldEqual, "entryC0")
-				c.So(string(log3.Values().At(3).GetPayload()), ShouldEqual, "entryA7")
-				c.So(string(log3.Values().At(4).GetPayload()), ShouldEqual, "entryA8")
-				c.So(string(log3.Values().At(5).GetPayload()), ShouldEqual, "entryA9")
-				c.So(string(log3.Values().At(6).GetPayload()), ShouldEqual, "entryA10")
-			})
+			log1, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(data.Heads().Len())})
 
-			c.Convey("onProgress callback is fired for each entry", FailureContinues, func(c C) {
-				// TODO: skipped
-			})
+			require.NoError(t, err)
+			require.Equal(t, log1.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, log1.Values().Len(), data.Heads().Len())
+			require.Equal(t, string(log1.Values().At(0).GetPayload()), "entryC0")
+			require.Equal(t, string(log1.Values().At(1).GetPayload()), "entryA10")
 
-			c.Convey("retrieves partial log from an entry hash", FailureContinues, func(c C) {
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
+			log2, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(4)})
 
-				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
+			require.NoError(t, err)
+			require.Equal(t, log2.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, log2.Values().Len(), 4)
+			require.Equal(t, string(log2.Values().At(0).GetPayload()), "entryC0")
+			require.Equal(t, string(log2.Values().At(1).GetPayload()), "entryA8")
+			require.Equal(t, string(log2.Values().At(2).GetPayload()), "entryA9")
+			require.Equal(t, string(log2.Values().At(3).GetPayload()), "entryA10")
 
-				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
+			log3, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], data.Heads().Slice(), &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(7)})
 
-				var items1 []iface.IPFSLogEntry
-				var items2 []iface.IPFSLogEntry
-				var items3 []iface.IPFSLogEntry
+			require.NoError(t, err)
+			require.Equal(t, log3.ID, data.Heads().At(0).GetLogID())
+			require.Equal(t, log3.Values().Len(), 7)
+			require.Equal(t, string(log3.Values().At(0).GetPayload()), "entryB5")
+			require.Equal(t, string(log3.Values().At(1).GetPayload()), "entryA6")
+			require.Equal(t, string(log3.Values().At(2).GetPayload()), "entryC0")
+			require.Equal(t, string(log3.Values().At(3).GetPayload()), "entryA7")
+			require.Equal(t, string(log3.Values().At(4).GetPayload()), "entryA8")
+			require.Equal(t, string(log3.Values().At(5).GetPayload()), "entryA9")
+			require.Equal(t, string(log3.Values().At(6).GetPayload()), "entryA10")
+		})
 
-				const amount = 100
-				for i := 1; i <= amount; i++ {
-					prev1 := lastEntry(items1)
-					prev2 := lastEntry(items2)
-					prev3 := lastEntry(items3)
+		t.Run("onProgress callback is fired for each entry", func(t *testing.T) {
+			// TODO: skipped
+		})
 
-					var nexts []cid.Cid
-					if prev1 != nil {
-						nexts = []cid.Cid{prev1.GetHash()}
-					}
+		t.Run("retrieves partial log from an entry hash", func(t *testing.T) {
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
 
-					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
+			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
 
-					if prev2 != nil {
-						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash}
-					}
+			log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
 
-					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
+			var items1 []iface.IPFSLogEntry
+			var items2 []iface.IPFSLogEntry
+			var items3 []iface.IPFSLogEntry
 
-					if prev3 != nil {
-						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash, n2.Hash}
-					}
+			const amount = 100
+			for i := 1; i <= amount; i++ {
+				prev1 := lastEntry(items1)
+				prev2 := lastEntry(items2)
+				prev3 := lastEntry(items3)
 
-					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					items1 = append(items1, n1)
-					items2 = append(items2, n2)
-					items3 = append(items3, n3)
+				var nexts []cid.Cid
+				if prev1 != nil {
+					nexts = []cid.Cid{prev1.GetHash()}
 				}
 
-				// limit to 10 entries
-				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
-				c.So(err, ShouldBeNil)
-				c.So(a.Values().Len(), ShouldEqual, 10)
-
-				// limit to 42 entries
-				b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
-				c.So(err, ShouldBeNil)
-				c.So(b.Values().Len(), ShouldEqual, 42)
-			})
-
-			c.Convey("retrieves full log from an entry hash", FailureContinues, func(c C) {
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				var items1 []iface.IPFSLogEntry
-				var items2 []iface.IPFSLogEntry
-				var items3 []iface.IPFSLogEntry
-
-				const amount = 100
-				for i := 1; i <= amount; i++ {
-					prev1 := lastEntry(items1)
-					prev2 := lastEntry(items2)
-					prev3 := lastEntry(items3)
-
-					var nexts []cid.Cid
-					if prev1 != nil {
-						nexts = []cid.Cid{prev1.GetHash()}
-					}
-
-					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev2 != nil {
-						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash}
-					}
-
-					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev3 != nil {
-						nexts = []cid.Cid{prev3.GetHash(), n2.Hash}
-					} else {
-						nexts = []cid.Cid{n2.Hash}
-					}
-
-					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					items1 = append(items1, n1)
-					items2 = append(items2, n2)
-					items3 = append(items3, n3)
-				}
-
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
-				c.So(err, ShouldBeNil)
-				c.So(lA.Values().Len(), ShouldEqual, amount)
-
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
-				c.So(err, ShouldBeNil)
-				c.So(lB.Values().Len(), ShouldEqual, amount*2)
-
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
-				c.So(err, ShouldBeNil)
-				c.So(lC.Values().Len(), ShouldEqual, amount*3)
-			})
-
-			c.Convey("retrieves full log from an entry hash 2", FailureContinues, func(c C) {
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				var items1 []iface.IPFSLogEntry
-				var items2 []iface.IPFSLogEntry
-				var items3 []iface.IPFSLogEntry
-
-				const amount = 100
-				for i := 1; i <= amount; i++ {
-					prev1 := lastEntry(items1)
-					prev2 := lastEntry(items2)
-					prev3 := lastEntry(items3)
-
-					var nexts []cid.Cid
-					if prev1 != nil {
-						nexts = []cid.Cid{prev1.GetHash()}
-					}
-
-					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev2 != nil {
-						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash}
-					}
-
-					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev3 != nil {
-						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash, n2.Hash}
-					}
-
-					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
-					c.So(err, ShouldBeNil)
-
-					items1 = append(items1, n1)
-					items2 = append(items2, n2)
-					items3 = append(items3, n3)
-				}
-
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
-				c.So(err, ShouldBeNil)
-				c.So(lA.Values().Len(), ShouldEqual, amount)
-
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
-				c.So(err, ShouldBeNil)
-				c.So(lB.Values().Len(), ShouldEqual, amount*2)
-
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
-				c.So(err, ShouldBeNil)
-				c.So(lC.Values().Len(), ShouldEqual, amount*3)
-			})
-
-			c.Convey("retrieves full log from an entry hash 3", FailureContinues, func(c C) {
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				var items1 []iface.IPFSLogEntry
-				var items2 []iface.IPFSLogEntry
-				var items3 []iface.IPFSLogEntry
-
-				const amount = 10
-				for i := 1; i <= amount; i++ {
-					prev1 := lastEntry(items1)
-					prev2 := lastEntry(items2)
-					prev3 := lastEntry(items3)
-
-					var nexts []cid.Cid
-
-					log1.Clock.Tick()
-					log2.Clock.Tick()
-					log3.Clock.Tick()
-
-					if prev1 != nil {
-						nexts = []cid.Cid{prev1.GetHash()}
-					}
-
-					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log1.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev2 != nil {
-						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash}
-					}
-
-					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
-					if prev3 != nil {
-						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
-					} else {
-						nexts = []cid.Cid{n1.Hash, n2.Hash}
-					}
-
-					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
-					log1.Clock.Merge(log2.Clock)
-					log1.Clock.Merge(log3.Clock)
-					log2.Clock.Merge(log1.Clock)
-					log2.Clock.Merge(log3.Clock)
-					log3.Clock.Merge(log1.Clock)
-					log3.Clock.Merge(log2.Clock)
-
-					items1 = append(items1, n1)
-					items2 = append(items2, n2)
-					items3 = append(items3, n3)
-				}
-
-				lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
-				c.So(err, ShouldBeNil)
-				c.So(lA.Values().Len(), ShouldEqual, amount)
-
-				itemsInB := []string{
-					"entryA1",
-					"entryB1",
-					"entryA2",
-					"entryB2",
-					"entryA3",
-					"entryB3",
-					"entryA4",
-					"entryB4",
-					"entryA5",
-					"entryB5",
-					"entryA6",
-					"entryB6",
-					"entryA7",
-					"entryB7",
-					"entryA8",
-					"entryB8",
-					"entryA9",
-					"entryB9",
-					"entryA10",
-					"entryB10",
-				}
-
-				lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
-				c.So(err, ShouldBeNil)
-				c.So(lB.Values().Len(), ShouldEqual, amount*2)
-				c.So(entriesAsStrings(lB.Values()), ShouldResemble, itemsInB)
-
-				lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[3], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
-				c.So(err, ShouldBeNil)
-
-				_, err = lC.Append(ctx, []byte("EOF"), nil)
-				c.So(err, ShouldBeNil)
-
-				c.So(lC.Values().Len(), ShouldEqual, amount*3+1)
-
-				tmp := []string{
-					"entryA1",
-					"entryB1",
-					"entryC1",
-					"entryA2",
-					"entryB2",
-					"entryC2",
-					"entryA3",
-					"entryB3",
-					"entryC3",
-					"entryA4",
-					"entryB4",
-					"entryC4",
-					"entryA5",
-					"entryB5",
-					"entryC5",
-					"entryA6",
-					"entryB6",
-					"entryC6",
-					"entryA7",
-					"entryB7",
-					"entryC7",
-					"entryA8",
-					"entryB8",
-					"entryC8",
-					"entryA9",
-					"entryB9",
-					"entryC9",
-					"entryA10",
-					"entryB10",
-					"entryC10",
-					"EOF",
-				}
-
-				c.So(entriesAsStrings(lC.Values()), ShouldResemble, tmp)
-
-				// make sure logX comes after A, B and C
-				logX, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				_, err = logX.Append(ctx, []byte{'1'}, nil)
-				c.So(err, ShouldBeNil)
-
-				_, err = logX.Append(ctx, []byte{'2'}, nil)
-				c.So(err, ShouldBeNil)
-
-				_, err = logX.Append(ctx, []byte{'3'}, nil)
-				c.So(err, ShouldBeNil)
-
-				lD, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
-				c.So(err, ShouldBeNil)
-
-				_, err = lC.Join(lD, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = lD.Join(lC, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = lC.Append(ctx, []byte("DONE"), nil)
-				c.So(err, ShouldBeNil)
-
-				_, err = lD.Append(ctx, []byte("DONE"), nil)
-				c.So(err, ShouldBeNil)
-
-				logF, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
-				c.So(err, ShouldBeNil)
-
-				logG, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
-				c.So(err, ShouldBeNil)
-
-				c.So(logF.ToString(nil), ShouldEqual, bigLogString)
-				c.So(logG.ToString(nil), ShouldEqual, bigLogString)
-			})
-
-			c.Convey("retrieves full log of randomly joined log", FailureContinues, func(c C) {
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				for i := 1; i <= 5; i++ {
-					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
-					c.So(err, ShouldBeNil)
-
-					_, err = log2.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nil)
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = log3.Join(log1, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = log3.Join(log2, -1)
-				c.So(err, ShouldBeNil)
-
-				for i := 6; i <= 10; i++ {
-					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = log1.Join(log3, -1)
-
-				for i := 11; i <= 15; i++ {
-					_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
-					c.So(err, ShouldBeNil)
-				}
-
-				expectedData := []string{"entryA1", "entryB1", "entryA2", "entryB2",
-					"entryA3", "entryB3", "entryA4", "entryB4",
-					"entryA5", "entryB5",
-					"entryA6", "entryA7", "entryA8", "entryA9", "entryA10",
-					"entryA11", "entryA12", "entryA13", "entryA14", "entryA15",
-				}
-
-				c.So(entriesAsStrings(log1.Values()), ShouldResemble, expectedData)
-			})
-
-			c.Convey("retrieves randomly joined log deterministically", FailureContinues, func(c C) {
-				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				for i := 1; i <= 5; i++ {
-					_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
-					c.So(err, ShouldBeNil)
-
-					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nil)
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = log3.Join(logA, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = log3.Join(logB, -1)
-				c.So(err, ShouldBeNil)
-
-				for i := 6; i <= 10; i++ {
-					_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = l.Join(log3, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Append(ctx, []byte("entryC0"), nil)
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Join(logA, 16)
-				c.So(err, ShouldBeNil)
-
-				expectedData := []string{
-					"entryA1", "entryB1", "entryA2", "entryB2",
-					"entryA3", "entryB3", "entryA4", "entryB4",
-					"entryA5", "entryB5",
-					"entryA6",
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(l.Values()), ShouldResemble, expectedData)
-			})
-
-			c.Convey("sorts", FailureContinues, func(c C) {
-				testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
-
-				l := testLog.Log
-				expectedData := testLog.ExpectedData
-
-				expectedData2 := []string{
-					"entryA1", "entryB1", "entryA2", "entryB2",
-					"entryA3", "entryB3", "entryA4", "entryB4",
-					"entryA5", "entryB5",
-					"entryA6", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				expectedData3 := []string{
-					"entryA1", "entryB1", "entryA2", "entryB2",
-					"entryA3", "entryB3", "entryA4", "entryB4",
-					"entryA5", "entryB5", "entryA6", "entryC0",
-					"entryA7", "entryA8", "entryA9",
-				}
-
-				expectedData4 := []string{
-					"entryA1", "entryB1", "entryA2", "entryB2",
-					"entryA3", "entryB3", "entryA4", "entryB4",
-					"entryA5", "entryA6", "entryC0", "entryA7",
-					"entryA8", "entryA9", "entryA10",
-				}
-
-				fetchOrder := l.Values().Slice()
-				sorting.Sort(sorting.Compare, fetchOrder)
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
-
-				reverseOrder := l.Values().Slice()
-				sorting.Reverse(reverseOrder)
-				sorting.Sort(sorting.Compare, reverseOrder)
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), ShouldResemble, expectedData)
-
-				hashOrder := l.Values().Slice()
-				sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
-					return strings.Compare(a.GetHash().String(), b.GetHash().String()), nil
-				}, hashOrder)
-				sorting.Sort(sorting.Compare, hashOrder)
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), ShouldResemble, expectedData)
-
-				var partialLog []iface.IPFSLogEntry
-				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.GetPayload(), []byte("entryC0")) != 0 {
-						partialLog = append(partialLog, item)
-					}
-				}
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog)), ShouldResemble, expectedData2)
-
-				var partialLog2 []iface.IPFSLogEntry
-				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.GetPayload(), []byte("entryA10")) != 0 {
-						partialLog2 = append(partialLog2, item)
-					}
-				}
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog2)), ShouldResemble, expectedData3)
-
-				var partialLog3 []iface.IPFSLogEntry
-				for _, item := range l.Values().Slice() {
-					if bytes.Compare(item.GetPayload(), []byte("entryB5")) != 0 {
-						partialLog3 = append(partialLog3, item)
-					}
-				}
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog3)), ShouldResemble, expectedData4)
-			})
-
-			c.Convey("sorts deterministically from random order", FailureContinues, func(c C) {
-				testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
-
-				l := testLog.Log
-				expectedData := testLog.ExpectedData
-
-				fetchOrder := l.Values().Slice()
-				sorting.Sort(sorting.Compare, fetchOrder)
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), ShouldResemble, expectedData)
-
-				for i := 0; i < 1000; i++ {
-					randomOrder := l.Values().Slice()
-					sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
-						return rand.Int(), nil
-					}, randomOrder)
-					sorting.Sort(sorting.Compare, randomOrder)
-
-					c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(randomOrder)), ShouldResemble, expectedData)
-				}
-			})
-
-			c.Convey("sorts entries correctly", FailureContinues, func(c C) {
-				testLog, err := CreateLogWithHundredEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
-
-				l := testLog.Log
-				expectedData := testLog.ExpectedData
-
-				c.So(entriesAsStrings(entry.NewOrderedMapFromEntries(l.Values().Slice())), ShouldResemble, expectedData)
-			})
-
-			c.Convey("sorts entries according to custom tiebreaker function", FailureContinues, func(c C) {
-				testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
-				c.So(err, ShouldBeNil)
-
-				firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
-				c.So(err, ShouldBeNil)
-
-				_, err = firstWriteWinsLog.Join(testLog.Log, -1)
-				// TODO: the error is only thrown silently when calling .Values(), should we handle it properly
-				//firstWriteWinsLog.Values()
-				//c.So(err, ShouldNotBeNil)
-			})
-
-			c.Convey("retrieves partially joined log deterministically - single next pointer", FailureContinues, func(c C) {
-				nextPointersAmount := 1
-
-				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				for i := 1; i <= 5; i++ {
-					_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-
-					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = log3.Join(logA, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = log3.Join(logB, -1)
-				c.So(err, ShouldBeNil)
-
-				for i := 6; i <= 10; i++ {
-					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = l.Join(log3, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Append(ctx, []byte("entryC0"), &iface.AppendOptions{
-					PointerCount: nextPointersAmount,
-				})
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Join(logA, -1)
-				c.So(err, ShouldBeNil)
-
-				hash, err := l.ToMultihash(ctx)
-				c.So(err, ShouldBeNil)
-
-				// First 5
-				res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
-				c.So(err, ShouldBeNil)
-
-				first5 := []string{
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
-
-				// First 11
-				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
-				c.So(err, ShouldBeNil)
-
-				first11 := []string{
-					"entryB3", "entryA4", "entryB4",
-					"entryA5", "entryB5",
-					"entryA6",
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
-
-				// All but one
-				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
-				c.So(err, ShouldBeNil)
-
-				all := []string{
-					/* excl */ "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
-					"entryA4", "entryB4", "entryA5", "entryB5",
-					"entryA6",
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, all)
-
-			})
-
-			c.Convey("retrieves partially joined log deterministically - multiple next pointers", FailureContinues, func(c C) {
-				nextPointersAmount := 64
-
-				logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-				l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				for i := 1; i <= 5; i++ {
-					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-				}
-
-				for i := 1; i <= 5; i++ {
-					_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = log3.Join(logA, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = log3.Join(logB, -1)
-				c.So(err, ShouldBeNil)
-
-				for i := 6; i <= 10; i++ {
-					_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
-						PointerCount: nextPointersAmount,
-					})
-					c.So(err, ShouldBeNil)
-				}
-
-				_, err = l.Join(log3, -1)
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Append(ctx, []byte("entryC0"), &iface.AppendOptions{
-					PointerCount: nextPointersAmount,
-				})
-				c.So(err, ShouldBeNil)
-
-				_, err = l.Join(logA, -1)
-				c.So(err, ShouldBeNil)
-
-				hash, err := l.ToMultihash(ctx)
-
-				// First 5
-				res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
-				c.So(err, ShouldBeNil)
-
-				first5 := []string{
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, first5)
-
-				// First 11
-				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
-				c.So(err, ShouldBeNil)
-
-				first11 := []string{
-					"entryB3", "entryA4", "entryB4", "entryA5",
-					"entryB5", "entryA6",
-					"entryC0",
-					"entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, first11)
-
-				// All but one
-				res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
-				c.So(err, ShouldBeNil)
-
-				all := []string{
-					/* excl */ "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
-					"entryA4", "entryB4", "entryA5", "entryB5",
-					"entryA6",
-					"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
-				}
-
-				c.So(entriesAsStrings(res.Values()), ShouldResemble, all)
-			})
-
-			c.Convey("throws an error if ipfs is not defined", FailureContinues, func(c C) {
-				_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []iface.IPFSLogEntry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
-				c.So(err, ShouldNotBeNil)
-				c.So(err.Error(), ShouldContainSubstring, errmsg.ErrIPFSNotDefined.Error())
-			})
-
-			c.Convey("fetches a log", FailureContinues, func(c C) {
-				const amount = 100
-
-				ts := time.Now().UnixNano() / 1000
-				log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
-				c.So(err, ShouldBeNil)
-
-				var items1 []iface.IPFSLogEntry
-				var items2 []iface.IPFSLogEntry
-				var items3 []iface.IPFSLogEntry
-
-				for i := 1; i <= amount; i++ {
-					var nexts []cid.Cid
-					prev1 := lastEntry(items1)
-					prev2 := lastEntry(items2)
-					prev3 := lastEntry(items3)
-
-					if prev1 != nil {
-						nexts = []cid.Cid{prev1.GetHash()}
-					}
-
-					n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log1.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
+				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				if prev2 != nil {
+					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+				} else {
 					nexts = []cid.Cid{n1.Hash}
-					if prev2 != nil {
-						nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
-					}
-
-					n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
-					nexts = []cid.Cid{n1.Hash, n2.Hash}
-					if prev2 != nil {
-						nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
-					}
-
-					n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
-					c.So(err, ShouldBeNil)
-
-					log1.Clock.Tick()
-					log2.Clock.Tick()
-					log3.Clock.Tick()
-					log1.Clock.Merge(log2.Clock)
-					log1.Clock.Merge(log3.Clock)
-					log2.Clock.Merge(log1.Clock)
-					log2.Clock.Merge(log3.Clock)
-					log3.Clock.Merge(log1.Clock)
-					log3.Clock.Merge(log2.Clock)
-					items1 = append(items1, n1)
-					items2 = append(items2, n2)
-					items3 = append(items3, n3)
 				}
 
-				c.Convey("returns all entries - no excluded entries", FailureContinues, func(c C) {
-					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
-					c.So(err, ShouldBeNil)
+				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
 
-					c.So(a.Values().Len(), ShouldEqual, amount)
-					c.So(a.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
+				if prev3 != nil {
+					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash, n2.Hash}
+				}
+
+				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				items1 = append(items1, n1)
+				items2 = append(items2, n2)
+				items3 = append(items3, n3)
+			}
+
+			// limit to 10 entries
+			a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(10)})
+			require.NoError(t, err)
+			require.Equal(t, a.Values().Len(), 10)
+
+			// limit to 42 entries
+			b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(42)})
+			require.NoError(t, err)
+			require.Equal(t, b.Values().Len(), 42)
+		})
+
+		t.Run("retrieves full log from an entry hash", func(t *testing.T) {
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			var items1 []iface.IPFSLogEntry
+			var items2 []iface.IPFSLogEntry
+			var items3 []iface.IPFSLogEntry
+
+			const amount = 100
+			for i := 1; i <= amount; i++ {
+				prev1 := lastEntry(items1)
+				prev2 := lastEntry(items2)
+				prev3 := lastEntry(items3)
+
+				var nexts []cid.Cid
+				if prev1 != nil {
+					nexts = []cid.Cid{prev1.GetHash()}
+				}
+
+				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				if prev2 != nil {
+					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash}
+				}
+
+				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				if prev3 != nil {
+					nexts = []cid.Cid{prev3.GetHash(), n2.Hash}
+				} else {
+					nexts = []cid.Cid{n2.Hash}
+				}
+
+				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				items1 = append(items1, n1)
+				items2 = append(items2, n2)
+				items3 = append(items3, n3)
+			}
+
+			lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+			require.NoError(t, err)
+			require.Equal(t, lA.Values().Len(), amount)
+
+			lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+			require.NoError(t, err)
+			require.Equal(t, lB.Values().Len(), amount*2)
+
+			lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+			require.NoError(t, err)
+			require.Equal(t, lC.Values().Len(), amount*3)
+		})
+
+		t.Run("retrieves full log from an entry hash 2", func(t *testing.T) {
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			var items1 []iface.IPFSLogEntry
+			var items2 []iface.IPFSLogEntry
+			var items3 []iface.IPFSLogEntry
+
+			const amount = 100
+			for i := 1; i <= amount; i++ {
+				prev1 := lastEntry(items1)
+				prev2 := lastEntry(items2)
+				prev3 := lastEntry(items3)
+
+				var nexts []cid.Cid
+				if prev1 != nil {
+					nexts = []cid.Cid{prev1.GetHash()}
+				}
+
+				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				if prev2 != nil {
+					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash}
+				}
+
+				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				if prev3 != nil {
+					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash, n2.Hash}
+				}
+
+				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
+				require.NoError(t, err)
+
+				items1 = append(items1, n1)
+				items2 = append(items2, n2)
+				items3 = append(items3, n3)
+			}
+
+			lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+			require.NoError(t, err)
+			require.Equal(t, lA.Values().Len(), amount)
+
+			lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+			require.NoError(t, err)
+			require.Equal(t, lB.Values().Len(), amount*2)
+
+			lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+			require.NoError(t, err)
+			require.Equal(t, lC.Values().Len(), amount*3)
+		})
+
+		t.Run("retrieves full log from an entry hash 3", func(t *testing.T) {
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			var items1 []iface.IPFSLogEntry
+			var items2 []iface.IPFSLogEntry
+			var items3 []iface.IPFSLogEntry
+
+			const amount = 10
+			for i := 1; i <= amount; i++ {
+				prev1 := lastEntry(items1)
+				prev2 := lastEntry(items2)
+				prev3 := lastEntry(items3)
+
+				var nexts []cid.Cid
+
+				log1.Clock.Tick()
+				log2.Clock.Tick()
+				log3.Clock.Tick()
+
+				if prev1 != nil {
+					nexts = []cid.Cid{prev1.GetHash()}
+				}
+
+				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryA%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log1.Clock)}, nil)
+				require.NoError(t, err)
+
+				if prev2 != nil {
+					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash}
+				}
+
+				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
+				require.NoError(t, err)
+
+				if prev3 != nil {
+					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+				} else {
+					nexts = []cid.Cid{n1.Hash, n2.Hash}
+				}
+
+				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
+				require.NoError(t, err)
+
+				log1.Clock.Merge(log2.Clock)
+				log1.Clock.Merge(log3.Clock)
+				log2.Clock.Merge(log1.Clock)
+				log2.Clock.Merge(log3.Clock)
+				log3.Clock.Merge(log1.Clock)
+				log3.Clock.Merge(log2.Clock)
+
+				items1 = append(items1, n1)
+				items2 = append(items2, n2)
+				items3 = append(items3, n3)
+			}
+
+			lA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 1)})
+			require.NoError(t, err)
+			require.Equal(t, lA.Values().Len(), amount)
+
+			itemsInB := []string{
+				"entryA1",
+				"entryB1",
+				"entryA2",
+				"entryB2",
+				"entryA3",
+				"entryB3",
+				"entryA4",
+				"entryB4",
+				"entryA5",
+				"entryB5",
+				"entryA6",
+				"entryB6",
+				"entryA7",
+				"entryB7",
+				"entryA8",
+				"entryB8",
+				"entryA9",
+				"entryB9",
+				"entryA10",
+				"entryB10",
+			}
+
+			lB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[1], []iface.IPFSLogEntry{lastEntry(items2)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 2)})
+			require.NoError(t, err)
+			require.Equal(t, lB.Values().Len(), amount*2)
+			require.Equal(t, entriesAsStrings(lB.Values()), itemsInB)
+
+			lC, err := ipfslog.NewFromEntry(ctx, ipfs, identities[3], []iface.IPFSLogEntry{lastEntry(items3)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(amount * 3)})
+			require.NoError(t, err)
+
+			_, err = lC.Append(ctx, []byte("EOF"), nil)
+			require.NoError(t, err)
+
+			require.Equal(t, lC.Values().Len(), amount*3+1)
+
+			tmp := []string{
+				"entryA1",
+				"entryB1",
+				"entryC1",
+				"entryA2",
+				"entryB2",
+				"entryC2",
+				"entryA3",
+				"entryB3",
+				"entryC3",
+				"entryA4",
+				"entryB4",
+				"entryC4",
+				"entryA5",
+				"entryB5",
+				"entryC5",
+				"entryA6",
+				"entryB6",
+				"entryC6",
+				"entryA7",
+				"entryB7",
+				"entryC7",
+				"entryA8",
+				"entryB8",
+				"entryC8",
+				"entryA9",
+				"entryB9",
+				"entryC9",
+				"entryA10",
+				"entryB10",
+				"entryC10",
+				"EOF",
+			}
+
+			require.Equal(t, entriesAsStrings(lC.Values()), tmp)
+
+			// make sure logX comes after A, B and C
+			logX, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			_, err = logX.Append(ctx, []byte{'1'}, nil)
+			require.NoError(t, err)
+
+			_, err = logX.Append(ctx, []byte{'2'}, nil)
+			require.NoError(t, err)
+
+			_, err = logX.Append(ctx, []byte{'3'}, nil)
+			require.NoError(t, err)
+
+			lD, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(logX.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+			require.NoError(t, err)
+
+			_, err = lC.Join(lD, -1)
+			require.NoError(t, err)
+
+			_, err = lD.Join(lC, -1)
+			require.NoError(t, err)
+
+			_, err = lC.Append(ctx, []byte("DONE"), nil)
+			require.NoError(t, err)
+
+			_, err = lD.Append(ctx, []byte("DONE"), nil)
+			require.NoError(t, err)
+
+			logF, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lC.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+			require.NoError(t, err)
+
+			logG, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{lastEntry(lD.Values().Slice())}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1), Exclude: nil})
+			require.NoError(t, err)
+
+			require.Equal(t, logF.ToString(nil), bigLogString)
+			require.Equal(t, logG.ToString(nil), bigLogString)
+		})
+
+		t.Run("retrieves full log of randomly joined log", func(t *testing.T) {
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			for i := 1; i <= 5; i++ {
+				_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
+				require.NoError(t, err)
+
+				_, err = log2.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nil)
+				require.NoError(t, err)
+			}
+
+			_, err = log3.Join(log1, -1)
+			require.NoError(t, err)
+
+			_, err = log3.Join(log2, -1)
+			require.NoError(t, err)
+
+			for i := 6; i <= 10; i++ {
+				_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
+				require.NoError(t, err)
+			}
+
+			_, err = log1.Join(log3, -1)
+
+			for i := 11; i <= 15; i++ {
+				_, err := log1.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
+				require.NoError(t, err)
+			}
+
+			expectedData := []string{"entryA1", "entryB1", "entryA2", "entryB2",
+				"entryA3", "entryB3", "entryA4", "entryB4",
+				"entryA5", "entryB5",
+				"entryA6", "entryA7", "entryA8", "entryA9", "entryA10",
+				"entryA11", "entryA12", "entryA13", "entryA14", "entryA15",
+			}
+
+			require.Equal(t, entriesAsStrings(log1.Values()), expectedData)
+		})
+
+		t.Run("retrieves randomly joined log deterministically", func(t *testing.T) {
+			logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			for i := 1; i <= 5; i++ {
+				_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
+				require.NoError(t, err)
+
+				_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), nil)
+				require.NoError(t, err)
+			}
+
+			_, err = log3.Join(logA, -1)
+			require.NoError(t, err)
+
+			_, err = log3.Join(logB, -1)
+			require.NoError(t, err)
+
+			for i := 6; i <= 10; i++ {
+				_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), nil)
+				require.NoError(t, err)
+			}
+
+			_, err = l.Join(log3, -1)
+			require.NoError(t, err)
+
+			_, err = l.Append(ctx, []byte("entryC0"), nil)
+			require.NoError(t, err)
+
+			_, err = l.Join(logA, 16)
+			require.NoError(t, err)
+
+			expectedData := []string{
+				"entryA1", "entryB1", "entryA2", "entryB2",
+				"entryA3", "entryB3", "entryA4", "entryB4",
+				"entryA5", "entryB5",
+				"entryA6",
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(l.Values()), expectedData)
+		})
+
+		t.Run("sorts", func(t *testing.T) {
+			testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
+
+			l := testLog.Log
+			expectedData := testLog.ExpectedData
+
+			expectedData2 := []string{
+				"entryA1", "entryB1", "entryA2", "entryB2",
+				"entryA3", "entryB3", "entryA4", "entryB4",
+				"entryA5", "entryB5",
+				"entryA6", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			expectedData3 := []string{
+				"entryA1", "entryB1", "entryA2", "entryB2",
+				"entryA3", "entryB3", "entryA4", "entryB4",
+				"entryA5", "entryB5", "entryA6", "entryC0",
+				"entryA7", "entryA8", "entryA9",
+			}
+
+			expectedData4 := []string{
+				"entryA1", "entryB1", "entryA2", "entryB2",
+				"entryA3", "entryB3", "entryA4", "entryB4",
+				"entryA5", "entryA6", "entryC0", "entryA7",
+				"entryA8", "entryA9", "entryA10",
+			}
+
+			fetchOrder := l.Values().Slice()
+			sorting.Sort(sorting.Compare, fetchOrder)
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), expectedData)
+
+			reverseOrder := l.Values().Slice()
+			sorting.Reverse(reverseOrder)
+			sorting.Sort(sorting.Compare, reverseOrder)
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), expectedData)
+
+			hashOrder := l.Values().Slice()
+			sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
+				return strings.Compare(a.GetHash().String(), b.GetHash().String()), nil
+			}, hashOrder)
+			sorting.Sort(sorting.Compare, hashOrder)
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), expectedData)
+
+			var partialLog []iface.IPFSLogEntry
+			for _, item := range l.Values().Slice() {
+				if bytes.Compare(item.GetPayload(), []byte("entryC0")) != 0 {
+					partialLog = append(partialLog, item)
+				}
+			}
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog)), expectedData2)
+
+			var partialLog2 []iface.IPFSLogEntry
+			for _, item := range l.Values().Slice() {
+				if bytes.Compare(item.GetPayload(), []byte("entryA10")) != 0 {
+					partialLog2 = append(partialLog2, item)
+				}
+			}
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog2)), expectedData3)
+
+			var partialLog3 []iface.IPFSLogEntry
+			for _, item := range l.Values().Slice() {
+				if bytes.Compare(item.GetPayload(), []byte("entryB5")) != 0 {
+					partialLog3 = append(partialLog3, item)
+				}
+			}
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(partialLog3)), expectedData4)
+		})
+
+		t.Run("sorts deterministically from random order", func(t *testing.T) {
+			testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
+
+			l := testLog.Log
+			expectedData := testLog.ExpectedData
+
+			fetchOrder := l.Values().Slice()
+			sorting.Sort(sorting.Compare, fetchOrder)
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), expectedData)
+
+			for i := 0; i < 1000; i++ {
+				randomOrder := l.Values().Slice()
+				sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
+					return rand.Int(), nil
+				}, randomOrder)
+				sorting.Sort(sorting.Compare, randomOrder)
+
+				require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(randomOrder)), expectedData)
+			}
+		})
+
+		t.Run("sorts entries correctly", func(t *testing.T) {
+			testLog, err := CreateLogWithHundredEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
+
+			l := testLog.Log
+			expectedData := testLog.ExpectedData
+
+			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(l.Values().Slice())), expectedData)
+		})
+
+		t.Run("sorts entries according to custom tiebreaker function", func(t *testing.T) {
+			testLog, err := CreateLogWithSixteenEntries(ctx, ipfs, resortedIdentities)
+			require.NoError(t, err)
+
+			firstWriteWinsLog, err := ipfslog.NewLog(ipfs, resortedIdentities[0], &ipfslog.LogOptions{ID: "X", SortFn: BadComparatorReturnsZero})
+			require.NoError(t, err)
+
+			_, err = firstWriteWinsLog.Join(testLog.Log, -1)
+			// TODO: the error is only thrown silently when calling .Values(), should we handle it properly
+			//firstWriteWinsLog.Values()
+			//require.NotNil(t, err)
+		})
+
+		t.Run("retrieves partially joined log deterministically - single next pointer", func(t *testing.T) {
+			nextPointersAmount := 1
+
+			logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			for i := 1; i <= 5; i++ {
+				_, err := logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
 				})
+				require.NoError(t, err)
 
-				c.Convey("returns all entries - including excluded entries", FailureContinues, func(c C) {
-					// One entry
-					a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []iface.IPFSLogEntry{items1[0]}, Length: intPtr(-1)})
-					c.So(err, ShouldBeNil)
-
-					c.So(a.Values().Len(), ShouldEqual, amount)
-					c.So(a.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
-
-					// All entries
-					b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
-					c.So(err, ShouldBeNil)
-
-					c.So(b.Values().Len(), ShouldEqual, amount)
-					c.So(b.Values().At(0).GetHash().String(), ShouldEqual, items1[0].GetHash().String())
+				_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
 				})
+				require.NoError(t, err)
+			}
+
+			_, err = log3.Join(logA, -1)
+			require.NoError(t, err)
+
+			_, err = log3.Join(logB, -1)
+			require.NoError(t, err)
+
+			for i := 6; i <= 10; i++ {
+				_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
+				})
+				require.NoError(t, err)
+			}
+
+			_, err = l.Join(log3, -1)
+			require.NoError(t, err)
+
+			_, err = l.Append(ctx, []byte("entryC0"), &iface.AppendOptions{
+				PointerCount: nextPointersAmount,
+			})
+			require.NoError(t, err)
+
+			_, err = l.Join(logA, -1)
+			require.NoError(t, err)
+
+			hash, err := l.ToMultihash(ctx)
+			require.NoError(t, err)
+
+			// First 5
+			res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
+			require.NoError(t, err)
+
+			first5 := []string{
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), first5)
+
+			// First 11
+			res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
+			require.NoError(t, err)
+
+			first11 := []string{
+				"entryB3", "entryA4", "entryB4",
+				"entryA5", "entryB5",
+				"entryA6",
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), first11)
+
+			// All but one
+			res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
+			require.NoError(t, err)
+
+			all := []string{
+				/* excl */ "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
+				"entryA4", "entryB4", "entryA5", "entryB5",
+				"entryA6",
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), all)
+
+		})
+
+		t.Run("retrieves partially joined log deterministically - multiple next pointers", func(t *testing.T) {
+			nextPointersAmount := 64
+
+			logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			logB, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			log3, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+			l, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			for i := 1; i <= 5; i++ {
+				_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
+				})
+				require.NoError(t, err)
+			}
+
+			for i := 1; i <= 5; i++ {
+				_, err = logB.Append(ctx, []byte(fmt.Sprintf("entryB%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
+				})
+				require.NoError(t, err)
+			}
+
+			_, err = log3.Join(logA, -1)
+			require.NoError(t, err)
+
+			_, err = log3.Join(logB, -1)
+			require.NoError(t, err)
+
+			for i := 6; i <= 10; i++ {
+				_, err = logA.Append(ctx, []byte(fmt.Sprintf("entryA%d", i)), &iface.AppendOptions{
+					PointerCount: nextPointersAmount,
+				})
+				require.NoError(t, err)
+			}
+
+			_, err = l.Join(log3, -1)
+			require.NoError(t, err)
+
+			_, err = l.Append(ctx, []byte("entryC0"), &iface.AppendOptions{
+				PointerCount: nextPointersAmount,
+			})
+			require.NoError(t, err)
+
+			_, err = l.Join(logA, -1)
+			require.NoError(t, err)
+
+			hash, err := l.ToMultihash(ctx)
+
+			// First 5
+			res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(5)})
+			require.NoError(t, err)
+
+			first5 := []string{
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), first5)
+
+			// First 11
+			res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(11)})
+			require.NoError(t, err)
+
+			first11 := []string{
+				"entryB3", "entryA4", "entryB4", "entryA5",
+				"entryB5", "entryA6",
+				"entryC0",
+				"entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), first11)
+
+			// All but one
+			res, err = ipfslog.NewFromMultihash(ctx, ipfs, identities[1], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(16 - 1)})
+			require.NoError(t, err)
+
+			all := []string{
+				/* excl */ "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
+				"entryA4", "entryB4", "entryA5", "entryB5",
+				"entryA6",
+				"entryC0", "entryA7", "entryA8", "entryA9", "entryA10",
+			}
+
+			require.Equal(t, entriesAsStrings(res.Values()), all)
+		})
+
+		t.Run("throws an error if ipfs is not defined", func(t *testing.T) {
+			_, err := ipfslog.NewFromEntry(ctx, nil, identities[0], []iface.IPFSLogEntry{}, &ipfslog.LogOptions{ID: "X"}, &entry.FetchOptions{})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), errmsg.ErrIPFSNotDefined.Error())
+		})
+
+		t.Run("fetches a log", func(t *testing.T) {
+			const amount = 100
+
+			ts := time.Now().UnixNano() / 1000
+			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+			require.NoError(t, err)
+
+			var items1 []iface.IPFSLogEntry
+			var items2 []iface.IPFSLogEntry
+			var items3 []iface.IPFSLogEntry
+
+			for i := 1; i <= amount; i++ {
+				var nexts []cid.Cid
+				prev1 := lastEntry(items1)
+				prev2 := lastEntry(items2)
+				prev3 := lastEntry(items3)
+
+				if prev1 != nil {
+					nexts = []cid.Cid{prev1.GetHash()}
+				}
+
+				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log1.Clock)}, nil)
+				require.NoError(t, err)
+
+				nexts = []cid.Cid{n1.Hash}
+				if prev2 != nil {
+					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+				}
+
+				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
+				require.NoError(t, err)
+
+				nexts = []cid.Cid{n1.Hash, n2.Hash}
+				if prev2 != nil {
+					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+				}
+
+				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
+				require.NoError(t, err)
+
+				log1.Clock.Tick()
+				log2.Clock.Tick()
+				log3.Clock.Tick()
+				log1.Clock.Merge(log2.Clock)
+				log1.Clock.Merge(log3.Clock)
+				log2.Clock.Merge(log1.Clock)
+				log2.Clock.Merge(log3.Clock)
+				log3.Clock.Merge(log1.Clock)
+				log3.Clock.Merge(log2.Clock)
+				items1 = append(items1, n1)
+				items2 = append(items2, n2)
+				items3 = append(items3, n3)
+			}
+
+			t.Run("returns all entries - no excluded entries", func(t *testing.T) {
+				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Length: intPtr(-1)})
+				require.NoError(t, err)
+
+				require.Equal(t, a.Values().Len(), amount)
+				require.Equal(t, a.Values().At(0).GetHash().String(), items1[0].GetHash().String())
 			})
 
-			c.Convey("respects timeout parameter", func(c C) {
-				// TODO
+			t.Run("returns all entries - including excluded entries", func(t *testing.T) {
+				// One entry
+				a, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: []iface.IPFSLogEntry{items1[0]}, Length: intPtr(-1)})
+				require.NoError(t, err)
+
+				require.Equal(t, a.Values().Len(), amount)
+				require.Equal(t, a.Values().At(0).GetHash().String(), items1[0].GetHash().String())
+
+				// All entries
+				b, err := ipfslog.NewFromEntry(ctx, ipfs, identities[0], []iface.IPFSLogEntry{lastEntry(items1)}, &ipfslog.LogOptions{}, &entry.FetchOptions{Exclude: items1, Length: intPtr(-1)})
+				require.NoError(t, err)
+
+				require.Equal(t, b.Values().Len(), amount)
+				require.Equal(t, b.Values().At(0).GetHash().String(), items1[0].GetHash().String())
 			})
+		})
+
+		t.Run("respects timeout parameter", func(t *testing.T) {
+			// TODO
 		})
 	})
 }

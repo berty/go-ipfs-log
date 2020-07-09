@@ -1,14 +1,12 @@
-package test // import "berty.tech/go-ipfs-log/test/logcreator"
+package test
 
 import (
 	"context"
 	"fmt"
 
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
-
 	ipfslog "berty.tech/go-ipfs-log"
-
 	idp "berty.tech/go-ipfs-log/identityprovider"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 )
 
 type CreatedLog struct {

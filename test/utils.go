@@ -4,9 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/ipfs/go-cid"
+	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
-	"github.com/multiformats/go-multibase"
+	multibase "github.com/multiformats/go-multibase"
+	"github.com/stretchr/testify/require"
 )
 
 func NewIdentityDataStore(t testing.TB) ds.Datastore {
@@ -26,9 +27,7 @@ func NewIdentityDataStore(t testing.TB) ds.Datastore {
 	dataStore := ds.NewMapDatastore()
 	for k, v := range identityKeys {
 		err := dataStore.Put(ds.NewKey(k), v)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	}
 
 	return dataStore
@@ -38,9 +37,7 @@ func CidB32(t testing.TB, b58CID string) string {
 	t.Helper()
 
 	c, err := cid.Parse(b58CID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return c.Encode(multibase.MustNewEncoder(multibase.Base32))
 }
@@ -49,10 +46,7 @@ func MustCID(t testing.TB, s string) cid.Cid {
 	t.Helper()
 
 	c, err := cid.Decode(s)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return c
 }
@@ -60,9 +54,7 @@ func MustBytesFromHex(t testing.TB, s string) []byte {
 	t.Helper()
 
 	b, err := hex.DecodeString(s)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return b
 }

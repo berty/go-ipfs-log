@@ -3,10 +3,9 @@ package test
 import (
 	"testing"
 
-	"github.com/ipfs/go-cid"
-
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/identityprovider"
+	cid "github.com/ipfs/go-cid"
 )
 
 func getEntriesV1Fixtures(t *testing.T, id *identityprovider.Identity) []entry.Entry {
