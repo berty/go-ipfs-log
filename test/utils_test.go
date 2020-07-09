@@ -28,7 +28,9 @@ func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (co
 	api, err := coreapi.NewCoreAPI(core)
 	require.NoError(t, err)
 
-	close := func() { core.Close() }
+	close := func() {
+		core.Close()
+	}
 	return api, close
 }
 

@@ -17,4 +17,5 @@ require (
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/polydawn/refmt v0.0.0-20190408063855-01bf1e26dd14
 	github.com/stretchr/testify v1.6.1
+	go.uber.org/goleak v1.0.0
 )
