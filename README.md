@@ -7,10 +7,8 @@
 <h3 align="center">🤝 Go version of append-only log CRDT on IPFS.</h3>
 
 <p align="center">
-  <a href="https://circleci.com/gh/berty/go-ipfs-log">
-    <img src="https://circleci.com/gh/berty/go-ipfs-log.svg?style=svg"
-         alt="Build Status">
-  </a>
+  <a href="https://github.com/berty/go-ipfs-log/actions?query=workflow%3AGo"><img src="https://github.com/berty/go-ipfs-log/workflows/Go/badge.svg" /></a>
+  <a href="https://github.com/berty/go-ipfs-log/actions?query=workflow%3ARelease"><img src="https://github.com/berty/go-ipfs-log/workflows/Release/badge.svg" /></a>
   <a href="https://www.codefactor.io/repository/github/berty/go-ipfs-log">
     <img src="https://www.codefactor.io/repository/github/berty/go-ipfs-log/badge"
          alt="Code Factor">
