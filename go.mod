@@ -8,7 +8,6 @@ require (
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0
 	github.com/ipfs/go-cid v0.0.6
 	github.com/ipfs/go-datastore v0.4.4
-	github.com/ipfs/go-filestore v1.0.0 // indirect
 	github.com/ipfs/go-ipfs v0.6.0
 	github.com/ipfs/go-ipld-cbor v0.0.4
 	github.com/ipfs/go-ipld-format v0.2.0
