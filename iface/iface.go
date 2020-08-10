@@ -76,7 +76,6 @@ type IPFSLog interface {
 	ToJSON() *JSONLog
 	Heads() IPFSLogOrderedEntries
 	GetEntries() IPFSLogOrderedEntries
-	SetEntries(IPFSLogOrderedEntries)
 	RawHeads() IPFSLogOrderedEntries
 	SetIdentity(identity *identityprovider.Identity)
 }
