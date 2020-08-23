@@ -16,6 +16,7 @@ require (
 	github.com/libp2p/go-libp2p-core v0.6.1
 	github.com/libp2p/go-libp2p-kad-dht v0.8.3 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.3.3 // indirect
+	github.com/libp2p/go-libp2p-quic-transport v0.8.0 // indirect
 	github.com/libp2p/go-mplex v0.1.3 // indirect
 	github.com/multiformats/go-multibase v0.0.3
 	github.com/polydawn/refmt v0.0.0-20190807091052-3d65705ee9f1
