@@ -172,24 +172,6 @@ func (l *IPFSLog) SetIdentity(identity *identityprovider.Identity) {
 	l.Clock = entry.NewLamportClock(identity.PublicKey, t)
 }
 
-// addToStack Add an entry to the stack and traversed nodes index
-func (l *IPFSLog) addToStack(e iface.IPFSLogEntry, stack []iface.IPFSLogEntry, traversed *orderedmap.OrderedMap) []iface.IPFSLogEntry {
-	// If we've already processed the entry, don't add it to the stack
-	if _, ok := traversed.Get(e.GetHash().String()); ok {
-		return stack
-	}
-
-	// Add the entry in front of the stack and sort
-	stack = append([]iface.IPFSLogEntry{e}, stack...)
-	sorting.Sort(l.SortFn, stack)
-	sorting.Reverse(stack)
-
-	// Add to the cache of processed entries
-	traversed.Set(e.GetHash().String(), true)
-
-	return stack
-}
-
 func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, endHash string) (iface.IPFSLogOrderedEntries, error) {
 	// l.lock must be RLocked
 
@@ -200,8 +182,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 	// Sort the given given root entries and use as the starting stack
 	stack := rootEntries.Slice()
 
-	sorting.Sort(l.SortFn, stack)
-	sorting.Reverse(stack)
+	sorting.Sort(l.SortFn, stack, true)
 
 	// Cache for checking if we've processed an entry already
 	traversed := orderedmap.New()
@@ -229,6 +210,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 			break
 		}
 
+		modified := false
 		// Add entry's next references to the stack
 		for _, c := range e.GetNext() {
 			next, ok := l.Entries.Get(c.String())
@@ -236,7 +218,24 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 				continue
 			}
 
-			stack = l.addToStack(next, stack, traversed)
+			// Add item to stack
+			// If we've already processed the entry, don't add it to the stack
+			if _, ok := traversed.Get(next.GetHash().String()); ok {
+				continue
+			}
+
+			// Add the entry in front of the stack
+			stack = append([]iface.IPFSLogEntry{next}, stack...)
+
+			// Add to the cache of processed entries
+			traversed.Set(next.GetHash().String(), true)
+
+			// marked that stack was changed, should sort it again
+			modified = true
+		}
+
+		if modified {
+			sorting.Sort(l.SortFn, stack, true)
 		}
 	}
 
@@ -397,7 +396,6 @@ func (c *CanAppendContext) GetLogEntries() []accesscontroller.LogEntry {
 
 /* Iterator Provides entries values on a channel */
 func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLogEntry) error {
-	l.lock.RLock()
 	amount := -1
 	if options == nil {
 		return errmsg.ErrIteratorOptionsNotDefined
@@ -414,6 +412,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		amount = *options.Amount
 	}
 
+	l.lock.RLock()
 	start := l.sortedHeads(l.heads.Slice()).Slice()
 
 	if options.LTE != nil {
@@ -422,6 +421,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LTE {
 			e, ok := l.Entries.Get(c.String())
 			if !ok {
+				l.lock.RUnlock()
 				return errmsg.ErrFilterLTENotFound
 			}
 			start = append(start, e)
@@ -430,6 +430,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 		for _, c := range options.LT {
 			e, ok := l.Entries.Get(c.String())
 			if !ok {
+				l.lock.RUnlock()
 				return errmsg.ErrFilterLTNotFound
 			}
 
@@ -437,6 +438,7 @@ func (l *IPFSLog) Iterator(options *IteratorOptions, output chan<- iface.IPFSLog
 			for _, n := range e.GetNext() {
 				e, ok := l.Entries.Get(n.String())
 				if !ok {
+					l.lock.RUnlock()
 					return errmsg.ErrFilterLTNotFound
 				}
 				start = append(start, e)
@@ -888,8 +890,7 @@ func (l *IPFSLog) ToJSON() *JSONLog {
 	l.lock.RUnlock()
 
 	stack := heads.Slice()
-	sorting.Sort(l.SortFn, stack)
-	sorting.Reverse(stack)
+	sorting.Sort(l.SortFn, stack, true)
 
 	var hashes []cid.Cid
 	for _, e := range stack {
@@ -925,8 +926,7 @@ func (l *IPFSLog) Heads() iface.IPFSLogOrderedEntries {
 }
 
 func (l *IPFSLog) sortedHeads(heads []iface.IPFSLogEntry) iface.IPFSLogOrderedEntries {
-	sorting.Sort(l.SortFn, heads)
-	sorting.Reverse(heads)
+	sorting.Sort(l.SortFn, heads, true)
 
 	return entry.NewOrderedMapFromEntries(heads)
 }

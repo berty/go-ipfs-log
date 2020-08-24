@@ -62,7 +62,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 	})
 
 	if options.Length != nil && *options.Length > -1 {
-		sorting.Sort(sortFn, entries)
+		sorting.Sort(sortFn, entries, false)
 
 		entries = entrySlice(entries, -*options.Length)
 	}
@@ -113,7 +113,7 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 
 	entries := all
 	if length > -1 {
-		sorting.Sort(sortFn, entries)
+		sorting.Sort(sortFn, entries, false)
 		entries = entrySlice(all, -length)
 	}
 
@@ -136,7 +136,7 @@ func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *JSONLog
 		Timeout:      options.Timeout,
 	})
 
-	sorting.Sort(sorting.Compare, entries)
+	sorting.Sort(sorting.Compare, entries, false)
 
 	return &Snapshot{
 		ID:     jsonLog.ID,
@@ -179,7 +179,7 @@ func fromEntry(ctx context.Context, services core_iface.CoreAPI, sourceEntries [
 	combined := append(sourceEntries, entries...)
 	combined = append(combined, options.Exclude...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
-	sorting.Sort(sorting.Compare, uniques)
+	sorting.Sort(sorting.Compare, uniques, false)
 
 	// Cap the result at the right size by taking the last n entries
 	var sliced []iface.IPFSLogEntry
