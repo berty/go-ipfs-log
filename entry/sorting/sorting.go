@@ -27,11 +27,8 @@ func SortByClockID(a, b iface.IPFSLogEntry, resolveConflict func(a iface.IPFSLog
 	if comparedIDs == 0 {
 		return resolveConflict(a, b)
 	}
-	if comparedIDs < 0 {
-		return -1, nil
-	}
 
-	return 1, nil
+	return comparedIDs, nil
 }
 
 func First(_, _ iface.IPFSLogEntry) (int, error) {
@@ -108,13 +105,24 @@ func Compare(a, b iface.IPFSLogEntry) (int, error) {
 	return a.GetClock().Compare(b.GetClock()), nil
 }
 
-func Sort(compFunc func(a, b iface.IPFSLogEntry) (int, error), values []iface.IPFSLogEntry) {
-	sort.SliceStable(values, func(i, j int) bool {
-		ret, err := compFunc(values[i], values[j])
-		if err != nil {
-			fmt.Printf("error while comparing: %v\n", err)
-			return false
-		}
-		return ret < 0
-	})
+func Sort(compFunc func(a, b iface.IPFSLogEntry) (int, error), values []iface.IPFSLogEntry, reverse bool) {
+	if reverse {
+		sort.SliceStable(values, func(i, j int) bool {
+			ret, err := compFunc(values[i], values[j])
+			if err != nil {
+				fmt.Printf("error while comparing: %v\n", err)
+				return false
+			}
+			return ret > 0
+		})
+	} else {
+		sort.SliceStable(values, func(i, j int) bool {
+			ret, err := compFunc(values[i], values[j])
+			if err != nil {
+				fmt.Printf("error while comparing: %v\n", err)
+				return false
+			}
+			return ret < 0
+		})
+	}
 }
