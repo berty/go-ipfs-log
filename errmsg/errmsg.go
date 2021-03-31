@@ -69,4 +69,5 @@ const (
 	ErrSigSign                      = Error("unable to sign value")
 	ErrTiebreakerBogus              = Error("log's tiebreaker function has returned zero and therefore cannot be")
 	ErrTiebreakerFailed             = Error("tiebreaker failed")
+	ErrIPFSWriteFailed              = Error("ipfs write failed")
 )

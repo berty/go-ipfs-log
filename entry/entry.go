@@ -5,19 +5,16 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"math"
 	"sort"
 
 	"github.com/ipfs/go-cid"
-	cbornode "github.com/ipfs/go-ipld-cbor"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/multiformats/go-multibase"
-	"github.com/polydawn/refmt/obj/atlas"
 
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
-	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/io/cbor"
 )
 
 type Entry struct {
@@ -30,7 +27,11 @@ type Entry struct {
 	Sig      []byte                     `json:"sig,omitempty"`
 	Identity *identityprovider.Identity `json:"identity,omitempty"`
 	Hash     cid.Cid                    `json:"hash,omitempty"`
-	Clock    *LamportClock              `json:"clock,omitempty"`
+	Clock    iface.IPFSLogLamportClock  `json:"clock,omitempty"`
+}
+
+func (e *Entry) New() iface.IPFSLogEntry {
+	return &Entry{}
 }
 
 func (e *Entry) GetRefs() []cid.Cid {
@@ -116,158 +117,17 @@ func (e *Entry) SetClock(clock iface.IPFSLogLamportClock) {
 	}
 }
 
-type Hashable struct {
-	Hash    interface{}
-	ID      string
-	Payload []byte
-	Next    []string
-	Refs    []string
-	V       uint64
-	Clock   iface.IPFSLogLamportClock
-	Key     []byte
-}
-
-var _ = atlas.BuildEntry(Hashable{}).
-	StructMap().
-	AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-	AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-	AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-	AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
-	AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-	AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-	Complete()
-
-// CborEntry CBOR representable version of Entry
-type CborEntry struct {
-	V        uint64
-	LogID    string
-	Key      string
-	Sig      string
-	Hash     interface{}
-	Next     []cid.Cid
-	Refs     []cid.Cid
-	Clock    *CborLamportClock
-	Payload  string
-	Identity *identityprovider.CborIdentity
-}
-
-// CborEntryV1 CBOR representable version of Entry v1
-type CborEntryV1 struct {
-	V        uint64
-	LogID    string
-	Key      string
-	Sig      string
-	Hash     interface{}
-	Next     []cid.Cid
-	Clock    *CborLamportClock
-	Payload  string
-	Identity *identityprovider.CborIdentity
-}
-
-// CborEntryV2 CBOR representable version of Entry v2
-type CborEntryV2 = CborEntry
-
-// ToEntry returns a plain Entry from a CBOR serialized version
-func (c *CborEntry) ToEntry(provider identityprovider.Interface) (*Entry, error) {
-	key, err := hex.DecodeString(c.Key)
-	if err != nil {
-		return nil, errmsg.ErrKeyDeserialization.Wrap(err)
-	}
-
-	sig, err := hex.DecodeString(c.Sig)
-	if err != nil {
-		return nil, errmsg.ErrSigDeserialization.Wrap(err)
-	}
-
-	clock, err := ToLamportClock(c.Clock)
-	if err != nil {
-		return nil, errmsg.ErrClockDeserialization.Wrap(err)
-	}
-
-	identity, err := c.Identity.ToIdentity(provider)
-	if err != nil {
-		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
-	}
-
-	return &Entry{
-		V:        c.V,
-		LogID:    c.LogID,
-		Key:      key,
-		Sig:      sig,
-		Next:     c.Next,
-		Refs:     c.Refs,
-		Clock:    clock,
-		Payload:  []byte(c.Payload),
-		Identity: identity,
-	}, nil
-}
-
-// ToCborEntry creates a CBOR serializable version of an entry
-func (e *Entry) ToCborEntry() interface{} {
-	if e.V == 1 {
-		return &CborEntryV1{
-			V:        e.V,
-			LogID:    e.LogID,
-			Key:      hex.EncodeToString(e.Key),
-			Sig:      hex.EncodeToString(e.Sig),
-			Hash:     nil,
-			Next:     e.Next,
-			Clock:    e.Clock.ToCborLamportClock(),
-			Payload:  string(e.Payload),
-			Identity: e.Identity.ToCborIdentity(),
-		}
-	}
-
-	return &CborEntry{
-		V:        e.V,
-		LogID:    e.LogID,
-		Key:      hex.EncodeToString(e.Key),
-		Sig:      hex.EncodeToString(e.Sig),
-		Hash:     nil,
-		Next:     e.Next,
-		Refs:     e.Refs,
-		Clock:    e.Clock.ToCborLamportClock(),
-		Payload:  string(e.Payload),
-		Identity: e.Identity.ToCborIdentity(),
-	}
-}
-
-func init() {
-	AtlasEntry := atlas.BuildEntry(CborEntry{}).
-		StructMap().
-		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
-		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
-		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-		AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
-		Complete()
-
-	cbornode.RegisterCborType(AtlasEntry)
-
-	AtlasEntryV1 := atlas.BuildEntry(CborEntryV1{}).
-		StructMap().
-		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
-		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
-		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
-		Complete()
-
-	cbornode.RegisterCborType(AtlasEntryV1)
-}
-
-// CreateEntry creates an Entry.
 func CreateEntry(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (*Entry, error) {
+	io, err := cbor.IO(&Entry{}, &LamportClock{})
+	if err != nil {
+		return nil, err
+	}
+
+	return CreateEntryWithIO(ctx, ipfsInstance, identity, data, opts, io)
+}
+
+// CreateEntryWithIO creates an Entry.
+func CreateEntryWithIO(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions, io iface.IO) (*Entry, error) {
 	if ipfsInstance == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -313,17 +173,7 @@ func CreateEntry(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity 
 	data.Sig = signature
 
 	data.Identity = identity.Filtered()
-	data.Hash, err = data.ToMultihash(ctx, ipfsInstance, opts)
-	if err != nil {
-		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
-	}
-
-	nd, err := cbornode.WrapObject(data.ToCborEntry(), math.MaxUint64, -1)
-	if err != nil {
-		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
-	}
-
-	err = ipfsInstance.Dag().Add(ctx, nd)
+	data.Hash, err = data.ToMultihashWithIO(ctx, ipfsInstance, opts, io)
 	if err != nil {
 		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
@@ -374,7 +224,7 @@ func cidB58(c cid.Cid) (string, error) {
 }
 
 // toBuffer converts a hashable entry to bytes.
-func toBuffer(e *Hashable) ([]byte, error) {
+func toBuffer(e *iface.Hashable) ([]byte, error) {
 	if e == nil {
 		return nil, errmsg.ErrEntryNotDefined
 	}
@@ -399,7 +249,7 @@ func toBuffer(e *Hashable) ([]byte, error) {
 }
 
 // toHashable Converts an entry to hashable.
-func (e *Entry) toHashable() (*Hashable, error) {
+func (e *Entry) toHashable() (*iface.Hashable, error) {
 	nexts := make([]string, len(e.Next))
 	refs := make([]string, len(e.Refs))
 
@@ -421,7 +271,7 @@ func (e *Entry) toHashable() (*Hashable, error) {
 		refs[i] = c
 	}
 
-	return &Hashable{
+	return &iface.Hashable{
 		Hash:    nil,
 		ID:      e.LogID,
 		Payload: e.Payload,
@@ -485,6 +335,17 @@ func (e *Entry) Verify(identity identityprovider.Interface) error {
 
 // ToMultihash gets the multihash of an Entry.
 func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions) (cid.Cid, error) {
+	io, err := cbor.IO(&Entry{}, &LamportClock{})
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	return e.ToMultihashWithIO(ctx, ipfsInstance, opts, io)
+}
+
+// ToMultihashWithIO gets the multihash of an Entry.
+func (e *Entry) ToMultihashWithIO(ctx context.Context, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions, io iface.IO) (cid.Cid, error) {
+
 	if opts == nil {
 		opts = &iface.CreateEntryOptions{}
 	}
@@ -501,7 +362,7 @@ func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance core_iface.CoreAPI
 		preSigned: opts.PreSigned,
 	})
 
-	return io.WriteCBOR(ctx, ipfsInstance, data.ToCborEntry(), &io.WriteOpts{
+	return io.Write(ctx, ipfsInstance, data, &iface.WriteOpts{
 		Pin: opts.Pin,
 	})
 }
@@ -547,32 +408,27 @@ func (e *Entry) copyNormalizedEntry(opts *normalizeEntryOpts) *Entry {
 }
 
 // FromMultihash creates an Entry from a hash.
-func FromMultihash(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface) (*Entry, error) {
+func FromMultihash(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface) (iface.IPFSLogEntry, error) {
+	io, err := cbor.IO(&Entry{}, &LamportClock{})
+	if err != nil {
+		return nil, err
+	}
+
+	return FromMultihashWithIO(ctx, ipfs, hash, provider, io)
+}
+
+// FromMultihashWithIO creates an Entry from a hash.
+func FromMultihashWithIO(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface, io iface.IO) (iface.IPFSLogEntry, error) {
 	if ipfs == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
 
-	result, err := io.ReadCBOR(ctx, ipfs, hash)
+	result, err := io.Read(ctx, ipfs, hash)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
-	obj := &CborEntry{}
-	err = cbornode.DecodeInto(result.RawData(), obj)
-	if err != nil {
-		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
-	}
-
-	obj.Hash = hash
-
-	entry, err := obj.ToEntry(provider)
-	if err != nil {
-		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
-	}
-
-	entry.Hash = hash
-
-	return entry, nil
+	return io.DecodeRawEntry(result, hash, provider)
 }
 
 // Equals checks that two entries are identical.

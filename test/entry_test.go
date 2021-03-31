@@ -9,7 +9,8 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/io/cbor"
+
 	ks "berty.tech/go-ipfs-log/keystore"
 	cid "github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -180,10 +181,10 @@ func TestEntry(t *testing.T) {
 			final, err := entry.FromMultihash(ctx, ipfs, entry2.Hash, identity.Provider)
 			require.NoError(t, err)
 
-			require.Equal(t, final.LogID, "A")
-			require.Equal(t, final.Payload, payload2)
-			require.Equal(t, len(final.Next), 1)
-			require.Equal(t, final.Hash.String(), expectedHash)
+			require.Equal(t, final.GetLogID(), "A")
+			require.Equal(t, final.GetPayload(), payload2)
+			require.Equal(t, len(final.GetNext()), 1)
+			require.Equal(t, final.GetHash().String(), expectedHash)
 		})
 
 		t.Run("creates a entry from ipfs multihash of v1 entries", func(t *testing.T) {
@@ -191,22 +192,25 @@ func TestEntry(t *testing.T) {
 			e1 := getEntriesV1Fixtures(t, identity)[0]
 			e2 := getEntriesV1Fixtures(t, identity)[1]
 
-			entry1Hash, err := io.WriteCBOR(ctx, ipfs, e1.ToCborEntry(), nil)
+			io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
 			require.NoError(t, err)
 
-			entry2Hash, err := io.WriteCBOR(ctx, ipfs, e2.ToCborEntry(), nil)
+			entry1Hash, err := io.Write(ctx, ipfs, &e1, nil)
+			require.NoError(t, err)
+
+			entry2Hash, err := io.Write(ctx, ipfs, &e2, nil)
 			require.NoError(t, err)
 
 			final, err := entry.FromMultihash(ctx, ipfs, entry2Hash, identity.Provider)
 			require.NoError(t, err)
 
-			require.Equal(t, final.LogID, "A")
-			require.Equal(t, final.Payload, e2.Payload)
-			require.Equal(t, len(final.Next), 1)
-			require.Equal(t, final.Next[0].String(), e2.Next[0].String())
-			require.Equal(t, final.Next[0].String(), entry1Hash.String())
-			require.Equal(t, final.V, uint64(1))
-			require.Equal(t, final.Hash.String(), entry2Hash.String())
+			require.Equal(t, final.GetLogID(), "A")
+			require.Equal(t, final.GetPayload(), e2.Payload)
+			require.Equal(t, len(final.GetNext()), 1)
+			require.Equal(t, final.GetNext()[0].String(), e2.Next[0].String())
+			require.Equal(t, final.GetNext()[0].String(), entry1Hash.String())
+			require.Equal(t, final.GetV(), uint64(1))
+			require.Equal(t, final.GetHash().String(), entry2Hash.String())
 			require.Equal(t, entry2Hash.String(), expectedHash)
 		})
 	})

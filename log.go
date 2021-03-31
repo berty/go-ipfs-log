@@ -10,9 +10,7 @@ import (
 
 	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
-	cbornode "github.com/ipfs/go-ipld-cbor"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
-	"github.com/polydawn/refmt/obj/atlas"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/entry"
@@ -20,10 +18,11 @@ import (
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
+	"berty.tech/go-ipfs-log/io/cbor"
 )
 
 type Snapshot = iface.Snapshot
-type JSONLog = iface.JSONLog
+type LogHeads = iface.LogHeads
 type LogOptions = iface.LogOptions
 type IteratorOptions = iface.IteratorOptions
 
@@ -42,6 +41,7 @@ type IPFSLog struct {
 	heads            iface.IPFSLogOrderedEntries
 	Next             iface.IPFSLogOrderedEntries
 	Clock            iface.IPFSLogLamportClock
+	IO               iface.IO
 	concurrency      uint
 	lock             sync.RWMutex
 }
@@ -135,6 +135,15 @@ func NewLog(services core_iface.CoreAPI, identity *identityprovider.Identity, op
 		options.Concurrency = 16
 	}
 
+	if options.IO == nil {
+		io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
+		if err != nil {
+			return nil, err
+		}
+
+		options.IO = io
+	}
+
 	next := entry.NewOrderedMap()
 	for _, key := range options.Entries.Keys() {
 		e := options.Entries.UnsafeGet(key)
@@ -153,6 +162,7 @@ func NewLog(services core_iface.CoreAPI, identity *identityprovider.Identity, op
 		heads:            entry.NewOrderedMapFromEntries(options.Heads),
 		Next:             next,
 		Clock:            entry.NewLamportClock(identity.PublicKey, maxTime),
+		IO:               options.IO,
 		concurrency:      options.Concurrency,
 	}, nil
 }
@@ -350,7 +360,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 
 	// @TODO: Split Entry.create into creating object, checking permission, signing and then posting to IPFS
 	// Create the entry and add it to the internal cache
-	e, err := entry.CreateEntry(ctx, l.Storage, l.Identity, &entry.Entry{
+	e, err := entry.CreateEntryWithIO(ctx, l.Storage, l.Identity, &entry.Entry{
 		LogID:   l.ID,
 		Payload: payload,
 		Next:    next,
@@ -358,7 +368,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 		Refs:    refs,
 	}, &iface.CreateEntryOptions{
 		Pin: opts.Pin,
-	})
+	}, l.IO)
 
 	if err != nil {
 		return nil, errmsg.ErrLogAppendFailed.Wrap(err)
@@ -696,7 +706,7 @@ func entrySliceToCids(slice []iface.IPFSLogEntry) []cid.Cid {
 }
 
 // func (l *IPFSLog) toBuffer() ([]byte, error) {
-//	return json.Marshal(l.ToJSON())
+//	return json.Marshal(l.ToLogHeads())
 // }
 
 // ToMultihash Returns the multihash of the log
@@ -704,7 +714,7 @@ func entrySliceToCids(slice []iface.IPFSLogEntry) []cid.Cid {
 // Converting the log to a multihash will persist the contents of
 // log.toJSON to IPFS, thus causing side effects
 //
-// The only supported format is dag-cbor and a CIDv1 is returned
+// The supported format is defined by the log and a CIDv1 is returned
 func (l *IPFSLog) ToMultihash(ctx context.Context) (cid.Cid, error) {
 	return toMultihash(ctx, l.Storage, l)
 }
@@ -729,6 +739,15 @@ func NewFromMultihash(ctx context.Context, services core_iface.CoreAPI, identity
 		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
+	if logOptions.IO == nil {
+		io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
+		if err != nil {
+			return nil, errmsg.ErrLogOptionsNotDefined
+		}
+
+		logOptions.IO = io
+	}
+
 	data, err := fromMultihash(ctx, services, hash, &FetchOptions{
 		Length:       fetchOptions.Length,
 		Exclude:      fetchOptions.Exclude,
@@ -736,7 +755,7 @@ func NewFromMultihash(ctx context.Context, services core_iface.CoreAPI, identity
 		Timeout:      fetchOptions.Timeout,
 		Concurrency:  fetchOptions.Concurrency,
 		SortFn:       fetchOptions.SortFn,
-	})
+	}, logOptions.IO)
 
 	if err != nil {
 		return nil, errmsg.ErrLogFromMultiHash.Wrap(err)
@@ -761,6 +780,7 @@ func NewFromMultihash(ctx context.Context, services core_iface.CoreAPI, identity
 		Entries:          entry.NewOrderedMapFromEntries(data.Values),
 		Heads:            heads,
 		SortFn:           logOptions.SortFn,
+		IO:               logOptions.IO,
 	})
 }
 
@@ -776,6 +796,15 @@ func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity
 		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
+	if logOptions.IO == nil {
+		io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
+		if err != nil {
+			return nil, err
+		}
+
+		logOptions.IO = io
+	}
+
 	// TODO: need to verify the entries with 'key'
 	entries, err := fromEntryHash(ctx, services, []cid.Cid{hash}, &FetchOptions{
 		Length:       fetchOptions.Length,
@@ -783,7 +812,7 @@ func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity
 		ProgressChan: fetchOptions.ProgressChan,
 		Timeout:      fetchOptions.Timeout,
 		Concurrency:  fetchOptions.Concurrency,
-	})
+	}, logOptions.IO)
 	if err != nil {
 		return nil, errmsg.ErrLogFromEntryHash.Wrap(err)
 	}
@@ -793,13 +822,14 @@ func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(entries),
 		SortFn:           logOptions.SortFn,
+		IO:               logOptions.IO,
 	})
 }
 
 // NewFromJSON Creates a IPFSLog from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, jsonLog *JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, jsonLog *iface.LogHeads, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.ErrLogOptionsNotDefined
 	}
@@ -810,10 +840,25 @@ func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *ide
 
 	// TODO: need to verify the entries with 'key'
 
+	if fetchOptions.IO == nil {
+		if logOptions.IO != nil {
+			fetchOptions.IO = logOptions.IO
+		} else {
+			io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
+			if err != nil {
+				return nil, err
+			}
+
+			fetchOptions.IO = io
+			logOptions.IO = io
+		}
+	}
+
 	snapshot, err := fromJSON(ctx, services, jsonLog, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
 		Timeout:      fetchOptions.Timeout,
 		ProgressChan: fetchOptions.ProgressChan,
+		IO:           logOptions.IO,
 	})
 	if err != nil {
 		return nil, errmsg.ErrLogFromJSON.Wrap(err)
@@ -824,6 +869,7 @@ func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *ide
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
+		IO:               logOptions.IO,
 	})
 }
 
@@ -839,6 +885,15 @@ func NewFromEntry(ctx context.Context, services core_iface.CoreAPI, identity *id
 		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
+	if logOptions.IO == nil {
+		io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
+		if err != nil {
+			return nil, err
+		}
+
+		logOptions.IO = io
+	}
+
 	// TODO: need to verify the entries with 'key'
 	snapshot, err := fromEntry(ctx, services, sourceEntries, &entry.FetchOptions{
 		Length:       fetchOptions.Length,
@@ -846,6 +901,7 @@ func NewFromEntry(ctx context.Context, services core_iface.CoreAPI, identity *id
 		ProgressChan: fetchOptions.ProgressChan,
 		Timeout:      fetchOptions.Timeout,
 		Concurrency:  fetchOptions.Concurrency,
+		IO:           logOptions.IO,
 	})
 	if err != nil {
 		return nil, errmsg.ErrLogFromEntry.Wrap(err)
@@ -856,6 +912,7 @@ func NewFromEntry(ctx context.Context, services core_iface.CoreAPI, identity *id
 		AccessController: logOptions.AccessController,
 		Entries:          entry.NewOrderedMapFromEntries(snapshot.Values),
 		SortFn:           logOptions.SortFn,
+		IO:               logOptions.IO,
 	})
 }
 
@@ -884,7 +941,7 @@ func (l *IPFSLog) values() iface.IPFSLogOrderedEntries {
 }
 
 // ToJSON Returns a log in a JSON serializable structure
-func (l *IPFSLog) ToJSON() *JSONLog {
+func (l *IPFSLog) ToLogHeads() *iface.LogHeads {
 	l.lock.RLock()
 	heads := l.heads
 	l.lock.RUnlock()
@@ -897,7 +954,7 @@ func (l *IPFSLog) ToJSON() *JSONLog {
 		hashes = append(hashes, e.GetHash())
 	}
 
-	return &JSONLog{
+	return &iface.LogHeads{
 		ID:    l.ID,
 		Heads: hashes,
 	}
@@ -929,16 +986,6 @@ func (l *IPFSLog) sortedHeads(heads []iface.IPFSLogEntry) iface.IPFSLogOrderedEn
 	sorting.Sort(l.SortFn, heads, true)
 
 	return entry.NewOrderedMapFromEntries(heads)
-}
-
-var atlasJSONLog = atlas.BuildEntry(JSONLog{}).
-	StructMap().
-	AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-	AddField("Heads", atlas.StructMapEntry{SerialName: "heads"}).
-	Complete()
-
-func init() {
-	cbornode.RegisterCborType(atlasJSONLog)
 }
 
 var _ iface.IPFSLog = (*IPFSLog)(nil)

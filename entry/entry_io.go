@@ -9,6 +9,7 @@ import (
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/iface"
+	"berty.tech/go-ipfs-log/io/cbor"
 )
 
 type FetchOptions = iface.FetchOptions
@@ -20,6 +21,10 @@ func FetchParallel(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Ci
 		fetchedEntries = make([][]iface.IPFSLogEntry, len(hashes))
 		wg             = sync.WaitGroup{}
 	)
+
+	if options.IO == nil {
+		return nil
+	}
 
 	wg.Add(len(hashes))
 
@@ -42,6 +47,15 @@ func FetchParallel(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Ci
 
 // FetchAll gets entries from their CIDs.
 func FetchAll(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions) []iface.IPFSLogEntry {
+	if options.IO == nil {
+		io, err := cbor.IO(&Entry{}, &LamportClock{})
+		if err != nil {
+			return nil
+		}
+
+		options.IO = io
+	}
+
 	var (
 		lock         = sync.Mutex{}
 		result       = []iface.IPFSLogEntry(nil)
@@ -194,7 +208,7 @@ func FetchAll(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Cid, op
 		}
 
 		// Load the entry
-		entry, err := FromMultihash(ctx, ipfs, hash, options.Provider)
+		entry, err := FromMultihashWithIO(ctx, ipfs, hash, options.Provider, options.IO)
 		if err != nil {
 			// TODO: log
 			return
