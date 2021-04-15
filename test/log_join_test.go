@@ -58,18 +58,18 @@ func TestLogJoin(t *testing.T) {
 
 	t.Run("joins logs", func(t *testing.T) {
 		setup(t)
-		var items [3][]*entry.Entry
-		var prev [3]*entry.Entry
-		var curr [3]*entry.Entry
+		var items [3][]iface.IPFSLogEntry
+		var prev [3]iface.IPFSLogEntry
+		var curr [3]iface.IPFSLogEntry
 		var err error
 
 		curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
 		require.NoError(t, err)
 
-		curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].Hash}}, nil)
+		curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash()}}, nil)
 		require.NoError(t, err)
 
-		curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].Hash, curr[1].Hash}}, nil)
+		curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash(), curr[1].GetHash()}}, nil)
 		require.NoError(t, err)
 
 		for i := 1; i <= 100; i++ {
@@ -77,13 +77,13 @@ func TestLogJoin(t *testing.T) {
 				for j := 0; j < 3; j++ {
 					prev[j] = items[j][len(items[j])-1]
 				}
-				curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].Hash}}, nil)
+				curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].GetHash()}}, nil)
 				require.NoError(t, err)
 
-				curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].Hash, curr[0].Hash}}, nil)
+				curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].GetHash(), curr[0].GetHash()}}, nil)
 				require.NoError(t, err)
 
-				curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].Hash, curr[0].Hash, curr[1].Hash}}, nil)
+				curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].GetHash(), curr[0].GetHash(), curr[1].GetHash()}}, nil)
 				require.NoError(t, err)
 			}
 

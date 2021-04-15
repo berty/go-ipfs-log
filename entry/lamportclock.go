@@ -12,6 +12,10 @@ type LamportClock struct {
 	Time int    `json:"time,omitempty"`
 }
 
+func (l *LamportClock) Defined() bool {
+	return l != nil && len(l.ID) > 0
+}
+
 func (l *LamportClock) New() iface.IPFSLogLamportClock {
 	return &LamportClock{}
 }

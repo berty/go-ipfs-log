@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	log "berty.tech/go-ipfs-log"
 	idp "berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/keystore"
 	"github.com/ipfs/go-datastore"
@@ -16,9 +15,11 @@ import (
 	ipfs_libp2p "github.com/ipfs/go-ipfs/core/node/libp2p"
 	ipfs_repo "github.com/ipfs/go-ipfs/repo"
 	"github.com/libp2p/go-libp2p"
-	host "github.com/libp2p/go-libp2p-core/host"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
+
+	log "berty.tech/go-ipfs-log"
 )
 
 func buildHostOverrideExample(ctx context.Context, id peer.ID, ps pstore.Peerstore, options ...libp2p.Option) (host.Host, error) {

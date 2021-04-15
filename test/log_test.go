@@ -126,7 +126,7 @@ func TestLog(t *testing.T) {
 		require.Equal(t, heads.Len(), 1)
 
 		headsKeys := heads.Keys()
-		require.Equal(t, heads.UnsafeGet(headsKeys[0]).GetHash().String(), e3.Hash.String())
+		require.Equal(t, heads.UnsafeGet(headsKeys[0]).GetHash().String(), e3.GetHash().String())
 	})
 
 	t.Run("finds heads if heads not given as params", func(t *testing.T) {
@@ -146,9 +146,9 @@ func TestLog(t *testing.T) {
 		require.Equal(t, heads.Len(), 3)
 
 		headsKeys := heads.Keys()
-		require.Equal(t, heads.UnsafeGet(headsKeys[2]).GetHash().String(), e1.Hash.String())
-		require.Equal(t, heads.UnsafeGet(headsKeys[1]).GetHash().String(), e2.Hash.String())
-		require.Equal(t, heads.UnsafeGet(headsKeys[0]).GetHash().String(), e3.Hash.String())
+		require.Equal(t, heads.UnsafeGet(headsKeys[2]).GetHash().String(), e1.GetHash().String())
+		require.Equal(t, heads.UnsafeGet(headsKeys[1]).GetHash().String(), e2.GetHash().String())
+		require.Equal(t, heads.UnsafeGet(headsKeys[0]).GetHash().String(), e3.GetHash().String())
 	})
 
 	t.Run("creates default public AccessController if not defined", func(t *testing.T) {

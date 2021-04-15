@@ -12,7 +12,7 @@ import (
 type CreatedLog struct {
 	Log          *ipfslog.IPFSLog
 	ExpectedData []string
-	JSON         *ipfslog.LogHeads
+	JSON         *ipfslog.JSONLog
 }
 
 func createLogsFor16Entries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
@@ -99,7 +99,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs core_iface.CoreAPI, i
 		return nil, err
 	}
 
-	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToLogHeads()}, nil
+	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSONLog()}, nil
 }
 
 func createLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {

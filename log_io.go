@@ -32,7 +32,7 @@ func toMultihash(ctx context.Context, services core_iface.CoreAPI, log *IPFSLog)
 		return cid.Undef, errmsg.ErrEmptyLogSerialization
 	}
 
-	return log.IO.Write(ctx, services, log.ToLogHeads(), nil)
+	return log.io.Write(ctx, services, log.ToJSONLog(), nil)
 }
 
 func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
@@ -41,7 +41,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
-	logHeads, err := io.DecodeRawLogHeads(result)
+	logHeads, err := io.DecodeRawJSONLog(result)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
@@ -121,7 +121,7 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 	return entries, nil
 }
 
-func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.LogHeads, options *iface.FetchOptions) (*Snapshot, error) {
+func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}

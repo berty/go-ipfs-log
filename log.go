@@ -22,9 +22,10 @@ import (
 )
 
 type Snapshot = iface.Snapshot
-type LogHeads = iface.LogHeads
+type JSONLog = iface.JSONLog
 type LogOptions = iface.LogOptions
 type IteratorOptions = iface.IteratorOptions
+type IO = iface.IO
 
 type Entry = iface.IPFSLogEntry
 type Log = iface.IPFSLog
@@ -41,7 +42,7 @@ type IPFSLog struct {
 	heads            iface.IPFSLogOrderedEntries
 	Next             iface.IPFSLogOrderedEntries
 	Clock            iface.IPFSLogLamportClock
-	IO               iface.IO
+	io               iface.IO
 	concurrency      uint
 	lock             sync.RWMutex
 }
@@ -52,6 +53,10 @@ func (l *IPFSLog) RawHeads() iface.IPFSLogOrderedEntries {
 	l.lock.RUnlock()
 
 	return heads
+}
+
+func (l *IPFSLog) IO() IO {
+	return l.io
 }
 
 // maxInt Returns the larger of x or y
@@ -162,7 +167,7 @@ func NewLog(services core_iface.CoreAPI, identity *identityprovider.Identity, op
 		heads:            entry.NewOrderedMapFromEntries(options.Heads),
 		Next:             next,
 		Clock:            entry.NewLamportClock(identity.PublicKey, maxTime),
-		IO:               options.IO,
+		io:               options.IO,
 		concurrency:      options.Concurrency,
 	}, nil
 }
@@ -263,7 +268,7 @@ func getEveryPow2(all iface.IPFSLogOrderedEntries, maxDistance int) []Entry {
 		idx := minInt(all.Len()-1, i-1)
 
 		e := all.At(uint(idx))
-		if e == nil {
+		if e == nil || !e.Defined() {
 			continue
 		}
 
@@ -368,7 +373,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 		Refs:    refs,
 	}, &iface.CreateEntryOptions{
 		Pin: opts.Pin,
-	}, l.IO)
+	}, l.io)
 
 	if err != nil {
 		return nil, errmsg.ErrLogAppendFailed.Wrap(err)
@@ -378,7 +383,7 @@ func (l *IPFSLog) Append(ctx context.Context, payload []byte, opts *AppendOption
 		return nil, errmsg.ErrLogAppendDenied.Wrap(err)
 	}
 
-	l.Entries.Set(e.Hash.String(), e)
+	l.Entries.Set(e.GetHash().String(), e)
 
 	for _, nextEntryCid := range next {
 		l.Next.Set(nextEntryCid.String(), e)
@@ -531,7 +536,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 			defer wg.Done()
 
 			e := newItems.UnsafeGet(k)
-			if e == nil {
+			if e == nil || !e.Defined() {
 				err = errmsg.ErrLogJoinFailed
 				return
 			}
@@ -541,7 +546,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 				return
 			}
 
-			if inErr := e.Verify(l.Identity.Provider); inErr != nil {
+			if inErr := e.Verify(l.Identity.Provider, l.IO()); inErr != nil {
 				err = errmsg.ErrSigNotVerified.Wrap(inErr)
 				return
 			}
@@ -706,7 +711,7 @@ func entrySliceToCids(slice []iface.IPFSLogEntry) []cid.Cid {
 }
 
 // func (l *IPFSLog) toBuffer() ([]byte, error) {
-//	return json.Marshal(l.ToLogHeads())
+//	return json.Marshal(l.ToJSONLog())
 // }
 
 // ToMultihash Returns the multihash of the log
@@ -829,7 +834,7 @@ func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity
 // NewFromJSON Creates a IPFSLog from a JSON Snapshot
 //
 // Creating a log from a JSON Snapshot will retrieve entries from IPFS, thus causing side effects
-func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, jsonLog *iface.LogHeads, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
+func NewFromJSON(ctx context.Context, services core_iface.CoreAPI, identity *identityprovider.Identity, jsonLog *iface.JSONLog, logOptions *LogOptions, fetchOptions *entry.FetchOptions) (*IPFSLog, error) {
 	if logOptions == nil {
 		return nil, errmsg.ErrLogOptionsNotDefined
 	}
@@ -941,7 +946,7 @@ func (l *IPFSLog) values() iface.IPFSLogOrderedEntries {
 }
 
 // ToJSON Returns a log in a JSON serializable structure
-func (l *IPFSLog) ToLogHeads() *iface.LogHeads {
+func (l *IPFSLog) ToJSONLog() *iface.JSONLog {
 	l.lock.RLock()
 	heads := l.heads
 	l.lock.RUnlock()
@@ -954,7 +959,7 @@ func (l *IPFSLog) ToLogHeads() *iface.LogHeads {
 		hashes = append(hashes, e.GetHash())
 	}
 
-	return &iface.LogHeads{
+	return &iface.JSONLog{
 		ID:    l.ID,
 		Heads: hashes,
 	}

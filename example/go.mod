@@ -4,12 +4,14 @@ go 1.13
 
 require (
 	berty.tech/go-ipfs-log v0.0.0
-	github.com/ipfs/go-datastore v0.4.4
-	github.com/ipfs/go-ipfs v0.6.0
-	github.com/ipfs/go-ipfs-config v0.8.0
-	github.com/libp2p/go-libp2p v0.10.2
-	github.com/libp2p/go-libp2p-core v0.6.1
+	github.com/davidlazar/go-crypto v0.0.0-20190912175916-7055855a373f // indirect
+	github.com/ipfs/go-datastore v0.4.5
+	github.com/ipfs/go-ipfs v0.8.0
+	github.com/ipfs/go-ipfs-config v0.12.0
+	github.com/libp2p/go-libp2p v0.13.0
+	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/libp2p/go-libp2p-peerstore v0.2.6
+	github.com/libp2p/go-sockaddr v0.1.0 // indirect
 )
 
 replace berty.tech/go-ipfs-log v0.0.0 => ../

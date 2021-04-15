@@ -1,10 +1,11 @@
 package cbor
 
 import (
+	"berty.tech/go-ipfs-log/enc"
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
+	"github.com/ipfs/go-ipld-cbor/encoding"
 	"math"
 
 	"github.com/ipfs/go-cid"
@@ -18,176 +19,230 @@ import (
 	"berty.tech/go-ipfs-log/errmsg"
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
+	"berty.tech/go-ipfs-log/io/jsonable"
 )
 
-type io struct {
+type IOCbor struct {
 	debug bool
 
 	refClock iface.IPFSLogLamportClock
 	refEntry iface.IPFSLogEntry
+
+	constantIdentity *identityprovider.Identity
+	linkKey          enc.SharedKey
+	atlasEntries     []*atlas.AtlasEntry
+	cborMarshaller   encoding.PooledMarshaller
+	cborUnmarshaller encoding.PooledUnmarshaller
 }
 
-func (i *io) DecodeRawLogHeads(node format.Node) (*iface.LogHeads, error) {
-	logHeads := &iface.LogHeads{}
-	err := cbornode.DecodeInto(node.RawData(), logHeads)
+type Options struct {
+	//ConstantIdentity *identityprovider.Identity
+	LinkKey enc.SharedKey
+}
+
+func (i *IOCbor) DecodeRawJSONLog(node format.Node) (*iface.JSONLog, error) {
+	jsonLog := &iface.JSONLog{}
+	err := cbornode.DecodeInto(node.RawData(), jsonLog)
 
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
-	return logHeads, nil
+	return jsonLog, nil
 }
 
-func (i *io) DecodeRawEntry(node format.Node, hash cid.Cid, p identityprovider.Interface) (iface.IPFSLogEntry, error) {
-	obj := &Entry{}
+func (i *IOCbor) DecodeRawEntry(node format.Node, hash cid.Cid, p identityprovider.Interface) (iface.IPFSLogEntry, error) {
+	obj := &jsonable.EntryV2{}
 	err := cbornode.DecodeInto(node.RawData(), obj)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
+	obj, err = i.DecryptLinks(obj)
+	if err != nil {
+		return nil, errmsg.ErrDecrypt.Wrap(err)
+	}
+
 	obj.Hash = hash
 
-	e, err := i.ToEntry(obj, p)
-	if err != nil {
+	e := i.refEntry.New()
+	if err := obj.ToPlain(e, p, i.refClock.New); err != nil {
 		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
 	}
 
 	e.SetHash(hash)
 
+	if i.constantIdentity != nil {
+		e.SetIdentity(i.constantIdentity)
+		e.SetKey(i.constantIdentity.PublicKey)
+	}
+
 	return e, nil
 }
 
-var _io = (*io)(nil)
+var _io = (*IOCbor)(nil)
 
-func IO(refEntry iface.IPFSLogEntry, refClock iface.IPFSLogLamportClock) (iface.IO, error) {
+func IO(refEntry iface.IPFSLogEntry, refClock iface.IPFSLogLamportClock) (*IOCbor, error) {
 	if _io != nil {
 		return _io, nil
 	}
 
-	_io = &io{
+	_io = &IOCbor{
 		debug:    false,
 		refClock: refClock,
 		refEntry: refEntry,
 	}
 
-	cbornode.RegisterCborType(atlas.BuildEntry(Entry{}).
-		StructMap().
-		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
-		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
-		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-		AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
-		Complete())
+	_io.atlasEntries = []*atlas.AtlasEntry{
+		atlas.BuildEntry(jsonable.Entry{}).
+			StructMap().
+			AddField("V", atlas.StructMapEntry{SerialName: "v"}).
+			AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
+			AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
+			AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
+			AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+			AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
+			AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
+			AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+			AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
+			AddField("EncryptedLinks", atlas.StructMapEntry{SerialName: "enc_links", OmitEmpty: true}).
+			AddField("EncryptedLinksNonce", atlas.StructMapEntry{SerialName: "enc_links_nonce", OmitEmpty: true}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(EntryV1{}).
-		StructMap().
-		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
-		AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
-		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-		AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
-		Complete())
+		atlas.BuildEntry(jsonable.EntryV1{}).
+			StructMap().
+			AddField("V", atlas.StructMapEntry{SerialName: "v"}).
+			AddField("LogID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Key", atlas.StructMapEntry{SerialName: "key"}).
+			AddField("Sig", atlas.StructMapEntry{SerialName: "sig"}).
+			AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
+			AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+			AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
+			AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+			AddField("Identity", atlas.StructMapEntry{SerialName: "identity"}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(iface.Hashable{}).
-		StructMap().
-		AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
-		AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
-		AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
-		AddField("V", atlas.StructMapEntry{SerialName: "v"}).
-		AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
-		Complete())
+		atlas.BuildEntry(iface.Hashable{}).
+			StructMap().
+			AddField("Hash", atlas.StructMapEntry{SerialName: "hash"}).
+			AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Payload", atlas.StructMapEntry{SerialName: "payload"}).
+			AddField("Next", atlas.StructMapEntry{SerialName: "next"}).
+			AddField("Refs", atlas.StructMapEntry{SerialName: "refs"}).
+			AddField("V", atlas.StructMapEntry{SerialName: "v"}).
+			AddField("Clock", atlas.StructMapEntry{SerialName: "clock"}).
+			AddField("AdditionalData", atlas.StructMapEntry{SerialName: "additional_data", OmitEmpty: true}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(LamportClock{}).
-		StructMap().
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
-		Complete())
+		atlas.BuildEntry(jsonable.LamportClock{}).
+			StructMap().
+			AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Time", atlas.StructMapEntry{SerialName: "time"}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(Identity{}).
-		StructMap().
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Type", atlas.StructMapEntry{SerialName: "type"}).
-		AddField("PublicKey", atlas.StructMapEntry{SerialName: "publicKey"}).
-		AddField("Signatures", atlas.StructMapEntry{SerialName: "signatures"}).
-		Complete())
+		atlas.BuildEntry(jsonable.Identity{}).
+			StructMap().
+			AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Type", atlas.StructMapEntry{SerialName: "type"}).
+			AddField("PublicKey", atlas.StructMapEntry{SerialName: "publicKey"}).
+			AddField("Signatures", atlas.StructMapEntry{SerialName: "signatures"}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(IdentitySignature{}).
-		StructMap().
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("PublicKey", atlas.StructMapEntry{SerialName: "publicKey"}).
-		Complete())
+		atlas.BuildEntry(jsonable.IdentitySignature{}).
+			StructMap().
+			AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("PublicKey", atlas.StructMapEntry{SerialName: "publicKey"}).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(ic.Secp256k1PublicKey{}).
-		Transform().
-		TransformMarshal(atlas.MakeMarshalTransformFunc(
-			func(x ic.Secp256k1PublicKey) (string, error) {
-				keyBytes, err := x.Raw()
-				if err != nil {
-					return "", errmsg.ErrNotSecp256k1PubKey.Wrap(err)
-				}
+		atlas.BuildEntry(ic.Secp256k1PublicKey{}).
+			Transform().
+			TransformMarshal(atlas.MakeMarshalTransformFunc(
+				func(x ic.Secp256k1PublicKey) (string, error) {
+					keyBytes, err := x.Raw()
+					if err != nil {
+						return "", errmsg.ErrNotSecp256k1PubKey.Wrap(err)
+					}
 
-				return base64.StdEncoding.EncodeToString(keyBytes), nil
-			})).
-		TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
-			func(x string) (ic.Secp256k1PublicKey, error) {
-				keyBytes, err := base64.StdEncoding.DecodeString(x)
-				if err != nil {
-					return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
-				}
+					return base64.StdEncoding.EncodeToString(keyBytes), nil
+				})).
+			TransformUnmarshal(atlas.MakeUnmarshalTransformFunc(
+				func(x string) (ic.Secp256k1PublicKey, error) {
+					keyBytes, err := base64.StdEncoding.DecodeString(x)
+					if err != nil {
+						return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
+					}
 
-				key, err := ic.UnmarshalSecp256k1PublicKey(keyBytes)
-				if err != nil {
-					return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
-				}
-				secpKey, ok := key.(*ic.Secp256k1PublicKey)
-				if !ok {
-					return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey
-				}
+					key, err := ic.UnmarshalSecp256k1PublicKey(keyBytes)
+					if err != nil {
+						return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey.Wrap(err)
+					}
+					secpKey, ok := key.(*ic.Secp256k1PublicKey)
+					if !ok {
+						return ic.Secp256k1PublicKey{}, errmsg.ErrNotSecp256k1PubKey
+					}
 
-				return *secpKey, nil
-			})).
-		Complete())
+					return *secpKey, nil
+				})).
+			Complete(),
 
-	cbornode.RegisterCborType(atlas.BuildEntry(iface.LogHeads{}).
-		StructMap().
-		AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
-		AddField("Heads", atlas.StructMapEntry{SerialName: "heads"}).
-		Complete())
+		atlas.BuildEntry(iface.JSONLog{}).
+			StructMap().
+			AddField("ID", atlas.StructMapEntry{SerialName: "id"}).
+			AddField("Heads", atlas.StructMapEntry{SerialName: "heads"}).
+			Complete(),
+	}
+
+	for _, atlasEntry := range _io.atlasEntries {
+		cbornode.RegisterCborType(atlasEntry)
+	}
+
+	_io.createCborMarshaller()
 
 	return _io, nil
 }
 
-func (i *io) SetDebug(val bool) {
+func (i *IOCbor) createCborMarshaller() {
+	i.cborMarshaller = encoding.NewPooledMarshaller(atlas.MustBuild(append(_io.atlasEntries, cidAtlasEntry)...).
+		WithMapMorphism(atlas.MapMorphism{KeySortMode: atlas.KeySortMode_RFC7049}))
+	i.cborUnmarshaller = encoding.NewPooledUnmarshaller(atlas.MustBuild(append(_io.atlasEntries, cidAtlasEntry)...).
+		WithMapMorphism(atlas.MapMorphism{KeySortMode: atlas.KeySortMode_RFC7049}))
+}
+
+func (i *IOCbor) ApplyOptions(options *Options) *IOCbor {
+	out := &IOCbor{
+		debug:        i.debug,
+		refClock:     i.refClock,
+		refEntry:     i.refEntry,
+		atlasEntries: i.atlasEntries,
+		//constantIdentity: options.ConstantIdentity,
+		linkKey: options.LinkKey,
+	}
+
+	out.createCborMarshaller()
+
+	return out
+}
+
+func (i *IOCbor) SetDebug(val bool) {
 	i.debug = val
 }
 
 // WriteCBOR writes a CBOR representation of a given object in IPFS' DAG.
-func (i *io) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
+func (i *IOCbor) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
 	if opts == nil {
 		opts = &iface.WriteOpts{}
 	}
 
 	switch o := obj.(type) {
 	case iface.IPFSLogEntry:
-		obj = i.ToCborEntry(o)
-		break
+		if i.constantIdentity != nil {
+			o.SetIdentity(nil)
+			o.SetKey(nil)
+		}
 
-	case *iface.LogHeads:
+		obj = jsonable.ToJsonableEntry(o)
 		break
-
-	default:
-		return cid.Undef, errmsg.ErrKeyNotDefined.Wrap(fmt.Errorf("unhandled type %T", obj))
 	}
 
 	cborNode, err := cbornode.WrapObject(obj, math.MaxUint64, -1)
@@ -214,117 +269,91 @@ func (i *io) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}
 }
 
 // Read reads a CBOR representation of a given object from IPFS' DAG.
-func (i *io) Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
+func (i *IOCbor) Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
 	return ipfs.Dag().Get(ctx, contentIdentifier)
 }
 
-// ToCborEntry creates a CBOR serializable version of an entry
-func (i *io) ToCborEntry(e iface.IPFSLogEntry) interface{} {
-	if e.GetV() == 1 {
-		return &EntryV1{
-			V:        e.GetV(),
-			LogID:    e.GetLogID(),
-			Key:      hex.EncodeToString(e.GetKey()),
-			Sig:      hex.EncodeToString(e.GetSig()),
-			Hash:     nil,
-			Next:     e.GetNext(),
-			Clock:    i.ToCborLamportClock(e.GetClock()),
-			Payload:  string(e.GetPayload()),
-			Identity: i.ToCborIdentity(e.GetIdentity()),
-		}
+func (i *IOCbor) PreSign(entry iface.IPFSLogEntry) (iface.IPFSLogEntry, error) {
+	if i.linkKey == nil {
+		return entry, nil
 	}
 
-	return &Entry{
-		V:        e.GetV(),
-		LogID:    e.GetLogID(),
-		Key:      hex.EncodeToString(e.GetKey()),
-		Sig:      hex.EncodeToString(e.GetSig()),
-		Hash:     nil,
-		Next:     e.GetNext(),
-		Refs:     e.GetRefs(),
-		Clock:    i.ToCborLamportClock(e.GetClock()),
-		Payload:  string(e.GetPayload()),
-		Identity: i.ToCborIdentity(e.GetIdentity()),
+	if len(entry.GetNext()) == 0 && len(entry.GetRefs()) == 0 {
+		return entry, nil
 	}
-}
 
-type LamportClock struct {
-	ID   string
-	Time int
-}
+	entry = entry.Copy()
 
-func (i *io) ToCborLamportClock(l iface.IPFSLogLamportClock) *LamportClock {
-	return &LamportClock{
-		ID:   hex.EncodeToString(l.GetID()),
-		Time: l.GetTime(),
-	}
-}
+	links := &jsonable.EntryV2{}
+	links.Next = entry.GetNext()
+	links.Refs = entry.GetRefs()
 
-// ToCborIdentity converts an identity to a CBOR serializable identity.
-func (i *io) ToCborIdentity(id *identityprovider.Identity) *Identity {
-	return &Identity{
-		ID:         id.ID,
-		PublicKey:  hex.EncodeToString(id.PublicKey),
-		Type:       id.Type,
-		Signatures: i.ToCborIdentitySignature(id.Signatures),
-	}
-}
-
-// ToIdentity converts a CBOR serializable to a plain Identity object.
-func (c *Identity) ToIdentity(provider identityprovider.Interface) (*identityprovider.Identity, error) {
-	publicKey, err := hex.DecodeString(c.PublicKey)
+	cborPayload, err := i.cborMarshaller.Marshal(links)
 	if err != nil {
-		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
+		return nil, errmsg.ErrEncrypt.Wrap(fmt.Errorf("unable to cbor entry: %w", err))
 	}
 
-	idSignatures, err := c.Signatures.ToIdentitySignature()
+	nonce, err := i.linkKey.DeriveNonce(NonceRefForEntry(entry))
 	if err != nil {
-		return nil, errmsg.ErrIdentityDeserialization.Wrap(err)
+		return nil, errmsg.ErrEncrypt.Wrap(err)
 	}
 
-	return &identityprovider.Identity{
-		Signatures: idSignatures,
-		PublicKey:  publicKey,
-		Type:       c.Type,
-		ID:         c.ID,
-		Provider:   provider,
-	}, nil
-}
-
-// ToCborIdentitySignature converts to a CBOR serialized identity signature a plain IdentitySignature.
-func (i *io) ToCborIdentitySignature(id *identityprovider.IdentitySignature) *IdentitySignature {
-	return &IdentitySignature{
-		ID:        hex.EncodeToString(id.ID),
-		PublicKey: hex.EncodeToString(id.PublicKey),
-	}
-}
-
-// ToIdentitySignature converts a CBOR serializable identity signature to a plain IdentitySignature.
-func (c *IdentitySignature) ToIdentitySignature() (*identityprovider.IdentitySignature, error) {
-	publicKey, err := hex.DecodeString(c.PublicKey)
+	encryptedLinks, err := i.linkKey.SealWithNonce(cborPayload, nonce)
 	if err != nil {
-		return nil, errmsg.ErrIdentitySigDeserialization.Wrap(err)
+		return nil, errmsg.ErrEncrypt.Wrap(fmt.Errorf("unable to encrypt message"))
 	}
 
-	id, err := hex.DecodeString(c.ID)
+	entry.SetAdditionalDataValue(iface.KeyEncryptedLinks, base64.StdEncoding.EncodeToString(encryptedLinks))
+	entry.SetAdditionalDataValue(iface.KeyEncryptedLinksNonce, base64.StdEncoding.EncodeToString(nonce))
+
+	return entry, nil
+}
+
+func (i *IOCbor) DecryptLinks(entry *jsonable.EntryV2) (*jsonable.EntryV2, error) {
+	if i.linkKey == nil || len(entry.EncryptedLinks) == 0 || len(entry.EncryptedLinksNonce) == 0 {
+		return entry, nil
+	}
+
+	encryptedLinks, err := base64.StdEncoding.DecodeString(entry.EncryptedLinks)
 	if err != nil {
-		return nil, errmsg.ErrIdentitySigDeserialization.Wrap(err)
+		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
 	}
 
-	return &identityprovider.IdentitySignature{
-		PublicKey: publicKey,
-		ID:        id,
-	}, nil
+	encryptedLinksNonce, err := base64.StdEncoding.DecodeString(entry.EncryptedLinksNonce)
+	if err != nil {
+		return nil, errmsg.ErrEntryDeserializationFailed.Wrap(err)
+	}
+
+	dec, err := i.linkKey.OpenWithNonce(encryptedLinks, encryptedLinksNonce)
+	if err != nil {
+		return nil, errmsg.ErrDecrypt.Wrap(err)
+	}
+
+	links := &jsonable.EntryV2{}
+	if err := i.cborUnmarshaller.Unmarshal(dec, links); err != nil {
+		return nil, errmsg.ErrEncrypt.Wrap(fmt.Errorf("unable to unmarshal decrypted message"))
+	}
+
+	entry.Next = links.Next
+	entry.Refs = links.Refs
+
+	return entry, nil
 }
 
-type IdentitySignature struct {
-	ID        string
-	PublicKey string
-}
+func NonceRefForEntry(entry iface.IPFSLogEntry) []byte {
+	next := ""
 
-type Identity struct {
-	ID         string
-	PublicKey  string
-	Signatures *IdentitySignature
-	Type       string
+	for _, c := range entry.GetNext() {
+		next += "-" + c.String()
+	}
+
+	return []byte(fmt.Sprintf("%s,%s,%s,%s,%d,%s,%d",
+		next,
+		entry.GetKey(),
+		entry.GetPayload(),
+		entry.GetClock().GetID(),
+		entry.GetClock().GetTime(),
+		entry.GetLogID(),
+		entry.GetV(),
+	))
 }

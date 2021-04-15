@@ -1,6 +1,7 @@
 package test
 
 import (
+	"berty.tech/go-ipfs-log/io/pb"
 	"bytes"
 	"context"
 	"fmt"
@@ -248,18 +249,18 @@ func TestLogLoad(t *testing.T) {
 				require.NoError(t, err)
 
 				if prev2 != nil {
-					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+					nexts = []cid.Cid{prev2.GetHash(), n1.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash}
+					nexts = []cid.Cid{n1.GetHash()}
 				}
 
 				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 				require.NoError(t, err)
 
 				if prev3 != nil {
-					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+					nexts = []cid.Cid{prev3.GetHash(), n1.GetHash(), n2.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash, n2.Hash}
+					nexts = []cid.Cid{n1.GetHash(), n2.GetHash()}
 				}
 
 				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
@@ -310,18 +311,18 @@ func TestLogLoad(t *testing.T) {
 				require.NoError(t, err)
 
 				if prev2 != nil {
-					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+					nexts = []cid.Cid{prev2.GetHash(), n1.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash}
+					nexts = []cid.Cid{n1.GetHash()}
 				}
 
 				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 				require.NoError(t, err)
 
 				if prev3 != nil {
-					nexts = []cid.Cid{prev3.GetHash(), n2.Hash}
+					nexts = []cid.Cid{prev3.GetHash(), n2.GetHash()}
 				} else {
-					nexts = []cid.Cid{n2.Hash}
+					nexts = []cid.Cid{n2.GetHash()}
 				}
 
 				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
@@ -374,18 +375,18 @@ func TestLogLoad(t *testing.T) {
 				require.NoError(t, err)
 
 				if prev2 != nil {
-					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+					nexts = []cid.Cid{prev2.GetHash(), n1.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash}
+					nexts = []cid.Cid{n1.GetHash()}
 				}
 
 				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts}, nil)
 				require.NoError(t, err)
 
 				if prev3 != nil {
-					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+					nexts = []cid.Cid{prev3.GetHash(), n1.GetHash(), n2.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash, n2.Hash}
+					nexts = []cid.Cid{n1.GetHash(), n2.GetHash()}
 				}
 
 				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts}, nil)
@@ -443,18 +444,18 @@ func TestLogLoad(t *testing.T) {
 				require.NoError(t, err)
 
 				if prev2 != nil {
-					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+					nexts = []cid.Cid{prev2.GetHash(), n1.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash}
+					nexts = []cid.Cid{n1.GetHash()}
 				}
 
 				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryB%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
 				require.NoError(t, err)
 
 				if prev3 != nil {
-					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+					nexts = []cid.Cid{prev3.GetHash(), n1.GetHash(), n2.GetHash()}
 				} else {
-					nexts = []cid.Cid{n1.Hash, n2.Hash}
+					nexts = []cid.Cid{n1.GetHash(), n2.GetHash()}
 				}
 
 				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: "X", Payload: []byte(fmt.Sprintf("entryC%d", i)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
@@ -1012,17 +1013,17 @@ func TestLogLoad(t *testing.T) {
 				n1, err := entry.CreateEntry(ctx, ipfs, log1.Identity, &entry.Entry{LogID: log1.ID, Payload: []byte(fmt.Sprintf("entryA%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log1.Clock)}, nil)
 				require.NoError(t, err)
 
-				nexts = []cid.Cid{n1.Hash}
+				nexts = []cid.Cid{n1.GetHash()}
 				if prev2 != nil {
-					nexts = []cid.Cid{prev2.GetHash(), n1.Hash}
+					nexts = []cid.Cid{prev2.GetHash(), n1.GetHash()}
 				}
 
 				n2, err := entry.CreateEntry(ctx, ipfs, log2.Identity, &entry.Entry{LogID: log2.ID, Payload: []byte(fmt.Sprintf("entryB%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log2.Clock)}, nil)
 				require.NoError(t, err)
 
-				nexts = []cid.Cid{n1.Hash, n2.Hash}
+				nexts = []cid.Cid{n1.GetHash(), n2.GetHash()}
 				if prev2 != nil {
-					nexts = []cid.Cid{prev3.GetHash(), n1.Hash, n2.Hash}
+					nexts = []cid.Cid{prev3.GetHash(), n1.GetHash(), n2.GetHash()}
 				}
 
 				n3, err := entry.CreateEntry(ctx, ipfs, log3.Identity, &entry.Entry{LogID: log3.ID, Payload: []byte(fmt.Sprintf("entryC%d-%d", i, ts)), Next: nexts, Clock: entry.CopyLamportClock(log3.Clock)}, nil)
@@ -1069,6 +1070,83 @@ func TestLogLoad(t *testing.T) {
 
 		t.Run("respects timeout parameter", func(t *testing.T) {
 			// TODO
+		})
+	})
+
+	t.Run("Backwards-compatibility v0", func(t *testing.T) {
+		v0Entries := getEntriesV0Fixtures(t)
+		pbio, err := pb.IO(&entry.Entry{}, &entry.LamportClock{})
+		require.NoError(t, err)
+
+		_, err = pbio.Write(ctx, ipfs, entry.Normalize(v0Entries["hello"], nil), nil)
+		require.NoError(t, err)
+
+		c, err := pbio.Write(ctx, ipfs, entry.Normalize(v0Entries["helloWorld"], nil), nil)
+		require.NoError(t, err)
+
+		require.Equal(t, "QmUKMoRrmsYAzQg1nQiD7Fzgpo24zXky7jVJNcZGiSAdhc", c.String())
+
+		c, err = pbio.Write(ctx, ipfs, entry.Normalize(v0Entries["helloAgain"], nil), nil)
+		require.NoError(t, err)
+
+		require.Equal(t, "QmZ8va2fSjRufV1sD6x5mwi6E5GrSjXHx7RiKFVBzkiUNZ", c.String())
+		testIdentity := identities[0]
+
+		t.Run("creates a log from v0 json", func(t *testing.T) {
+			headHash, err := pbio.Write(ctx, ipfs, entry.Normalize(v0Entries["helloAgain"], nil), nil)
+			require.NoError(t, err)
+
+			json := &iface.JSONLog{
+				ID:    "A",
+				Heads: []cid.Cid{headHash},
+			}
+
+			headEntries := []iface.IPFSLogEntry(nil)
+
+			for _, head := range json.Heads {
+				e, err := entry.FromMultihashWithIO(ctx, ipfs, head, testIdentity.Provider, pbio)
+				require.NoError(t, err)
+
+				headEntries = append(headEntries, e)
+			}
+
+			l, err := ipfslog.NewFromJSON(ctx, ipfs, testIdentity, json, &ipfslog.LogOptions{ID: "A", IO: pbio}, &entry.FetchOptions{Length: intPtr(-1), IO: pbio})
+			require.NoError(t, err)
+
+			require.Equal(t, 2, l.Values().Len())
+		})
+
+		t.Run("creates a log from v0 entry", func(t *testing.T) {
+			log, err := ipfslog.NewFromEntry(ctx, ipfs, testIdentity, []iface.IPFSLogEntry{v0Entries["helloAgain"]},
+				&ipfslog.LogOptions{
+					ID: "A",
+					IO: pbio,
+				}, &entry.FetchOptions{IO: pbio})
+			require.NoError(t, err)
+
+			require.Equal(t, 2, log.Entries.Len())
+		})
+
+		t.Run("creates a log from v0 entry hash", func(t *testing.T) {
+			log, err := ipfslog.NewFromEntryHash(ctx, ipfs, testIdentity, v0Entries["helloAgain"].Hash,
+				&ipfslog.LogOptions{
+					ID: "A",
+					IO: pbio,
+				}, &ipfslog.FetchOptions{})
+			require.NoError(t, err)
+
+			require.Equal(t, 2, log.Entries.Len())
+		})
+
+		t.Run("creates a log from v0 entry", func(t *testing.T) {
+			log, err := ipfslog.NewFromEntry(ctx, ipfs, testIdentity, []iface.IPFSLogEntry{v0Entries["helloAgain"]},
+				&ipfslog.LogOptions{
+					ID: "A",
+					IO: pbio,
+				}, &entry.FetchOptions{})
+			require.NoError(t, err)
+
+			require.Equal(t, 2, log.Entries.Len())
 		})
 	})
 }
