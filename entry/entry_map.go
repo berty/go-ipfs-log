@@ -37,7 +37,7 @@ func NewOrderedMapFromEntries(entries []iface.IPFSLogEntry) iface.IPFSLogOrdered
 	orderedMap := NewOrderedMap()
 
 	for _, e := range entries {
-		if e == nil {
+		if e == nil || !e.Defined() {
 			continue
 		}
 

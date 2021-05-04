@@ -5,14 +5,20 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
+	format "github.com/ipfs/go-ipld-format"
+	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/identityprovider"
 )
 
-type CborLamportClock struct {
-	ID   string
-	Time int
+const KeyEncryptedLinks = "encrypted_links"
+const KeyEncryptedLinksNonce = "encrypted_links_nonce"
+
+type WriteOpts struct {
+	Pin                 bool
+	EncryptedLinks      string
+	EncryptedLinksNonce string
 }
 
 type FetchOptions struct {
@@ -22,6 +28,19 @@ type FetchOptions struct {
 	Timeout      time.Duration
 	ProgressChan chan IPFSLogEntry
 	Provider     identityprovider.Interface
+	IO           IO
+}
+
+type IO interface {
+	Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *WriteOpts) (cid.Cid, error)
+	Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error)
+	DecodeRawEntry(node format.Node, hash cid.Cid, p identityprovider.Interface) (IPFSLogEntry, error)
+	DecodeRawJSONLog(node format.Node) (*JSONLog, error)
+}
+
+type IOPreSign interface {
+	IO
+	PreSign(entry IPFSLogEntry) (IPFSLogEntry, error)
 }
 
 type LogOptions struct {
@@ -32,6 +51,7 @@ type LogOptions struct {
 	Clock            IPFSLogLamportClock
 	SortFn           func(a, b IPFSLogEntry) (int, error)
 	Concurrency      uint
+	IO               IO
 }
 
 type CreateEntryOptions struct {
@@ -73,11 +93,12 @@ type IPFSLog interface {
 	ToSnapshot() *Snapshot
 	ToMultihash(ctx context.Context) (cid.Cid, error)
 	Values() IPFSLogOrderedEntries
-	ToJSON() *JSONLog
+	ToJSONLog() *JSONLog
 	Heads() IPFSLogOrderedEntries
 	GetEntries() IPFSLogOrderedEntries
 	RawHeads() IPFSLogOrderedEntries
 	SetIdentity(identity *identityprovider.Identity)
+	IO() IO
 }
 
 type EntrySortFn func(IPFSLogEntry, IPFSLogEntry) (int, error)
@@ -125,6 +146,9 @@ type IPFSLogOrderedEntries interface {
 type IPFSLogEntry interface {
 	accesscontroller.LogEntry
 
+	New() IPFSLogEntry
+	Copy() IPFSLogEntry
+
 	GetLogID() string
 	GetNext() []cid.Cid
 	GetRefs() []cid.Cid
@@ -133,6 +157,7 @@ type IPFSLogEntry interface {
 	GetSig() []byte
 	GetHash() cid.Cid
 	GetClock() IPFSLogLamportClock
+	GetAdditionalData() map[string]string
 
 	SetPayload([]byte)
 	SetLogID(string)
@@ -144,20 +169,38 @@ type IPFSLogEntry interface {
 	SetIdentity(*identityprovider.Identity)
 	SetHash(cid.Cid)
 	SetClock(IPFSLogLamportClock)
+	SetAdditionalDataValue(key string, value string)
 
 	IsValid() bool
-	Verify(identity identityprovider.Interface) error
+	Verify(identity identityprovider.Interface, io IO) error
+	Equals(b IPFSLogEntry) bool
 	IsParent(b IPFSLogEntry) bool
-	ToCborEntry() interface{}
+	Defined() bool
 }
 
 type IPFSLogLamportClock interface {
+	New() IPFSLogLamportClock
+	Defined() bool
+
 	GetID() []byte
 	GetTime() int
+
+	SetID([]byte)
+	SetTime(int)
 
 	Tick() IPFSLogLamportClock
 	Merge(clock IPFSLogLamportClock) IPFSLogLamportClock
 	Compare(b IPFSLogLamportClock) int
+}
 
-	ToCborLamportClock() *CborLamportClock
+type Hashable struct {
+	Hash           interface{}
+	ID             string
+	Payload        []byte
+	Next           []string
+	Refs           []string
+	V              uint64
+	Clock          IPFSLogLamportClock
+	Key            []byte
+	AdditionalData map[string]string
 }

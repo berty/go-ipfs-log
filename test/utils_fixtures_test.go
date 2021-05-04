@@ -3,10 +3,46 @@ package test
 import (
 	"testing"
 
+	"github.com/ipfs/go-cid"
+
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/identityprovider"
-	cid "github.com/ipfs/go-cid"
 )
+
+func getEntriesV0Fixtures(t *testing.T) map[string]*entry.Entry {
+	return map[string]*entry.Entry{
+		"hello": {
+			Hash:    MustCID(t, "Qmc2DEiLirMH73kHpuFPbt3V65sBrnDWkJYSjUQHXXvghT"),
+			LogID:   "A",
+			Payload: []byte("hello"),
+			V:       0,
+			Clock:   entry.NewLamportClock(MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"), 0),
+			Sig:     MustBytesFromHex(t, "3044022062f4cfc8b8f3cc01283b25eab3eeb295614bb0faa8bd20f026c1487ae663121102207ce415bd7423b66d695338c17122e937259f77d1e86494d3146436f0959fccc6"),
+			Key:     MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"),
+			Next:    []cid.Cid{},
+		},
+		"helloWorld": {
+			Hash:    MustCID(t, "QmUKMoRrmsYAzQg1nQiD7Fzgpo24zXky7jVJNcZGiSAdhc"),
+			LogID:   "A",
+			Payload: []byte("hello world"),
+			V:       0,
+			Clock:   entry.NewLamportClock(MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"), 0),
+			Sig:     MustBytesFromHex(t, "3044022062f4cfc8b8f3cc01283b25eab3eeb295614bb0faa8bd20f026c1487ae663121102207ce415bd7423b66d695338c17122e937259f77d1e86494d3146436f0959fccc6"),
+			Key:     MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"),
+			Next:    []cid.Cid{},
+		},
+		"helloAgain": {
+			Hash:    MustCID(t, "QmZ8va2fSjRufV1sD6x5mwi6E5GrSjXHx7RiKFVBzkiUNZ"),
+			LogID:   "A",
+			Payload: []byte("hello again"),
+			V:       0,
+			Clock:   entry.NewLamportClock(MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"), 0),
+			Sig:     MustBytesFromHex(t, "3044022062f4cfc8b8f3cc01283b25eab3eeb295614bb0faa8bd20f026c1487ae663121102207ce415bd7423b66d695338c17122e937259f77d1e86494d3146436f0959fccc6"),
+			Key:     MustBytesFromHex(t, "0411a0d38181c9374eca3e480ecada96b1a4db9375c5e08c3991557759d22f6f2f902d0dc5364a948035002504d825308b0c257b7cbb35229c2076532531f8f4ef"),
+			Next:    []cid.Cid{MustCID(t, "QmUKMoRrmsYAzQg1nQiD7Fzgpo24zXky7jVJNcZGiSAdhc")},
+		},
+	}
+}
 
 func getEntriesV1Fixtures(t *testing.T, id *identityprovider.Identity) []entry.Entry {
 	return []entry.Entry{

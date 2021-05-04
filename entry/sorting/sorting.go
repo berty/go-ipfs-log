@@ -98,7 +98,7 @@ func Reverse(a []iface.IPFSLogEntry) {
 
 func Compare(a, b iface.IPFSLogEntry) (int, error) {
 	// TODO: Make it a Golang slice-compatible sort function
-	if a == nil || b == nil {
+	if a == nil || b == nil || !a.Defined() || !b.Defined() {
 		return 0, errmsg.ErrEntryNotDefined
 	}
 

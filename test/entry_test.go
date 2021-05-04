@@ -9,7 +9,9 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/io"
+	"berty.tech/go-ipfs-log/io/cbor"
+	"berty.tech/go-ipfs-log/io/pb"
+
 	ks "berty.tech/go-ipfs-log/keystore"
 	cid "github.com/ipfs/go-cid"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -40,9 +42,12 @@ func TestEntry(t *testing.T) {
 		t.Run("creates an empty entry", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
 
-			e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.NoError(t, err)
-			require.NotNil(t, e)
+			require.NotNil(t, ent)
+
+			e, ok := ent.(*entry.Entry)
+			require.True(t, ok)
 
 			require.Equal(t, e.Hash.String(), expectedHash)
 			require.Equal(t, e.LogID, "A")
@@ -56,9 +61,12 @@ func TestEntry(t *testing.T) {
 
 		t.Run("creates an entry with payload", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAyvJU3TS7LUdfRxwAnJorkz6NfpAWHGypsQEXLZxcCCRC")
-			e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello world"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello world"), LogID: "A"}, nil)
 			require.NoError(t, err)
-			require.NotNil(t, e)
+			require.NotNil(t, ent)
+
+			e, ok := ent.(*entry.Entry)
+			require.True(t, ok)
 
 			require.Equal(t, string(e.Payload), "hello world")
 			require.Equal(t, e.LogID, "A")
@@ -74,11 +82,20 @@ func TestEntry(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAqsN9Py4EWSfrGYZS8tuokWuiTd9zhS8dhr9XpSGQajP2")
 			payload1 := "hello world"
 			payload2 := "hello again"
-			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			ent1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
+			require.NotNil(t, ent1)
+
+			e1, ok := ent1.(*entry.Entry)
+			require.True(t, ok)
+
 			e1.Clock.Tick()
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}, Clock: e1.Clock}, nil)
+			ent2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}, Clock: e1.Clock}, nil)
 			require.NoError(t, err)
+			require.NotNil(t, ent2)
+
+			e2, ok := ent2.(*entry.Entry)
+			require.True(t, ok)
 
 			require.Equal(t, string(e2.Payload), payload2)
 			require.Equal(t, len(e2.Next), 1)
@@ -137,9 +154,12 @@ func TestEntry(t *testing.T) {
 	t.Run("toMultihash", func(t *testing.T) {
 		t.Run("returns an ipfs multihash", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
-			e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.NoError(t, err)
+			require.NotNil(t, ent)
 
+			e, ok := ent.(*entry.Entry)
+			require.True(t, ok)
 			hash, err := e.ToMultihash(ctx, ipfs, nil)
 			require.NoError(t, err)
 
@@ -157,11 +177,18 @@ func TestEntry(t *testing.T) {
 			require.Equal(t, hash.String(), expectedHash)
 		})
 
-		// TODO
-		// t.Run("returns the correct ipfs hash (multihash) for a v0 entry", func(t *testing.T) {
-		// 		expectedHash := "QmV5NpvViHHouBfo7CSnfX2iB4t5PVWNJG8doKt5cwwnxY"
-		// 		_ = expectedHash
-		// 	})
+		t.Run("returns the correct ipfs multihash for a v0 entry", func(t *testing.T) {
+			pbio, err := pb.IO(&entry.Entry{}, &entry.LamportClock{})
+			require.NoError(t, err)
+
+			e := getEntriesV0Fixtures(t)["hello"]
+			expectedHash := CidB32(t, "Qmc2DEiLirMH73kHpuFPbt3V65sBrnDWkJYSjUQHXXvghT")
+
+			hash, err := entry.ToMultihashWithIO(ctx, e, ipfs, nil, pbio)
+			require.NoError(t, err)
+
+			require.Equal(t, hash.String(), expectedHash)
+		})
 	})
 
 	// TODO
@@ -174,16 +201,16 @@ func TestEntry(t *testing.T) {
 			entry1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: payload1, LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			entry2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: payload2, LogID: "A", Next: []cid.Cid{entry1.Hash}}, nil)
+			entry2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: payload2, LogID: "A", Next: []cid.Cid{entry1.GetHash()}}, nil)
 			require.NoError(t, err)
 
-			final, err := entry.FromMultihash(ctx, ipfs, entry2.Hash, identity.Provider)
+			final, err := entry.FromMultihash(ctx, ipfs, entry2.GetHash(), identity.Provider)
 			require.NoError(t, err)
 
-			require.Equal(t, final.LogID, "A")
-			require.Equal(t, final.Payload, payload2)
-			require.Equal(t, len(final.Next), 1)
-			require.Equal(t, final.Hash.String(), expectedHash)
+			require.Equal(t, final.GetLogID(), "A")
+			require.Equal(t, final.GetPayload(), payload2)
+			require.Equal(t, len(final.GetNext()), 1)
+			require.Equal(t, final.GetHash().String(), expectedHash)
 		})
 
 		t.Run("creates a entry from ipfs multihash of v1 entries", func(t *testing.T) {
@@ -191,23 +218,49 @@ func TestEntry(t *testing.T) {
 			e1 := getEntriesV1Fixtures(t, identity)[0]
 			e2 := getEntriesV1Fixtures(t, identity)[1]
 
-			entry1Hash, err := io.WriteCBOR(ctx, ipfs, e1.ToCborEntry(), nil)
+			io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
 			require.NoError(t, err)
 
-			entry2Hash, err := io.WriteCBOR(ctx, ipfs, e2.ToCborEntry(), nil)
+			entry1Hash, err := io.Write(ctx, ipfs, &e1, nil)
+			require.NoError(t, err)
+
+			entry2Hash, err := io.Write(ctx, ipfs, &e2, nil)
 			require.NoError(t, err)
 
 			final, err := entry.FromMultihash(ctx, ipfs, entry2Hash, identity.Provider)
 			require.NoError(t, err)
 
-			require.Equal(t, final.LogID, "A")
-			require.Equal(t, final.Payload, e2.Payload)
-			require.Equal(t, len(final.Next), 1)
-			require.Equal(t, final.Next[0].String(), e2.Next[0].String())
-			require.Equal(t, final.Next[0].String(), entry1Hash.String())
-			require.Equal(t, final.V, uint64(1))
-			require.Equal(t, final.Hash.String(), entry2Hash.String())
+			require.Equal(t, final.GetLogID(), "A")
+			require.Equal(t, final.GetPayload(), e2.Payload)
+			require.Equal(t, len(final.GetNext()), 1)
+			require.Equal(t, final.GetNext()[0].String(), e2.Next[0].String())
+			require.Equal(t, final.GetNext()[0].String(), entry1Hash.String())
+			require.Equal(t, final.GetV(), uint64(1))
+			require.Equal(t, final.GetHash().String(), entry2Hash.String())
 			require.Equal(t, entry2Hash.String(), expectedHash)
+		})
+
+		t.Run("should return an entry interoperable with older and newer versions", func(t *testing.T) {
+			expectedHashV1 := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
+			entryV1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			require.NoError(t, err)
+
+			finalV1, err := entry.FromMultihash(ctx, ipfs, entryV1.GetHash(), identity.Provider)
+			require.NoError(t, err)
+
+			require.Equal(t, expectedHashV1, finalV1.GetHash().String())
+
+			expectedHashV0 := CidB32(t, "QmenUDpFksTa3Q9KmUJYjebqvHJcTF2sGQaCH7orY7bXKC")
+			pbio, err := pb.IO(&entry.Entry{}, &entry.LamportClock{})
+			require.NoError(t, err)
+
+			entryHashV0, err := pbio.Write(ctx, ipfs, getEntriesV0Fixtures(t)["helloWorld"], nil)
+			require.NoError(t, err)
+
+			finalV0, err := entry.FromMultihashWithIO(ctx, ipfs, entryHashV0, identity.Provider, pbio)
+			require.NoError(t, err)
+
+			require.Equal(t, expectedHashV0, finalV0.GetHash().String())
 		})
 	})
 
@@ -218,7 +271,7 @@ func TestEntry(t *testing.T) {
 			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}}, nil)
+			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.GetHash()}}, nil)
 			require.NoError(t, err)
 			require.True(t, e1.IsParent(e2))
 		})
@@ -230,7 +283,7 @@ func TestEntry(t *testing.T) {
 			require.NoError(t, err)
 			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
 			require.NoError(t, err)
-			e3, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e2.Hash}}, nil)
+			e3, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e2.GetHash()}}, nil)
 			require.NoError(t, err)
 
 			require.False(t, e1.IsParent(e2))

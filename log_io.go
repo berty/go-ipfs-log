@@ -2,6 +2,7 @@ package ipfslog // import "berty.tech/go-ipfs-log"
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
@@ -11,11 +12,10 @@ import (
 	"berty.tech/go-ipfs-log/entry/sorting"
 
 	"github.com/ipfs/go-cid"
-	cbornode "github.com/ipfs/go-ipld-cbor"
 
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
-	"berty.tech/go-ipfs-log/io"
+	// "berty.tech/go-ipfs-log/io"
 )
 
 type FetchOptions struct {
@@ -32,17 +32,16 @@ func toMultihash(ctx context.Context, services core_iface.CoreAPI, log *IPFSLog)
 		return cid.Undef, errmsg.ErrEmptyLogSerialization
 	}
 
-	return io.WriteCBOR(ctx, services, log.ToJSON(), nil)
+	return log.io.Write(ctx, services, log.ToJSONLog(), nil)
 }
 
-func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Cid, options *FetchOptions) (*Snapshot, error) {
-	result, err := io.ReadCBOR(ctx, services, hash)
+func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
+	result, err := io.Read(ctx, services, hash)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
 
-	logData := &JSONLog{}
-	err = cbornode.DecodeInto(result.RawData(), logData)
+	logHeads, err := io.DecodeRawJSONLog(result)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
@@ -53,12 +52,13 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 		sortFn = options.SortFn
 	}
 
-	entries := entry.FetchAll(ctx, services, logData.Heads, &iface.FetchOptions{
+	entries := entry.FetchAll(ctx, services, logHeads.Heads, &iface.FetchOptions{
 		Length:       options.Length,
 		Exclude:      options.Exclude,
 		Concurrency:  options.Concurrency,
 		Timeout:      options.Timeout,
 		ProgressChan: options.ProgressChan,
+		IO:           io,
 	})
 
 	if options.Length != nil && *options.Length > -1 {
@@ -69,7 +69,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 
 	var heads []cid.Cid
 	for _, e := range entries {
-		for _, h := range logData.Heads {
+		for _, h := range logHeads.Heads {
 			if h.String() == e.GetHash().String() {
 				heads = append(heads, e.GetHash())
 			}
@@ -77,13 +77,13 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 	}
 
 	return &Snapshot{
-		ID:     logData.ID,
+		ID:     logHeads.ID,
 		Values: entries,
 		Heads:  heads,
 	}, nil
 }
 
-func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions) ([]iface.IPFSLogEntry, error) {
+func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions, io iface.IO) ([]iface.IPFSLogEntry, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -104,6 +104,7 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 		ProgressChan: options.ProgressChan,
 		Timeout:      options.Timeout,
 		Concurrency:  options.Concurrency,
+		IO:           io,
 	})
 
 	sortFn := sorting.NoZeroes(sorting.LastWriteWins)
@@ -120,7 +121,7 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 	return entries, nil
 }
 
-func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
+func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -129,11 +130,16 @@ func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *JSONLog
 		return nil, errmsg.ErrFetchOptionsNotDefined
 	}
 
+	if options.IO == nil {
+		return nil, errmsg.ErrLogOptionsNotDefined.Wrap(fmt.Errorf("missing IO field in fetch options"))
+	}
+
 	entries := entry.FetchParallel(ctx, services, jsonLog.Heads, &iface.FetchOptions{
 		Length:       options.Length,
 		ProgressChan: options.ProgressChan,
 		Concurrency:  options.Concurrency,
 		Timeout:      options.Timeout,
+		IO:           options.IO,
 	})
 
 	sorting.Sort(sorting.Compare, entries, false)
@@ -173,6 +179,7 @@ func fromEntry(ctx context.Context, services core_iface.CoreAPI, sourceEntries [
 		ProgressChan: options.ProgressChan,
 		Timeout:      options.Timeout,
 		Concurrency:  options.Concurrency,
+		IO:           options.IO,
 	})
 
 	// Combine the fetches with the source entries and take only uniques
