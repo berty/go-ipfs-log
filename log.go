@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iancoleman/orderedmap"
 	"github.com/ipfs/go-cid"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
@@ -45,6 +44,10 @@ type IPFSLog struct {
 	io               iface.IO
 	concurrency      uint
 	lock             sync.RWMutex
+}
+
+func (l *IPFSLog) Len() int {
+	return l.Entries.Len()
 }
 
 func (l *IPFSLog) RawHeads() iface.IPFSLogOrderedEntries {
@@ -200,7 +203,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 	sorting.Sort(l.SortFn, stack, true)
 
 	// Cache for checking if we've processed an entry already
-	traversed := orderedmap.New()
+	traversed := map[string]struct{}{}
 	// End result
 	result := entry.NewOrderedMap()
 	// We keep a counter to check if we have traversed requested amount of entries
@@ -217,7 +220,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 
 		// Add to the result
 		result.Set(e.GetHash().String(), e)
-		traversed.Set(e.GetHash().String(), true)
+		traversed[e.GetHash().String()] = struct{}{}
 		count++
 
 		// If it is the specified end hash, break out of the while loop
@@ -235,7 +238,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 
 			// Add item to stack
 			// If we've already processed the entry, don't add it to the stack
-			if _, ok := traversed.Get(next.GetHash().String()); ok {
+			if _, ok := traversed[next.GetHash().String()]; ok {
 				continue
 			}
 
@@ -243,7 +246,7 @@ func (l *IPFSLog) traverse(rootEntries iface.IPFSLogOrderedEntries, amount int, 
 			stack = append([]iface.IPFSLogEntry{next}, stack...)
 
 			// Add to the cache of processed entries
-			traversed.Set(next.GetHash().String(), true)
+			traversed[next.GetHash().String()] = struct{}{}
 
 			// marked that stack was changed, should sort it again
 			modified = true
@@ -524,7 +527,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	newItems := difference(otherLog.GetEntries(), otherLog.RawHeads(), l)
+	newItems := difference(otherLog.GetEntries(), otherLog.RawHeads().Slice(), l)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(newItems.Len())
@@ -567,11 +570,11 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 		l.Entries.Set(e.GetHash().String(), e)
 	}
 
-	nextsFromNewItems := orderedmap.New()
+	nextsFromNewItems := map[string]struct{}{}
 	for _, k := range newItems.Keys() {
 		e := newItems.UnsafeGet(k)
 		for _, n := range e.GetNext() {
-			nextsFromNewItems.Set(n.String(), true)
+			nextsFromNewItems[n.String()] = struct{}{}
 		}
 	}
 
@@ -579,7 +582,7 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 
 	for idx, e := range mergedHeads {
 		// notReferencedByNewItems
-		if _, ok := nextsFromNewItems.Get(e.GetHash().String()); ok {
+		if _, ok := nextsFromNewItems[e.GetHash().String()]; ok {
 			mergedHeads[idx] = nil
 		}
 
@@ -614,8 +617,8 @@ func (l *IPFSLog) Join(otherLog iface.IPFSLog, size int) (iface.IPFSLog, error) 
 	return l, nil
 }
 
-func difference(entriesA, headsA iface.IPFSLogOrderedEntries, logB *IPFSLog) iface.IPFSLogOrderedEntries {
-	if entriesA == nil || entriesA.Len() == 0 || headsA.Len() == 0 || logB == nil {
+func difference(entriesA iface.IPFSLogOrderedEntries, headsA []iface.IPFSLogEntry, logB *IPFSLog) iface.IPFSLogOrderedEntries {
+	if entriesA.Len() == 0 || len(headsA) == 0 || logB == nil {
 		return entry.NewOrderedMap()
 	}
 
@@ -623,8 +626,11 @@ func difference(entriesA, headsA iface.IPFSLogOrderedEntries, logB *IPFSLog) ifa
 		logB.Entries = entry.NewOrderedMap()
 	}
 
-	stack := headsA.Keys()
-	traversed := map[string]bool{}
+	stack := make([]string, len(headsA))
+	for i, e := range headsA {
+		stack[i] = e.GetHash().String()
+	}
+	traversed := map[string]struct{}{}
 	res := entry.NewOrderedMap()
 
 	for {
@@ -639,14 +645,14 @@ func difference(entriesA, headsA iface.IPFSLogOrderedEntries, logB *IPFSLog) ifa
 
 		if okA && !okB && eA.GetLogID() == logB.ID {
 			res.Set(hash, eA)
-			traversed[hash] = true
+			traversed[hash] = struct{}{}
 			for _, h := range eA.GetNext() {
 				hash := h.String()
 				_, okB := logB.Entries.Get(hash)
 				_, okT := traversed[hash]
 				if !okT && !okB {
 					stack = append(stack, hash)
-					traversed[hash] = true
+					traversed[hash] = struct{}{}
 				}
 			}
 		}

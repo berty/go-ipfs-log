@@ -99,6 +99,9 @@ type IPFSLog interface {
 	RawHeads() IPFSLogOrderedEntries
 	SetIdentity(identity *identityprovider.Identity)
 	IO() IO
+
+	Len() int
+	Get(c cid.Cid) (IPFSLogEntry, bool)
 }
 
 type EntrySortFn func(IPFSLogEntry, IPFSLogEntry) (int, error)
@@ -121,15 +124,6 @@ type IPFSLogOrderedEntries interface {
 
 	// Slice returns an ordered slice of the values existing in the map.
 	Slice() []IPFSLogEntry
-
-	// First
-	First(until uint) IPFSLogOrderedEntries
-
-	// Last
-	Last(after uint) IPFSLogOrderedEntries
-
-	// Delete removes an Entry from the map for a given key.
-	Delete(key string)
 
 	// Keys retrieves the ordered list of keys in the map.
 	Keys() []string

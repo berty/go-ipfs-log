@@ -5,7 +5,6 @@ go 1.16
 require (
 	github.com/btcsuite/btcd v0.21.0-beta
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/iancoleman/orderedmap v0.2.0
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-datastore v0.4.5
 	github.com/ipfs/go-ipfs v0.8.0
