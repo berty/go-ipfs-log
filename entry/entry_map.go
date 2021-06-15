@@ -11,35 +11,36 @@ type OrderedMap struct {
 	lock   sync.RWMutex
 	keys   []string
 	values map[string]iface.IPFSLogEntry
-	copied bool
 }
 
 func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
+	values := map[string]iface.IPFSLogEntry{}
+	for k, v := range o.values {
+		values[k] = v
+	}
+
+	keys := make([]string, len(o.keys))
+	copy(keys, o.keys)
+
 	return &OrderedMap{
-		keys:   o.keys,
-		values: o.values,
-		copied: true,
+		keys:   keys,
+		values: values,
 	}
 }
 
 func (o *OrderedMap) Reverse() iface.IPFSLogOrderedEntries {
-	o.lock.RLock()
-	defer o.lock.RUnlock()
+	o.lock.Lock()
+	defer o.lock.Unlock()
 
-	keys := o.keys
-	for i := len(keys)/2 - 1; i >= 0; i-- {
-		opp := len(keys) - 1 - i
-		keys[i], keys[opp] = keys[opp], keys[i]
+	for i := len(o.keys)/2 - 1; i >= 0; i-- {
+		opp := len(o.keys) - 1 - i
+		o.keys[i], o.keys[opp] = o.keys[opp], o.keys[i]
 	}
 
-	return &OrderedMap{
-		keys:   o.keys,
-		values: o.values,
-		copied: true,
-	}
+	return o
 }
 
 // NewOrderedMap creates a new OrderedMap of entries.
@@ -101,24 +102,10 @@ func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
 	return val
 }
 
-func (o *OrderedMap) preWrite() {
-	if o.copied {
-		o.copied = false
-		values := map[string]iface.IPFSLogEntry{}
-		for k, v := range o.values {
-			values[k] = v
-		}
-
-		o.values = values
-	}
-}
-
 // Set defines an Entry in the map for a given key.
 func (o *OrderedMap) Set(key string, value iface.IPFSLogEntry) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
-
-	o.preWrite()
 
 	_, exists := o.values[key]
 	if !exists {
