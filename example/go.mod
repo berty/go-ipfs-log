@@ -1,17 +1,15 @@
 module berty.tech/go-ipfs-log/example
 
-go 1.13
+go 1.15
 
 require (
 	berty.tech/go-ipfs-log v0.0.0
-	github.com/davidlazar/go-crypto v0.0.0-20190912175916-7055855a373f // indirect
 	github.com/ipfs/go-datastore v0.4.5
-	github.com/ipfs/go-ipfs v0.8.0
-	github.com/ipfs/go-ipfs-config v0.12.0
-	github.com/libp2p/go-libp2p v0.13.0
+	github.com/ipfs/go-ipfs v0.9.1
+	github.com/ipfs/go-ipfs-config v0.14.0
+	github.com/libp2p/go-libp2p v0.14.3
 	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/libp2p/go-libp2p-peerstore v0.2.6
-	github.com/libp2p/go-sockaddr v0.1.0 // indirect
+	github.com/libp2p/go-libp2p-peerstore v0.2.7
 )
 
 replace berty.tech/go-ipfs-log v0.0.0 => ../
