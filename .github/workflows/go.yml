@@ -51,7 +51,7 @@ jobs:
           git --no-pager diff go.mod go.sum
           git --no-pager diff --quiet go.mod go.sum
       - name: Build tests
-        run: go test -i ./...
+        run: go test ./...
       - name: Run tests with race, without goleak
         run: go test -race -covermode=atomic -coverpkg=all -coverprofile=coverage.txt -cover -v ./... -test.timeout=10m
       # temporarily disabled, because not stable enough
@@ -99,7 +99,7 @@ jobs:
           git --no-pager diff go.mod go.sum
           git --no-pager diff --quiet go.mod go.sum
       - name: Build tests
-        run: go test -i ./...
+        run: go test ./...
       - name: Run tests with race, without goleak
         run: go test -race -covermode=atomic -coverpkg=all -coverprofile=coverage.txt -cover -v ./... -test.timeout=10m
       # temporarily disabled, because not stable enough
