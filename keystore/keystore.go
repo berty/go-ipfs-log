@@ -2,6 +2,7 @@
 package keystore // import "berty.tech/go-ipfs-log/keystore"
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 
@@ -50,11 +51,11 @@ func NewKeystore(store datastore.Datastore) (*Keystore, error) {
 }
 
 // HasKey checks whether a given key ID exist in the keystore.
-func (k *Keystore) HasKey(id string) (bool, error) {
+func (k *Keystore) HasKey(ctx context.Context, id string) (bool, error) {
 	storedKey, ok := k.cache.Peek(id)
 
 	if ok == false {
-		value, err := k.store.Get(datastore.NewKey(id))
+		value, err := k.store.Get(ctx, datastore.NewKey(id))
 		if err != nil {
 			return false, errmsg.ErrKeyNotInKeystore.Wrap(err)
 		}
@@ -68,7 +69,7 @@ func (k *Keystore) HasKey(id string) (bool, error) {
 }
 
 // CreateKey creates a new key in the key store.
-func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
+func (k *Keystore) CreateKey(ctx context.Context, id string) (crypto.PrivKey, error) {
 	// FIXME: I kept Secp256k1 for compatibility with OrbitDB, should we change this?
 	priv, _, err := crypto.GenerateSecp256k1Key(rand.Reader)
 	if err != nil {
@@ -80,7 +81,7 @@ func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 		return nil, errmsg.ErrInvalidPrivKeyFormat.Wrap(err)
 	}
 
-	if err := k.store.Put(datastore.NewKey(id), keyBytes); err != nil {
+	if err := k.store.Put(ctx, datastore.NewKey(id), keyBytes); err != nil {
 		return nil, errmsg.ErrKeyStorePutFailed.Wrap(err)
 	}
 
@@ -90,13 +91,13 @@ func (k *Keystore) CreateKey(id string) (crypto.PrivKey, error) {
 }
 
 // GetKey retrieves a key from the keystore.
-func (k *Keystore) GetKey(id string) (crypto.PrivKey, error) {
+func (k *Keystore) GetKey(ctx context.Context, id string) (crypto.PrivKey, error) {
 	var err error
 	var keyBytes []byte
 
 	cachedKey, ok := k.cache.Get(id)
 	if !ok || cachedKey == nil {
-		keyBytes, err = k.store.Get(datastore.NewKey(id))
+		keyBytes, err = k.store.Get(ctx, datastore.NewKey(id))
 
 		if err != nil {
 			return nil, errmsg.ErrKeyNotInKeystore.Wrap(err)

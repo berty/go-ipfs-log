@@ -1,12 +1,13 @@
 package cbor
 
 import (
-	"berty.tech/go-ipfs-log/enc"
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/ipfs/go-ipld-cbor/encoding"
 	"math"
+
+	"berty.tech/go-ipfs-log/enc"
+	"github.com/ipfs/go-ipld-cbor/encoding"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"

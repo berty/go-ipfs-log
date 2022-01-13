@@ -34,7 +34,7 @@ func TestLogJoin(t *testing.T) {
 
 	for i, char := range []rune{'C', 'B', 'D', 'A'} {
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       fmt.Sprintf("user%c", char),
 			Type:     "orbitdb",

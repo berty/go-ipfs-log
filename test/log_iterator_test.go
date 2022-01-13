@@ -25,7 +25,7 @@ func TestLogIterator(t *testing.T) {
 	identities := make([]*idp.Identity, 4)
 
 	for i, char := range []rune{'A', 'B', 'C'} {
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       fmt.Sprintf("user%c", char),
 			Type:     "orbitdb",

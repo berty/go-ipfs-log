@@ -1,7 +1,6 @@
 package test
 
 import (
-	"berty.tech/go-ipfs-log/io/pb"
 	"bytes"
 	"context"
 	"fmt"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"berty.tech/go-ipfs-log/io/pb"
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
@@ -43,7 +44,7 @@ func TestLogLoad(t *testing.T) {
 	identities := make([]*idp.Identity, 4)
 
 	for i, char := range []rune{'C', 'B', 'D', 'A'} {
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       fmt.Sprintf("user%c", char),
 			Type:     "orbitdb",

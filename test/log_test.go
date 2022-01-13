@@ -35,7 +35,7 @@ func TestLog(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		char := 'A' + i
 
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       fmt.Sprintf("user%c", char),
 			Type:     "orbitdb",
@@ -66,21 +66,21 @@ func TestLog(t *testing.T) {
 	})
 
 	t.Run("sets items if given as params", func(t *testing.T) {
-		id1, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		id1, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       "userA",
 			Type:     "orbitdb",
 		})
 		require.NoError(t, err)
 
-		id2, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		id2, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       "userB",
 			Type:     "orbitdb",
 		})
 		require.NoError(t, err)
 
-		id3, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		id3, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       "userC",
 			Type:     "orbitdb",

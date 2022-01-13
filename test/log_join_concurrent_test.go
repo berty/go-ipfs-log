@@ -27,7 +27,7 @@ func TestLogJoinConcurrent(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("join", func(t *testing.T) {
-		identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+		identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 			Keystore: keystore,
 			ID:       "userA",
 			Type:     "orbitdb",

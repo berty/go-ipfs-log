@@ -190,7 +190,7 @@ func CreateEntryWithIO(ctx context.Context, ipfsInstance core_iface.CoreAPI, ide
 		return nil, errmsg.ErrEntryNotHashable.Wrap(err)
 	}
 
-	signature, err := identity.Provider.Sign(identity, jsonBytes)
+	signature, err := identity.Provider.Sign(ctx, identity, jsonBytes)
 
 	if err != nil {
 		return nil, errmsg.ErrSigSign.Wrap(err)

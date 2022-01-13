@@ -26,7 +26,7 @@ func TestLogReferences(t *testing.T) {
 	keystore, err := ks.NewKeystore(datastore)
 	require.NoError(t, err)
 
-	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: keystore,
 		ID:       "userA",
 		Type:     "orbitdb",
@@ -113,7 +113,7 @@ func TestLogReferences2(t *testing.T) {
 	keystore, err := ks.NewKeystore(datastore)
 	require.NoError(t, err)
 
-	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: keystore,
 		ID:       "userA",
 		Type:     "orbitdb",

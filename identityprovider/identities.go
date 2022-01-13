@@ -1,6 +1,7 @@
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
+	"context"
 	"encoding/hex"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -32,8 +33,8 @@ func newIdentities(keyStore keystore.Interface) *Identities {
 	}
 }
 
-func (i *Identities) Sign(identity *Identity, data []byte) ([]byte, error) {
-	privKey, err := i.keyStore.GetKey(identity.ID)
+func (i *Identities) Sign(ctx context.Context, identity *Identity, data []byte) ([]byte, error) {
+	privKey, err := i.keyStore.GetKey(ctx, identity.ID)
 	if err != nil {
 		return nil, errmsg.ErrKeyNotInKeystore.Wrap(err)
 	}
@@ -71,14 +72,14 @@ func compressedToUncompressedS256Key(pubKeyBytes []byte) ([]byte, error) {
 }
 
 // CreateIdentity creates a new Identity.
-func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
+func (i *Identities) CreateIdentity(ctx context.Context, options *CreateIdentityOptions) (*Identity, error) {
 	NewIdentityProvider, err := getHandlerFor(options.Type)
 	if err != nil {
 		return nil, errmsg.ErrIdentityProviderNotSupported.Wrap(err)
 	}
 
 	identityProvider := NewIdentityProvider(options)
-	id, err := identityProvider.GetID(options)
+	id, err := identityProvider.GetID(ctx, options)
 	if err != nil {
 		return nil, errmsg.ErrIdentityUnknown.Wrap(err)
 	}
@@ -90,7 +91,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 	//	}
 	//}
 
-	publicKey, idSignature, err := i.signID(id)
+	publicKey, idSignature, err := i.signID(ctx, id)
 	if err != nil {
 		return nil, errmsg.ErrSigSign.Wrap(err)
 	}
@@ -108,7 +109,7 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 		}
 	}
 
-	pubKeyIDSignature, err := identityProvider.SignIdentity(append(publicKeyBytes, idSignature...), options.ID)
+	pubKeyIDSignature, err := identityProvider.SignIdentity(ctx, append(publicKeyBytes, idSignature...), options.ID)
 	if err != nil {
 		return nil, errmsg.ErrIdentityCreationFailed.Wrap(err)
 	}
@@ -125,10 +126,10 @@ func (i *Identities) CreateIdentity(options *CreateIdentityOptions) (*Identity, 
 	}, nil
 }
 
-func (i *Identities) signID(id string) (crypto.PubKey, []byte, error) {
-	privKey, err := i.keyStore.GetKey(id)
+func (i *Identities) signID(ctx context.Context, id string) (crypto.PubKey, []byte, error) {
+	privKey, err := i.keyStore.GetKey(ctx, id)
 	if err != nil {
-		privKey, err = i.keyStore.CreateKey(id)
+		privKey, err = i.keyStore.CreateKey(ctx, id)
 
 		if err != nil {
 			return nil, nil, errmsg.ErrSigSign.Wrap(err)
@@ -173,7 +174,7 @@ func (i *Identities) VerifyIdentity(identity *Identity) error {
 }
 
 // CreateIdentity creates a new identity.
-func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
+func CreateIdentity(ctx context.Context, options *CreateIdentityOptions) (*Identity, error) {
 	ks := options.Keystore
 	if ks == nil {
 		return nil, errmsg.ErrKeystoreNotDefined
@@ -181,7 +182,7 @@ func CreateIdentity(options *CreateIdentityOptions) (*Identity, error) {
 
 	identities := newIdentities(ks)
 
-	return identities.CreateIdentity(options)
+	return identities.CreateIdentity(ctx, options)
 }
 
 // IsSupported checks if an identity type is supported.

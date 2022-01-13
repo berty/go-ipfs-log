@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/hex"
 	"testing"
 
@@ -26,7 +27,7 @@ func NewIdentityDataStore(t testing.TB) ds.Datastore {
 
 	dataStore := ds.NewMapDatastore()
 	for k, v := range identityKeys {
-		err := dataStore.Put(ds.NewKey(k), v)
+		err := dataStore.Put(context.Background(), ds.NewKey(k), v)
 		require.NoError(t, err)
 	}
 
