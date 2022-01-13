@@ -1,6 +1,7 @@
 package identityprovider // import "berty.tech/go-ipfs-log/identityprovider"
 
 import (
+	"context"
 	"encoding/hex"
 
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -26,10 +27,10 @@ func NewOrbitDBIdentityProvider(options *CreateIdentityOptions) Interface {
 }
 
 // GetID returns the identity's ID.
-func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string, error) {
-	private, err := p.keystore.GetKey(options.ID)
+func (p *OrbitDBIdentityProvider) GetID(ctx context.Context, options *CreateIdentityOptions) (string, error) {
+	private, err := p.keystore.GetKey(ctx, options.ID)
 	if err != nil || private == nil {
-		private, err = p.keystore.CreateKey(options.ID)
+		private, err = p.keystore.CreateKey(ctx, options.ID)
 		if err != nil {
 			return "", errmsg.ErrKeyStoreCreateEntry.Wrap(err)
 		}
@@ -44,8 +45,8 @@ func (p *OrbitDBIdentityProvider) GetID(options *CreateIdentityOptions) (string,
 }
 
 // SignIdentity signs an OrbitDB identity.
-func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, error) {
-	key, err := p.keystore.GetKey(id)
+func (p *OrbitDBIdentityProvider) SignIdentity(ctx context.Context, data []byte, id string) ([]byte, error) {
+	key, err := p.keystore.GetKey(ctx, id)
 	if err != nil {
 		return nil, errmsg.ErrKeyNotInKeystore
 	}
@@ -64,8 +65,8 @@ func (p *OrbitDBIdentityProvider) SignIdentity(data []byte, id string) ([]byte, 
 }
 
 // Sign signs a value using the current.
-func (p *OrbitDBIdentityProvider) Sign(identity *Identity, data []byte) ([]byte, error) {
-	key, err := p.keystore.GetKey(identity.ID)
+func (p *OrbitDBIdentityProvider) Sign(ctx context.Context, identity *Identity, data []byte) ([]byte, error) {
+	key, err := p.keystore.GetKey(ctx, identity.ID)
 	if err != nil {
 		return nil, errmsg.ErrKeyNotInKeystore.Wrap(err)
 	}

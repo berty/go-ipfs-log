@@ -26,14 +26,14 @@ func BenchmarkJoin(b *testing.B) {
 	ks, err := keystore.NewKeystore(datastore)
 	require.NoError(b, err)
 
-	identityA, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identityA, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: ks,
 		ID:       "userA",
 		Type:     "orbitdb",
 	})
 	require.NoError(b, err)
 
-	identityB, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identityB, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: ks,
 		ID:       "userB",
 		Type:     "orbitdb",

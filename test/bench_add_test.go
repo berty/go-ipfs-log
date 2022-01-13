@@ -25,7 +25,7 @@ func BenchmarkAdd(b *testing.B) {
 	ks, err := keystore.NewKeystore(datastore)
 	require.NoError(b, err)
 
-	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: ks,
 		ID:       "userA",
 		Type:     "orbitdb",

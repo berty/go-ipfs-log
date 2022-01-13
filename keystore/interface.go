@@ -1,13 +1,17 @@
 package keystore // import "berty.tech/go-ipfs-log/keystore"
 
-import crypto "github.com/libp2p/go-libp2p-core/crypto"
+import (
+	"context"
+
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
+)
 
 type Interface interface {
-	HasKey(id string) (bool, error)
+	HasKey(ctx context.Context, id string) (bool, error)
 
-	CreateKey(id string) (crypto.PrivKey, error)
+	CreateKey(ctx context.Context, id string) (crypto.PrivKey, error)
 
-	GetKey(id string) (crypto.PrivKey, error)
+	GetKey(ctx context.Context, id string) (crypto.PrivKey, error)
 
 	Sign(pubKey crypto.PrivKey, bytes []byte) ([]byte, error)
 

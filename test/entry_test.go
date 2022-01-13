@@ -31,7 +31,7 @@ func TestEntry(t *testing.T) {
 	keystore, err := ks.NewKeystore(datastore)
 	require.NoError(t, err)
 
-	identity, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: keystore,
 		ID:       fmt.Sprintf("userA"),
 		Type:     "orbitdb",
