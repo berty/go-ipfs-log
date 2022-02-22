@@ -251,6 +251,13 @@ func FetchAll(ctx context.Context, ipfs core_iface.CoreAPI, hashes []cid.Cid, op
 				running -= len(nexts)
 			}
 		}
+
+		// @FIXME(gfanton): manually close the channel
+		// we should create and manage the channel here
+		if options.ProgressChan != nil {
+			close(options.ProgressChan)
+		}
+
 		cancel()
 	}()
 
