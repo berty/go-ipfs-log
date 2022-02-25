@@ -20,12 +20,15 @@ type WriteOpts struct {
 	EncryptedLinks      string
 	EncryptedLinksNonce string
 }
+type ExcludeFunc func(hash cid.Cid) bool
 
 type FetchOptions struct {
-	Length       *int
-	Exclude      []IPFSLogEntry
-	Concurrency  int
-	Timeout      time.Duration
+	Length        *int
+	ShouldExclude ExcludeFunc
+	Exclude       []IPFSLogEntry
+	Concurrency   int
+	Timeout       time.Duration
+	// @FIXME(gfanton): progress chan is close automatically by IpfsLog
 	ProgressChan chan IPFSLogEntry
 	Provider     identityprovider.Interface
 	IO           IO

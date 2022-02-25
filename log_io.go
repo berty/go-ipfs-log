@@ -19,12 +19,13 @@ import (
 )
 
 type FetchOptions struct {
-	Length       *int
-	Exclude      []iface.IPFSLogEntry
-	ProgressChan chan iface.IPFSLogEntry
-	Timeout      time.Duration
-	Concurrency  int
-	SortFn       iface.EntrySortFn
+	Length        *int
+	Exclude       []iface.IPFSLogEntry
+	ShouldExclude iface.ExcludeFunc
+	ProgressChan  chan iface.IPFSLogEntry
+	Timeout       time.Duration
+	Concurrency   int
+	SortFn        iface.EntrySortFn
 }
 
 func toMultihash(ctx context.Context, services core_iface.CoreAPI, log *IPFSLog) (cid.Cid, error) {
@@ -53,12 +54,13 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 	}
 
 	entries := entry.FetchAll(ctx, services, logHeads.Heads, &iface.FetchOptions{
-		Length:       options.Length,
-		Exclude:      options.Exclude,
-		Concurrency:  options.Concurrency,
-		Timeout:      options.Timeout,
-		ProgressChan: options.ProgressChan,
-		IO:           io,
+		Length:        options.Length,
+		ShouldExclude: options.ShouldExclude,
+		Exclude:       options.Exclude,
+		Concurrency:   options.Concurrency,
+		Timeout:       options.Timeout,
+		ProgressChan:  options.ProgressChan,
+		IO:            io,
 	})
 
 	if options.Length != nil && *options.Length > -1 {
@@ -99,12 +101,13 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 	}
 
 	all := entry.FetchParallel(ctx, services, hashes, &iface.FetchOptions{
-		Length:       options.Length,
-		Exclude:      options.Exclude,
-		ProgressChan: options.ProgressChan,
-		Timeout:      options.Timeout,
-		Concurrency:  options.Concurrency,
-		IO:           io,
+		Length:        options.Length,
+		Exclude:       options.Exclude,
+		ShouldExclude: options.ShouldExclude,
+		ProgressChan:  options.ProgressChan,
+		Timeout:       options.Timeout,
+		Concurrency:   options.Concurrency,
+		IO:            io,
 	})
 
 	sortFn := sorting.NoZeroes(sorting.LastWriteWins)
