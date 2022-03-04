@@ -2,7 +2,6 @@ package entry
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -37,7 +36,6 @@ type Fetcher struct {
 	provider      identityprovider.Interface
 	shouldExclude iface.ExcludeFunc
 	tasksCache    map[cid.Cid]taskKind
-	cnext         chan cid.Cid
 	condProcess   *sync.Cond
 	muProcess     *sync.RWMutex
 	sem           *semaphore.Weighted
@@ -108,7 +106,8 @@ func (f *Fetcher) processQueue(ctx context.Context, hashes []cid.Cid) []iface.IP
 	for queue.Len() > 0 {
 		// acquire a process slot limited by concurrency limit
 		if err := f.acquireProcessSlot(ctx); err != nil {
-			fmt.Printf("error while process next: %s\n", err.Error())
+			// @FIXME(gfanton): log this
+			// fmt.Printf("error while process next: %s\n", err.Error())
 			break
 		}
 
@@ -119,8 +118,9 @@ func (f *Fetcher) processQueue(ctx context.Context, hashes []cid.Cid) []iface.IP
 		// run process
 		go func(hash cid.Cid) {
 			entry, err := f.fetchEntry(ctx, hash)
-			if err != nil {
-				fmt.Printf("unable to fetch entry: %s\n", err.Error())
+			if err != nil { // nolint:staticcheck
+				// @FIXME(gfanton): log this
+				// fmt.Printf("unable to fetch entry: %s\n", err.Error())
 			}
 
 			// free process slot
