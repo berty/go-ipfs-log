@@ -760,12 +760,13 @@ func NewFromMultihash(ctx context.Context, services core_iface.CoreAPI, identity
 	}
 
 	data, err := fromMultihash(ctx, services, hash, &FetchOptions{
-		Length:       fetchOptions.Length,
-		Exclude:      fetchOptions.Exclude,
-		ProgressChan: fetchOptions.ProgressChan,
-		Timeout:      fetchOptions.Timeout,
-		Concurrency:  fetchOptions.Concurrency,
-		SortFn:       fetchOptions.SortFn,
+		Length:        fetchOptions.Length,
+		Exclude:       fetchOptions.Exclude,
+		ShouldExclude: fetchOptions.ShouldExclude,
+		ProgressChan:  fetchOptions.ProgressChan,
+		Timeout:       fetchOptions.Timeout,
+		Concurrency:   fetchOptions.Concurrency,
+		SortFn:        fetchOptions.SortFn,
 	}, logOptions.IO)
 
 	if err != nil {
@@ -818,11 +819,12 @@ func NewFromEntryHash(ctx context.Context, services core_iface.CoreAPI, identity
 
 	// TODO: need to verify the entries with 'key'
 	entries, err := fromEntryHash(ctx, services, []cid.Cid{hash}, &FetchOptions{
-		Length:       fetchOptions.Length,
-		Exclude:      fetchOptions.Exclude,
-		ProgressChan: fetchOptions.ProgressChan,
-		Timeout:      fetchOptions.Timeout,
-		Concurrency:  fetchOptions.Concurrency,
+		Length:        fetchOptions.Length,
+		Exclude:       fetchOptions.Exclude,
+		ShouldExclude: fetchOptions.ShouldExclude,
+		ProgressChan:  fetchOptions.ProgressChan,
+		Timeout:       fetchOptions.Timeout,
+		Concurrency:   fetchOptions.Concurrency,
 	}, logOptions.IO)
 	if err != nil {
 		return nil, errmsg.ErrLogFromEntryHash.Wrap(err)
