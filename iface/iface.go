@@ -2,6 +2,7 @@ package iface
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -173,6 +174,10 @@ type IPFSLogEntry interface {
 	Equals(b IPFSLogEntry) bool
 	IsParent(b IPFSLogEntry) bool
 	Defined() bool
+
+	// marshaler
+	json.Marshaler
+	json.Unmarshaler
 }
 
 type IPFSLogLamportClock interface {

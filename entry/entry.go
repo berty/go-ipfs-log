@@ -511,6 +511,14 @@ func (e *Entry) IsParent(b iface.IPFSLogEntry) bool {
 	return false
 }
 
+func (e *Entry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e)
+}
+
+func (e *Entry) UnmarshalJSON(payload []byte) error {
+	return json.Unmarshal(payload, e)
+}
+
 // FindChildren finds an entry's children from an Array of entries.
 //
 // Returns entry's children as an Array up to the last know child.
