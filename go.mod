@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-datastore v0.5.1
-	github.com/ipfs/go-ipfs v0.11.0
+	github.com/ipfs/go-ipfs v0.12.1
 	github.com/ipfs/go-ipld-cbor v0.0.6
 	github.com/ipfs/go-ipld-format v0.2.0
 	github.com/ipfs/go-merkledag v0.5.1
