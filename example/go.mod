@@ -4,12 +4,14 @@ go 1.15
 
 require (
 	berty.tech/go-ipfs-log v0.0.0
-	github.com/ipfs/go-datastore v0.4.5
-	github.com/ipfs/go-ipfs v0.9.1
-	github.com/ipfs/go-ipfs-config v0.14.0
-	github.com/libp2p/go-libp2p v0.14.3
-	github.com/libp2p/go-libp2p-core v0.8.5
-	github.com/libp2p/go-libp2p-peerstore v0.2.7
+	github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f // indirect
+	github.com/ipfs/go-datastore v0.5.1
+	github.com/ipfs/go-ipfs v0.13.1
+	github.com/ipfs/go-ipfs-config v0.18.0
+	github.com/libp2p/go-libp2p v0.19.4
+	github.com/libp2p/go-libp2p-core v0.15.1
+	github.com/libp2p/go-libp2p-peerstore v0.6.0
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 )
 
 replace berty.tech/go-ipfs-log v0.0.0 => ../
