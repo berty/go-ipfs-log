@@ -28,17 +28,10 @@ body:
     validations:
       required: true
   - type: textarea
-    id: use-case
+    id: bug-description
     attributes:
-      label: Use case
-      description: Provide a detailed explanation of your use case.
-    validations:
-      required: true
-  - type: textarea
-    id: code-snippet
-    attributes:
-      label: Code snippet
-      description: Provide a code snippet where you are getting the issue.
+      label: Bug description
+      description: Provide a bug description and a code snippet if applicable.
     validations:
       required: true
   - type: textarea
