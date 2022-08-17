@@ -18,7 +18,7 @@ func TestLogJoinConcurrent(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 

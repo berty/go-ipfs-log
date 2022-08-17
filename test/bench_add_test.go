@@ -17,7 +17,7 @@ func BenchmarkAdd(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
 	ipfs, closeNode := NewMemoryServices(ctx, b, m)
 	defer closeNode()
 
