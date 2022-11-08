@@ -38,7 +38,8 @@ func TestSignedLog(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 

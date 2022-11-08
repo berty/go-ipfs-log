@@ -1,12 +1,13 @@
 package test
 
 import (
-	"berty.tech/go-ipfs-log/enc"
-	"berty.tech/go-ipfs-log/io/cbor"
 	"context"
 	"fmt"
 	"math"
 	"testing"
+
+	"berty.tech/go-ipfs-log/enc"
+	"berty.tech/go-ipfs-log/io/cbor"
 
 	ipfslog "berty.tech/go-ipfs-log"
 	"berty.tech/go-ipfs-log/entry"
@@ -22,7 +23,8 @@ func TestLogAppend(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 
@@ -105,7 +107,8 @@ func TestLogAppendEncrypted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"berty.tech/go-ipfs-log/iface"
-	ipfsCore "github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/core/coreapi"
-	mock "github.com/ipfs/go-ipfs/core/mock"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipfsCore "github.com/ipfs/kubo/core"
+	"github.com/ipfs/kubo/core/coreapi"
+	mock "github.com/ipfs/kubo/core/mock"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 )

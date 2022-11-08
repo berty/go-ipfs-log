@@ -9,21 +9,21 @@ import (
 	"berty.tech/go-ipfs-log/keystore"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	config "github.com/ipfs/go-ipfs-config"
-	ipfs_core "github.com/ipfs/go-ipfs/core"
-	"github.com/ipfs/go-ipfs/core/coreapi"
-	ipfs_libp2p "github.com/ipfs/go-ipfs/core/node/libp2p"
-	ipfs_repo "github.com/ipfs/go-ipfs/repo"
+	config "github.com/ipfs/kubo/config"
+	ipfs_core "github.com/ipfs/kubo/core"
+	"github.com/ipfs/kubo/core/coreapi"
+	ipfs_libp2p "github.com/ipfs/kubo/core/node/libp2p"
+	ipfs_repo "github.com/ipfs/kubo/repo"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	pstore "github.com/libp2p/go-libp2p-peerstore"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	pstore "github.com/libp2p/go-libp2p/core/peerstore"
 
 	log "berty.tech/go-ipfs-log"
 )
 
-func buildHostOverrideExample(ctx context.Context, id peer.ID, ps pstore.Peerstore, options ...libp2p.Option) (host.Host, error) {
-	return ipfs_libp2p.DefaultHostOption(ctx, id, ps, options...)
+func buildHostOverrideExample(id peer.ID, ps pstore.Peerstore, options ...libp2p.Option) (host.Host, error) {
+	return ipfs_libp2p.DefaultHostOption(id, ps, options...)
 }
 
 func newRepo() (ipfs_repo.Repo, error) {
@@ -77,7 +77,7 @@ func Example_logAppend() {
 		panic(err)
 	}
 
-	nodeBInfo := pstore.PeerInfo{
+	nodeBInfo := peer.AddrInfo{
 		ID:    nodeB.Identity,
 		Addrs: nodeB.PeerHost.Addrs(),
 	}
@@ -105,7 +105,7 @@ func Example_logAppend() {
 	}
 
 	// Create identity A
-	identityA, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identityA, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: ks,
 		ID:       "userA",
 		Type:     "orbitdb",
@@ -116,7 +116,7 @@ func Example_logAppend() {
 	}
 
 	// Create identity B
-	identityB, err := idp.CreateIdentity(&idp.CreateIdentityOptions{
+	identityB, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
 		Keystore: ks,
 		ID:       "userB",
 		Type:     "orbitdb",
