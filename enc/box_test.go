@@ -1,8 +1,9 @@
 package enc
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSecretbox(t *testing.T) {

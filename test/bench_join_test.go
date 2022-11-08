@@ -19,7 +19,7 @@ func BenchmarkJoin(b *testing.B) {
 	defer cancel()
 
 	m := mocknet.New()
-defer m.Close()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, b, m)
 	defer closeNode()
 

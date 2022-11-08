@@ -2,6 +2,7 @@ package jsonable
 
 import (
 	"encoding/hex"
+
 	"github.com/ipfs/go-cid"
 
 	"berty.tech/go-ipfs-log/errmsg"

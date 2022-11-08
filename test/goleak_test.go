@@ -1,3 +1,4 @@
+//go:build goleak
 // +build goleak
 
 package test

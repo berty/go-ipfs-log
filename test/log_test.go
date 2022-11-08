@@ -23,7 +23,7 @@ func TestLog(t *testing.T) {
 	defer cancel()
 
 	m := mocknet.New()
-defer m.Close()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 

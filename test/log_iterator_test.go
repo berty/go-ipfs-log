@@ -36,7 +36,7 @@ func TestLogIterator(t *testing.T) {
 	}
 
 	m := mocknet.New()
-defer m.Close()
+	defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 

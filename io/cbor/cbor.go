@@ -14,7 +14,7 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/path"
-	ic "github.com/libp2p/go-libp2p-core/crypto"
+	ic "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/polydawn/refmt/obj/atlas"
 
 	"berty.tech/go-ipfs-log/errmsg"
