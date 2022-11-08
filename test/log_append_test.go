@@ -22,7 +22,8 @@ func TestLogAppend(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
+defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 
@@ -105,7 +106,8 @@ func TestLogAppendEncrypted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	m := mocknet.New(ctx)
+	m := mocknet.New()
+defer m.Close()
 	ipfs, closeNode := NewMemoryServices(ctx, t, m)
 	defer closeNode()
 
