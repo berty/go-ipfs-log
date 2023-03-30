@@ -37,6 +37,8 @@ func newRepo() (ipfs_repo.Repo, error) {
 	cfg.Addresses.Swarm = []string{
 		"/ip4/127.0.0.1/tcp/0",
 	}
+	// we don't need ressources manager for test
+	cfg.Swarm.ResourceMgr.Enabled = cfg.False
 
 	// Do not bootstrap on ipfs node
 	cfg.Bootstrap = []string{}
