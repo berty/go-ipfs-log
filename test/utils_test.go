@@ -2,22 +2,54 @@ package test
 
 import (
 	"context"
+	"io/ioutil"
 	"testing"
 
 	"berty.tech/go-ipfs-log/iface"
+	"github.com/ipfs/go-datastore"
+	dssync "github.com/ipfs/go-datastore/sync"
 	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	config "github.com/ipfs/kubo/config"
 	ipfsCore "github.com/ipfs/kubo/core"
 	"github.com/ipfs/kubo/core/coreapi"
 	mock "github.com/ipfs/kubo/core/mock"
+	ipfs_repo "github.com/ipfs/kubo/repo"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
 	"github.com/stretchr/testify/require"
 )
 
+func newRepo() (ipfs_repo.Repo, error) {
+	// Generating config
+	cfg, err := config.Init(ioutil.Discard, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	// Listen on local interface only
+	cfg.Addresses.Swarm = []string{
+		"/ip4/127.0.0.1/tcp/0",
+	}
+	// we don't need ressources manager for test
+	cfg.Swarm.ResourceMgr.Enabled = config.False
+
+	// Do not bootstrap on ipfs node
+	cfg.Bootstrap = []string{}
+
+	return &ipfs_repo.Mock{
+		D: dssync.MutexWrap(datastore.NewMapDatastore()),
+		C: *cfg,
+	}, nil
+}
+
 func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (core_iface.CoreAPI, func()) {
 	t.Helper()
 
+	r, err := newRepo()
+	require.NoError(t, err)
+
 	core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{
 		Online: true,
+		Repo:   r,
 		Host:   mock.MockHostOption(m),
 		ExtraOpts: map[string]bool{
 			"pubsub": true,
