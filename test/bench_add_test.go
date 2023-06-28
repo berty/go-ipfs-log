@@ -20,8 +20,10 @@ func BenchmarkAdd(b *testing.B) {
 	m := mocknet.New()
 	defer m.Close()
 
-	ipfs, closeNode := NewMemoryServices(ctx, b, m)
-	defer closeNode()
+	p, err := m.GenPeer()
+	require.NoError(b, err)
+
+	dag := setupDAGService(b, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(b))
 	ks, err := keystore.NewKeystore(datastore)
@@ -33,7 +35,7 @@ func BenchmarkAdd(b *testing.B) {
 		Type:     "orbitdb",
 	})
 
-	log, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
+	log, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A"})
 	require.NoError(b, err)
 
 	b.ResetTimer()

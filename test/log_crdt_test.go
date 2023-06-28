@@ -19,8 +19,11 @@ func TestLogCRDT(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -45,13 +48,13 @@ func TestLogCRDT(t *testing.T) {
 		t.Helper()
 
 		var err error
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 	}
 
@@ -82,13 +85,13 @@ func TestLogCRDT(t *testing.T) {
 		res1 := log1.ToString(nil)
 		res1Len := log1.Values().Len()
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -149,10 +152,10 @@ func TestLogCRDT(t *testing.T) {
 		res1 := log2.ToString(nil)
 		res1Len := log2.Values().Len()
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -184,10 +187,10 @@ func TestLogCRDT(t *testing.T) {
 		setup(t)
 
 		// b + a == a + b
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -206,10 +209,10 @@ func TestLogCRDT(t *testing.T) {
 
 		resA1 := log2.ToString(nil)
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -232,10 +235,10 @@ func TestLogCRDT(t *testing.T) {
 		require.Equal(t, resA1, resA2)
 
 		// a + b == b + a
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -255,10 +258,10 @@ func TestLogCRDT(t *testing.T) {
 
 		resB1 := log1.ToString(nil)
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -281,10 +284,10 @@ func TestLogCRDT(t *testing.T) {
 		require.Equal(t, resB1, resB2)
 
 		// a + c == c + a
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -304,10 +307,10 @@ func TestLogCRDT(t *testing.T) {
 
 		resC1 := log3.ToString(nil)
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -329,10 +332,10 @@ func TestLogCRDT(t *testing.T) {
 		require.Equal(t, resC1, resC2)
 
 		// c + b == b + c
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log2.Append(ctx, []byte("helloB1"), nil)
@@ -352,10 +355,10 @@ func TestLogCRDT(t *testing.T) {
 
 		resD1 := log3.ToString(nil)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log2.Append(ctx, []byte("helloB1"), nil)
@@ -378,13 +381,13 @@ func TestLogCRDT(t *testing.T) {
 		require.Equal(t, resD1, resD2)
 
 		// a + b + c == c + b + a
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -413,13 +416,13 @@ func TestLogCRDT(t *testing.T) {
 
 		logLeft := log1.ToString(nil)
 
-		log1, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log2, err = ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err = ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
-		log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -456,7 +459,7 @@ func TestLogCRDT(t *testing.T) {
 
 		expectedElementsCount := 3
 
-		logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		logA, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		_, err = logA.Append(ctx, []byte("helloA1"), nil)

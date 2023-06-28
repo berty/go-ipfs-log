@@ -25,8 +25,11 @@ func TestLogAppend(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := keystore.NewKeystore(datastore)
@@ -40,7 +43,7 @@ func TestLogAppend(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("append one", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
+		log1, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		_, err = log1.Append(ctx, []byte("hello1"), nil)
 		require.NoError(t, err)
@@ -62,7 +65,7 @@ func TestLogAppend(t *testing.T) {
 	})
 
 	t.Run("append 100 items to a log", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
+		log1, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		nextPointerAmount := 64
 
@@ -109,8 +112,11 @@ func TestLogAppendEncrypted(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := keystore.NewKeystore(datastore)
@@ -146,7 +152,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 	cborio := cborioDefault.ApplyOptions(&cbor.Options{LinkKey: logKey})
 
 	t.Run("NewFromEntryHash - succeed with same keys", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
+		l, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
 		require.NoError(t, err)
 
 		_, err = l.Append(ctx, []byte("helloA1"), nil)
@@ -161,7 +167,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 		h, err := l.Append(ctx, []byte("helloA4"), nil)
 		require.NoError(t, err)
 
-		l2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identity, h.GetHash(),
+		l2, err := ipfslog.NewFromEntryHash(ctx, dag, identity, h.GetHash(),
 			&ipfslog.LogOptions{
 				ID: "A",
 				IO: cborio,
@@ -183,7 +189,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 	})
 
 	t.Run("NewFromEntryHash - fails with diff keys", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
+		l, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
 		require.NoError(t, err)
 
 		_, err = l.Append(ctx, []byte("helloA1"), nil)
@@ -198,7 +204,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 		h, err := l.Append(ctx, []byte("helloA4"), nil)
 		require.NoError(t, err)
 
-		l2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identity, h.GetHash(),
+		l2, err := ipfslog.NewFromEntryHash(ctx, dag, identity, h.GetHash(),
 			&ipfslog.LogOptions{
 				ID: "A",
 				IO: cborioDiff,
@@ -217,7 +223,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 	})
 
 	t.Run("NewFromEntryHash - fails with no key", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
+		l, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "X", IO: cborio})
 		require.NoError(t, err)
 
 		_, err = l.Append(ctx, []byte("helloA1"), nil)
@@ -232,7 +238,7 @@ func TestLogAppendEncrypted(t *testing.T) {
 		h, err := l.Append(ctx, []byte("helloA4"), nil)
 		require.NoError(t, err)
 
-		l2, err := ipfslog.NewFromEntryHash(ctx, ipfs, identity, h.GetHash(),
+		l2, err := ipfslog.NewFromEntryHash(ctx, dag, identity, h.GetHash(),
 			&ipfslog.LogOptions{
 				ID: "A",
 				IO: cborioDefault,

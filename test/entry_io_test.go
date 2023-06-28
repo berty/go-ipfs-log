@@ -22,8 +22,11 @@ func TestEntryPersistence(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -45,18 +48,18 @@ func TestEntryPersistence(t *testing.T) {
 	}
 
 	t.Run("log with 1 entry", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 		e, err := log1.Append(ctx, []byte("one"), nil)
 		require.NoError(t, err)
 
 		hash := e.GetHash()
-		res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
+		res := entry.FetchAll(ctx, dag, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
 		require.Equal(t, len(res), 1)
 	})
 
 	t.Run("log with 2 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 		_, err = log1.Append(ctx, []byte("one"), nil)
 		require.NoError(t, err)
@@ -64,12 +67,12 @@ func TestEntryPersistence(t *testing.T) {
 		require.NoError(t, err)
 
 		hash := e.GetHash()
-		res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(2)})
+		res := entry.FetchAll(ctx, dag, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(2)})
 		require.Equal(t, len(res), 2)
 	})
 
 	t.Run("loads max 1 entry from a log of 2 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 		_, err = log1.Append(ctx, []byte("one"), nil)
 		require.NoError(t, err)
@@ -77,7 +80,7 @@ func TestEntryPersistence(t *testing.T) {
 		require.NoError(t, err)
 
 		hash := e.GetHash()
-		res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
+		res := entry.FetchAll(ctx, dag, []cid.Cid{hash}, &entry.FetchOptions{Length: intPtr(1)})
 		require.Equal(t, len(res), 1)
 	})
 
@@ -85,7 +88,7 @@ func TestEntryPersistence(t *testing.T) {
 		var e iface.IPFSLogEntry
 		var err error
 
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 		for i := 0; i < 100; i++ {
 			e, err = log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), nil)
@@ -93,14 +96,14 @@ func TestEntryPersistence(t *testing.T) {
 		}
 
 		hash := e.GetHash()
-		res := entry.FetchAll(ctx, ipfs, []cid.Cid{hash}, &entry.FetchOptions{})
+		res := entry.FetchAll(ctx, dag, []cid.Cid{hash}, &entry.FetchOptions{})
 		require.Equal(t, len(res), 100)
 	})
 
 	t.Run("load only 42 entries from a log with 100 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		for i := 0; i < 100; i++ {
@@ -108,7 +111,7 @@ func TestEntryPersistence(t *testing.T) {
 			require.NoError(t, err)
 			if i%10 == 0 {
 				heads := append(entry.FindHeads(log2.Entries), entry.FindHeads(log1.Entries)...)
-				log2, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
+				log2, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values(), Heads: heads})
 				require.NoError(t, err)
 				_, err := log2.Append(ctx, []byte(fmt.Sprintf("hi%d", i)), nil)
 				require.NoError(t, err)
@@ -118,22 +121,22 @@ func TestEntryPersistence(t *testing.T) {
 		hash, err := log1.ToMultihash(ctx)
 		require.NoError(t, err)
 
-		res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(42)})
+		res, err := ipfslog.NewFromMultihash(ctx, dag, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(42)})
 		require.NoError(t, err)
 		require.Equal(t, res.Entries.Len(), 42)
 	})
 
 	t.Run("load only 99 entries from a log with 100 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		for i := 0; i < 100; i++ {
 			_, err := log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), nil)
 			require.NoError(t, err)
 			if i%10 == 0 {
-				log2, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values()})
+				log2, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values()})
 				require.NoError(t, err)
 				_, err := log2.Append(ctx, []byte(fmt.Sprintf("hi%d", i)), nil)
 				require.NoError(t, err)
@@ -145,24 +148,24 @@ func TestEntryPersistence(t *testing.T) {
 		hash, err := log2.ToMultihash(ctx)
 		require.NoError(t, err)
 
-		res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(99)})
+		res, err := ipfslog.NewFromMultihash(ctx, dag, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(99)})
 		require.NoError(t, err)
 		require.Equal(t, res.Entries.Len(), 99)
 	})
 
 	t.Run("load only 10 entries from a log with 100 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log3, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		for i := 0; i < 100; i++ {
 			_, err := log1.Append(ctx, []byte(fmt.Sprintf("hello%d", i)), nil)
 			require.NoError(t, err)
 			if i%10 == 0 {
-				log2, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values(), Heads: entry.FindHeads(log2.Entries)})
+				log2, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: log2.ID, Entries: log2.Values(), Heads: entry.FindHeads(log2.Entries)})
 				require.NoError(t, err)
 				_, err := log2.Append(ctx, []byte(fmt.Sprintf("hi%d", i)), nil)
 				require.NoError(t, err)
@@ -171,7 +174,7 @@ func TestEntryPersistence(t *testing.T) {
 			}
 			if i%25 == 0 {
 				heads := append(entry.FindHeads(log3.Entries), entry.FindHeads(log2.Entries)...)
-				log3, err = ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+				log3, err = ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
 				require.NoError(t, err)
 				_, err := log3.Append(ctx, []byte(fmt.Sprintf("--%d", i)), nil)
 				require.NoError(t, err)
@@ -184,17 +187,17 @@ func TestEntryPersistence(t *testing.T) {
 		hash, err := log3.ToMultihash(ctx)
 		require.NoError(t, err)
 
-		res, err := ipfslog.NewFromMultihash(ctx, ipfs, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(10)})
+		res, err := ipfslog.NewFromMultihash(ctx, dag, identities[0], hash, &ipfslog.LogOptions{}, &ipfslog.FetchOptions{Length: intPtr(10)})
 		require.NoError(t, err)
 		require.Equal(t, res.Entries.Len(), 10)
 	})
 
 	t.Run("load only 10 entries and then expand to max from a log with 100 entries", func(t *testing.T) {
-		log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+		log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+		log2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
-		log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+		log3, err := ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 
 		for i := 0; i < 30; i++ {
@@ -208,7 +211,7 @@ func TestEntryPersistence(t *testing.T) {
 			}
 			if i%25 == 0 {
 				heads := append(entry.FindHeads(log3.Entries), entry.FindHeads(log2.Entries)...)
-				log3, err = ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
+				log3, err = ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: log3.ID, Entries: log3.Values(), Heads: heads})
 				require.NoError(t, err)
 				_, err := log3.Append(ctx, []byte(fmt.Sprintf("--%d", i)), nil)
 				require.NoError(t, err)
@@ -218,7 +221,7 @@ func TestEntryPersistence(t *testing.T) {
 		_, err = log3.Join(log2, -1)
 		require.NoError(t, err)
 
-		log4, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+		log4, err := ipfslog.NewLog(dag, identities[3], &ipfslog.LogOptions{ID: "X"})
 		require.NoError(t, err)
 		_, err = log4.Join(log2, -1)
 		require.NoError(t, err)

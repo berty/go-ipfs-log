@@ -20,8 +20,11 @@ func TestLogJoinConcurrent(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -35,10 +38,10 @@ func TestLogJoinConcurrent(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
+		log1, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
 		require.NoError(t, err)
 
-		log2, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
+		log2, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A", SortFn: sorting.SortByEntryHash})
 		require.NoError(t, err)
 
 		// joins consistently

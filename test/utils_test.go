@@ -1,21 +1,13 @@
 package test
 
 import (
-	"context"
 	"io/ioutil"
-	"testing"
 
 	"berty.tech/go-ipfs-log/iface"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	config "github.com/ipfs/kubo/config"
-	ipfsCore "github.com/ipfs/kubo/core"
-	"github.com/ipfs/kubo/core/coreapi"
-	mock "github.com/ipfs/kubo/core/mock"
 	ipfs_repo "github.com/ipfs/kubo/repo"
-	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func newRepo() (ipfs_repo.Repo, error) {
@@ -41,30 +33,30 @@ func newRepo() (ipfs_repo.Repo, error) {
 	}, nil
 }
 
-func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (core_iface.CoreAPI, func()) {
-	t.Helper()
+// func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (format.DAGService, func()) {
+// 	t.Helper()
 
-	r, err := newRepo()
-	require.NoError(t, err)
+// 	r, err := newRepo()
+// 	require.NoError(t, err)
 
-	core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{
-		Online: true,
-		Repo:   r,
-		Host:   mock.MockHostOption(m),
-		ExtraOpts: map[string]bool{
-			"pubsub": true,
-		},
-	})
-	require.NoError(t, err)
+// 	core, err := ipfsCore.NewNode(ctx, &ipfsCore.BuildCfg{
+// 		Online: true,
+// 		Repo:   r,
+// 		Host:   mock.MockHostOption(m),
+// 		ExtraOpts: map[string]bool{
+// 			"pubsub": true,
+// 		},
+// 	})
+// 	require.NoError(t, err)
 
-	api, err := coreapi.NewCoreAPI(core)
-	require.NoError(t, err)
+// 	api, err := coreapi.NewCoreAPI(core)
+// 	require.NoError(t, err)
 
-	close := func() {
-		core.Close()
-	}
-	return api, close
-}
+// 	close := func() {
+// 		core.Close()
+// 	}
+// 	return api, close
+// }
 
 func lastEntry(entries []iface.IPFSLogEntry) iface.IPFSLogEntry {
 	length := len(entries)

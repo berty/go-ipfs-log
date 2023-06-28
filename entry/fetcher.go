@@ -9,7 +9,7 @@ import (
 	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io/cbor"
 	"github.com/ipfs/go-cid"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipld "github.com/ipfs/go-ipld-format"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -39,11 +39,11 @@ type Fetcher struct {
 	condProcess   *sync.Cond
 	muProcess     *sync.RWMutex
 	sem           *semaphore.Weighted
-	ipfs          core_iface.CoreAPI
+	dag           ipld.DAGService
 	progressChan  chan iface.IPFSLogEntry
 }
 
-func NewFetcher(ipfs core_iface.CoreAPI, options *FetchOptions) *Fetcher {
+func NewFetcher(dag ipld.DAGService, options *FetchOptions) *Fetcher {
 	// set default
 	length := -1
 	if options.Length != nil {
@@ -76,7 +76,7 @@ func NewFetcher(ipfs core_iface.CoreAPI, options *FetchOptions) *Fetcher {
 		timeout:       options.Timeout,
 		shouldExclude: options.ShouldExclude,
 		sem:           semaphore.NewWeighted(int64(options.Concurrency)),
-		ipfs:          ipfs,
+		dag:           dag,
 		progressChan:  options.ProgressChan,
 		muProcess:     &muProcess,
 		condProcess:   sync.NewCond(&muProcess),
@@ -249,7 +249,7 @@ func (f *Fetcher) addNextEntry(ctx context.Context, queue processQueue, entry if
 
 func (f *Fetcher) fetchEntry(ctx context.Context, hash cid.Cid) (entry iface.IPFSLogEntry, err error) {
 	// Load the entry
-	return FromMultihashWithIO(ctx, f.ipfs, hash, f.provider, f.io)
+	return FromMultihashWithIO(ctx, f.dag, hash, f.provider, f.io)
 }
 
 func (f *Fetcher) addHashesToQueue(queue processQueue, hashes ...cid.Cid) (added int) {
@@ -280,3 +280,30 @@ func (f *Fetcher) processDone() {
 	// signal that a process slot is available
 	f.sem.Release(1)
 }
+
+// func (f *Fetcher) Fetch(ctx context.Context, hashes []cid.Cid) <-chan iface.IPFSLogEntry {
+// 	cnode := f.dag.GetMany(ctx, hashes)
+// 	centry := make(chan iface.IPFSLogEntry)
+// 	go func() {
+// 		defer close(centry)
+// 		for opt := range cnode {
+// 			if opt.Err != nil {
+
+// 				//TODO: log this
+// 				continue
+// 			}
+
+// 			node := opt.Node
+// 			decoded, err := f.io.DecodeRawEntry(node, node.Cid(), f.provider)
+// 			if err != nil {
+// 				// log this
+// 				// errmsg.ErrIPFSReadUnmarshalFailed.Wrap(err)
+// 			}
+
+// 			navnode := ipld.NewNavigableIPLDNode(node, f.dag)
+// 			navnode.ChildTotal()
+// 		}
+// 	}()
+
+// 	return centry
+// }

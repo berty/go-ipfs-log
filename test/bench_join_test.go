@@ -20,8 +20,11 @@ func BenchmarkJoin(b *testing.B) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, b, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(b, err)
+
+	dag := setupDAGService(b, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(b))
 	ks, err := keystore.NewKeystore(datastore)
@@ -41,10 +44,10 @@ func BenchmarkJoin(b *testing.B) {
 	})
 	require.NoError(b, err)
 
-	logA, err := ipfslog.NewLog(ipfs, identityA, &ipfslog.LogOptions{ID: "A"})
+	logA, err := ipfslog.NewLog(dag, identityA, &ipfslog.LogOptions{ID: "A"})
 	require.NoError(b, err)
 
-	logB, err := ipfslog.NewLog(ipfs, identityB, &ipfslog.LogOptions{ID: "A"})
+	logB, err := ipfslog.NewLog(dag, identityB, &ipfslog.LogOptions{ID: "A"})
 	require.NoError(b, err)
 
 	b.ResetTimer()

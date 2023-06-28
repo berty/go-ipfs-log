@@ -40,8 +40,11 @@ func TestSignedLog(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -63,14 +66,14 @@ func TestSignedLog(t *testing.T) {
 
 	t.Run("creates a signed log", func(t *testing.T) {
 		logID := "A"
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: logID})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: logID})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 		require.Equal(t, l.ID, logID)
 	})
 
 	t.Run("has the correct identity", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 		require.Equal(t, l.Identity.ID, "03e0480538c2a39951d054e17ff31fde487cb1031d0044a037b53ad2e028a3e77c")
@@ -80,21 +83,21 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("has the correct public key", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 		require.Equal(t, l.Identity.PublicKey, identities[0].PublicKey)
 	})
 
 	t.Run("has the correct pkSignature", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 		require.Equal(t, l.Identity.Signatures.ID, identities[0].Signatures.ID)
 	})
 
 	t.Run("has the correct signature", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 		require.Equal(t, l.Identity.Signatures.PublicKey, identities[0].Signatures.PublicKey)
@@ -103,7 +106,7 @@ func TestSignedLog(t *testing.T) {
 	//////////////
 
 	t.Run("entries contain an identity", func(t *testing.T) {
-		l, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l.ID)
 
@@ -116,17 +119,17 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("doesn't sign entries when identity is not defined", func(t *testing.T) {
-		_, err := ipfslog.NewLog(ipfs, nil, nil)
+		_, err := ipfslog.NewLog(dag, nil, nil)
 		require.Error(t, err)
 		require.Equal(t, err, errmsg.ErrIdentityNotDefined)
 	})
 
 	t.Run("doesn't join logs with different IDs", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "B"})
+		l2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "B"})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
@@ -148,11 +151,11 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("throws an error if log is signed but trying to merge with an entry that doesn't have public signing key", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
+		l2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
@@ -170,11 +173,11 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("throws an error if log is signed but trying to merge an entry that doesn't have a signature", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
+		l2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
@@ -192,11 +195,11 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("throws an error if log is signed but the signature doesn't verify", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
+		l2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
@@ -217,11 +220,11 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("throws an error if entry doesn't have append access", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A", AccessController: &DenyAll{}})
+		l2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "A", AccessController: &DenyAll{}})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
@@ -234,11 +237,11 @@ func TestSignedLog(t *testing.T) {
 	})
 
 	t.Run("throws an error upon join if entry doesn't have append access", func(t *testing.T) {
-		l1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A", AccessController: &TestACL{refIdentity: identities[1]}})
+		l1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A", AccessController: &TestACL{refIdentity: identities[1]}})
 		require.NoError(t, err)
 		require.NotNil(t, l1.ID)
 
-		l2, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "A"})
+		l2, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 		require.NotNil(t, l2.ID)
 
