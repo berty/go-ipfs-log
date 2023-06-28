@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"berty.tech/go-ipfs-log/iface"
+	"github.com/ipfs/go-cid"
 )
 
 // Difference gets the list of values not present in both entries sets.
@@ -96,18 +97,18 @@ func FindHeads(entries iface.IPFSLogOrderedEntries) []iface.IPFSLogEntry {
 	}
 
 	var result []iface.IPFSLogEntry
-	items := map[string]string{}
+	items := map[cid.Cid]cid.Cid{}
 
 	for _, k := range entries.Keys() {
 		e := entries.UnsafeGet(k)
 		for _, n := range e.GetNext() {
-			items[n.String()] = e.GetHash().String()
+			items[n] = e.GetHash()
 		}
 	}
 
 	for _, h := range entries.Keys() {
 		e, ok := items[h]
-		if ok || e != "" {
+		if ok || e != cid.Undef {
 			continue
 		}
 

@@ -3,11 +3,12 @@ package pb
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
 
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
+	ipld "github.com/ipfs/go-ipld-format"
 	dag "github.com/ipfs/go-merkledag"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
@@ -20,7 +21,7 @@ type pb struct {
 	refEntry iface.IPFSLogEntry
 }
 
-func (p *pb) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
+func (p *pb) Write(ctx context.Context, adder ipld.NodeAdder, opts *iface.WriteOpts, obj interface{}) (cid.Cid, error) {
 	var err error
 	payload := []byte(nil)
 
@@ -43,23 +44,59 @@ func (p *pb) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}
 	node := &dag.ProtoNode{}
 	node.SetData(payload)
 
-	if err := ipfs.Dag().Add(ctx, node); err != nil {
+	if err := adder.Add(ctx, node); err != nil {
 		return cid.Cid{}, err
 	}
 
 	return node.Cid(), nil
 }
 
-func (p *pb) Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
-	node, err := ipfs.Dag().Get(ctx, contentIdentifier)
-	if err != nil {
-		return nil, err
+func (p *pb) WriteMany(ctx context.Context, adder ipld.NodeAdder, opts *iface.WriteOpts, objs []interface{}) ([]cid.Cid, error) {
+	var err error
+	cids := make([]cid.Cid, len(objs))
+	nodes := make([]ipld.Node, len(objs))
+	for n, obj := range objs {
+		var payload []byte
+
+		switch o := obj.(type) {
+		case iface.IPFSLogEntry:
+			payload, err = json.Marshal(jsonable.ToJsonableEntry(o))
+			if err != nil {
+				return []cid.Cid{}, err
+			}
+			break
+
+		case *iface.JSONLog:
+			payload, err = json.Marshal(o)
+			if err != nil {
+				return []cid.Cid{}, err
+			}
+			break
+		default:
+			return nil, fmt.Errorf("invalid obj: %v", obj)
+		}
+
+		node := &dag.ProtoNode{}
+		node.SetData(payload)
+		nodes[n] = node
 	}
 
-	return node, nil
+	if err := adder.AddMany(ctx, nodes); err != nil {
+		return []cid.Cid{}, err
+	}
+
+	return cids, nil
 }
 
-func (p *pb) DecodeRawEntry(node format.Node, hash cid.Cid, idProvider idp.Interface) (iface.IPFSLogEntry, error) {
+func (p *pb) Read(ctx context.Context, getter ipld.NodeGetter, contentIdentifier cid.Cid) (ipld.Node, error) {
+	return getter.Get(ctx, contentIdentifier)
+}
+
+func (p *pb) ReadMany(ctx context.Context, getter ipld.NodeGetter, contentIdentifiers []cid.Cid) <-chan *ipld.NodeOption {
+	return getter.GetMany(ctx, contentIdentifiers)
+}
+
+func (p *pb) DecodeRawEntry(node ipld.Node, hash cid.Cid, idProvider idp.Interface) (iface.IPFSLogEntry, error) {
 	out := p.refEntry.New()
 	entry := &jsonable.EntryV0{}
 
@@ -81,7 +118,7 @@ func (p *pb) DecodeRawEntry(node format.Node, hash cid.Cid, idProvider idp.Inter
 	return out, nil
 }
 
-func (p *pb) DecodeRawJSONLog(node format.Node) (*iface.JSONLog, error) {
+func (p *pb) DecodeRawJSONLog(node ipld.Node) (*iface.JSONLog, error) {
 	jsonLog := &iface.JSONLog{}
 	err := json.Unmarshal(node.RawData(), jsonLog)
 
@@ -93,16 +130,15 @@ func (p *pb) DecodeRawJSONLog(node format.Node) (*iface.JSONLog, error) {
 }
 
 var _io = (*pb)(nil)
+var _once sync.Once
 
 func IO(entry iface.IPFSLogEntry, clock iface.IPFSLogLamportClock) (iface.IO, error) {
-	if _io != nil {
-		return _io, nil
-	}
-
-	_io := &pb{
-		refClock: clock,
-		refEntry: entry,
-	}
+	_once.Do(func() {
+		_io = &pb{
+			refClock: clock,
+			refEntry: entry,
+		}
+	})
 
 	return _io, nil
 }

@@ -37,10 +37,13 @@ func TestLogIterator(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
 
-	log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
+
+	log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 	require.NoError(t, err)
 
 	for i := 0; i <= 100; i++ {
@@ -390,7 +393,7 @@ func TestLogIterator(t *testing.T) {
 	// Iteration over forked/joined logs
 
 	identities = []*idp.Identity{identities[2], identities[1], identities[2], identities[0]}
-	fixture, err := CreateLogWithSixteenEntries(ctx, ipfs, identities)
+	fixture, err := CreateLogWithSixteenEntries(ctx, dag, identities)
 	require.NoError(t, err)
 
 	// returns the full length from all heads

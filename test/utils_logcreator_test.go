@@ -6,7 +6,7 @@ import (
 
 	ipfslog "berty.tech/go-ipfs-log"
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipld "github.com/ipfs/go-ipld-format"
 )
 
 type CreatedLog struct {
@@ -15,23 +15,23 @@ type CreatedLog struct {
 	JSON         *ipfslog.JSONLog
 }
 
-func createLogsFor16Entries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
-	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+func createLogsFor16Entries(ctx context.Context, dag ipld.DAGService, identities []*idp.Identity) (*ipfslog.IPFSLog, error) {
+	logA, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	logB, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+	logB, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	log3, err := ipfslog.NewLog(ipfs, identities[2], &ipfslog.LogOptions{ID: "X"})
+	log3, err := ipfslog.NewLog(dag, identities[2], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
 
-	l, err := ipfslog.NewLog(ipfs, identities[3], &ipfslog.LogOptions{ID: "X"})
+	l, err := ipfslog.NewLog(dag, identities[3], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func createLogsFor16Entries(ctx context.Context, ipfs core_iface.CoreAPI, identi
 	return l, nil
 }
 
-func CreateLogWithSixteenEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*CreatedLog, error) {
+func CreateLogWithSixteenEntries(ctx context.Context, dag ipld.DAGService, identities []*idp.Identity) (*CreatedLog, error) {
 	expectedData := []string{
 		"entryA1", "entryB1", "entryA2", "entryB2", "entryA3", "entryB3",
 		"entryA4", "entryB4", "entryA5", "entryB5",
@@ -94,7 +94,7 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs core_iface.CoreAPI, i
 		"entryA7", "entryA8", "entryA9", "entryA10",
 	}
 
-	l, err := createLogsFor16Entries(ctx, ipfs, identities)
+	l, err := createLogsFor16Entries(ctx, dag, identities)
 	if err != nil {
 		return nil, err
 	}
@@ -102,16 +102,16 @@ func CreateLogWithSixteenEntries(ctx context.Context, ipfs core_iface.CoreAPI, i
 	return &CreatedLog{Log: l, ExpectedData: expectedData, JSON: l.ToJSONLog()}, nil
 }
 
-func createLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
+func createLogWithHundredEntries(ctx context.Context, dag ipld.DAGService, identities []*idp.Identity) (*ipfslog.IPFSLog, []string, error) {
 	var expectedData []string
 	const amount = 100
 
-	logA, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "X"})
+	logA, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, nil, err
 	}
 
-	logB, err := ipfslog.NewLog(ipfs, identities[1], &ipfslog.LogOptions{ID: "X"})
+	logB, err := ipfslog.NewLog(dag, identities[1], &ipfslog.LogOptions{ID: "X"})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,8 +145,8 @@ func createLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, i
 	return logA, expectedData, nil
 }
 
-func CreateLogWithHundredEntries(ctx context.Context, ipfs core_iface.CoreAPI, identities []*idp.Identity) (*CreatedLog, error) {
-	l, expectedData, err := createLogWithHundredEntries(ctx, ipfs, identities)
+func CreateLogWithHundredEntries(ctx context.Context, dag ipld.DAGService, identities []*idp.Identity) (*CreatedLog, error) {
+	l, expectedData, err := createLogWithHundredEntries(ctx, dag, identities)
 	if err != nil {
 		return nil, err
 	}

@@ -24,8 +24,11 @@ func TestLogJoin(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -50,7 +53,7 @@ func TestLogJoin(t *testing.T) {
 	setup := func(t *testing.T) {
 		logs = []*ipfslog.IPFSLog{}
 		for i := 0; i < 4; i++ {
-			l, err := ipfslog.NewLog(ipfs, identities[i], &ipfslog.LogOptions{ID: "X"})
+			l, err := ipfslog.NewLog(dag, identities[i], &ipfslog.LogOptions{ID: "X"})
 			require.NoError(t, err)
 
 			logs = append(logs, l)
@@ -64,13 +67,13 @@ func TestLogJoin(t *testing.T) {
 		var curr [3]iface.IPFSLogEntry
 		var err error
 
-		curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
+		curr[0], err = entry.CreateEntry(ctx, dag, identities[0], &entry.Entry{Payload: []byte("entryA1"), LogID: "X"}, nil)
 		require.NoError(t, err)
 
-		curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash()}}, nil)
+		curr[1], err = entry.CreateEntry(ctx, dag, identities[1], &entry.Entry{Payload: []byte("entryB1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash()}}, nil)
 		require.NoError(t, err)
 
-		curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash(), curr[1].GetHash()}}, nil)
+		curr[2], err = entry.CreateEntry(ctx, dag, identities[2], &entry.Entry{Payload: []byte("entryC1"), LogID: "X", Next: []cid.Cid{curr[0].GetHash(), curr[1].GetHash()}}, nil)
 		require.NoError(t, err)
 
 		for i := 1; i <= 100; i++ {
@@ -78,13 +81,13 @@ func TestLogJoin(t *testing.T) {
 				for j := 0; j < 3; j++ {
 					prev[j] = items[j][len(items[j])-1]
 				}
-				curr[0], err = entry.CreateEntry(ctx, ipfs, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].GetHash()}}, nil)
+				curr[0], err = entry.CreateEntry(ctx, dag, identities[0], &entry.Entry{Payload: []byte(fmt.Sprintf("entryA%d", i)), LogID: "X", Next: []cid.Cid{prev[0].GetHash()}}, nil)
 				require.NoError(t, err)
 
-				curr[1], err = entry.CreateEntry(ctx, ipfs, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].GetHash(), curr[0].GetHash()}}, nil)
+				curr[1], err = entry.CreateEntry(ctx, dag, identities[1], &entry.Entry{Payload: []byte(fmt.Sprintf("entryB%d", i)), LogID: "X", Next: []cid.Cid{prev[1].GetHash(), curr[0].GetHash()}}, nil)
 				require.NoError(t, err)
 
-				curr[2], err = entry.CreateEntry(ctx, ipfs, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].GetHash(), curr[0].GetHash(), curr[1].GetHash()}}, nil)
+				curr[2], err = entry.CreateEntry(ctx, dag, identities[2], &entry.Entry{Payload: []byte(fmt.Sprintf("entryC%d", i)), LogID: "X", Next: []cid.Cid{prev[2].GetHash(), curr[0].GetHash(), curr[1].GetHash()}}, nil)
 				require.NoError(t, err)
 			}
 
@@ -95,11 +98,11 @@ func TestLogJoin(t *testing.T) {
 
 		// Here we're creating a log from entries signed by A and B
 		// but we accept entries from C too
-		logA, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+		logA, err := ipfslog.NewFromEntry(ctx, dag, identities[2], []iface.IPFSLogEntry{items[1][len(items[1])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 		require.NoError(t, err)
 		// Here we're creating a log from entries signed by peer A, B and C
 		// "logA" accepts entries from peer C so we can join logs A and B
-		logB, err := ipfslog.NewFromEntry(ctx, ipfs, identities[2], []iface.IPFSLogEntry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
+		logB, err := ipfslog.NewFromEntry(ctx, dag, identities[2], []iface.IPFSLogEntry{items[2][len(items[2])-1]}, &ipfslog.LogOptions{}, &entry.FetchOptions{})
 		require.NoError(t, err)
 
 		_, err = logA.Join(logB, -1)
@@ -611,7 +614,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 1)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -642,7 +645,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 2)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -673,7 +676,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 3)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -704,7 +707,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 4)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())

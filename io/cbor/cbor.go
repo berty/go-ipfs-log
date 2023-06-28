@@ -8,12 +8,11 @@ import (
 
 	"berty.tech/go-ipfs-log/enc"
 	"github.com/ipfs/go-ipld-cbor/encoding"
+	ipld "github.com/ipfs/go-ipld-format"
 
 	"github.com/ipfs/go-cid"
 	cbornode "github.com/ipfs/go-ipld-cbor"
 	format "github.com/ipfs/go-ipld-format"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
-	"github.com/ipfs/interface-go-ipfs-core/path"
 	ic "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/polydawn/refmt/obj/atlas"
 
@@ -230,7 +229,7 @@ func (i *IOCbor) SetDebug(val bool) {
 }
 
 // WriteCBOR writes a CBOR representation of a given object in IPFS' DAG.
-func (i *IOCbor) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
+func (i *IOCbor) Write(ctx context.Context, adder ipld.NodeAdder, opts *iface.WriteOpts, obj interface{}) (cid.Cid, error) {
 	if opts == nil {
 		opts = &iface.WriteOpts{}
 	}
@@ -241,9 +240,8 @@ func (i *IOCbor) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interfa
 			o.SetIdentity(nil)
 			o.SetKey(nil)
 		}
-
 		obj = jsonable.ToJsonableEntry(o)
-		break
+	default:
 	}
 
 	cborNode, err := cbornode.WrapObject(obj, math.MaxUint64, -1)
@@ -255,23 +253,73 @@ func (i *IOCbor) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interfa
 		fmt.Printf("\nStr of cbor: %x\n", cborNode.RawData())
 	}
 
-	err = ipfs.Dag().Add(ctx, cborNode)
-	if err != nil {
+	if err := adder.Add(ctx, cborNode); err != nil {
 		return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
 
-	if opts.Pin {
-		if err = ipfs.Pin().Add(ctx, path.IpfsPath(cborNode.Cid())); err != nil {
-			return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
-		}
-	}
+	// @TODO: implement Pinning
+	// if opts.Pin {
+	// 	if err = ipfs.Pin().Add(ctx, path.IpfsPath(cborNode.Cid())); err != nil {
+	// 		return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
+	// 	}
+	// }
 
 	return cborNode.Cid(), nil
 }
 
+func (i *IOCbor) WriteMany(ctx context.Context, adder ipld.NodeAdder, opts *iface.WriteOpts, objs []interface{}) ([]cid.Cid, error) {
+	if opts == nil {
+		opts = &iface.WriteOpts{}
+	}
+
+	var err error
+	cids := make([]cid.Cid, len(objs))
+	cborenodes := make([]ipld.Node, len(objs))
+	for n, obj := range objs {
+		switch o := obj.(type) {
+		case iface.IPFSLogEntry:
+			if i.constantIdentity != nil {
+				o.SetIdentity(nil)
+				o.SetKey(nil)
+			}
+			obj = jsonable.ToJsonableEntry(o)
+		default:
+		}
+
+		cborenodes[n], err = cbornode.WrapObject(obj, math.MaxUint64, -1)
+		if err != nil {
+			return []cid.Cid{}, errmsg.ErrCBOROperationFailed.Wrap(err)
+		}
+
+		cids[n] = cborenodes[n].Cid()
+
+		if i.debug {
+			fmt.Printf("\nStr of cbor: %x\n", cborenodes[n].RawData())
+		}
+	}
+
+	if err := adder.AddMany(ctx, cborenodes); err != nil {
+		return []cid.Cid{}, errmsg.ErrIPFSOperationFailed.Wrap(err)
+	}
+
+	// @TODO: implement Pinning
+	// if opts.Pin {
+	// 	if err = ipfs.Pin().Add(ctx, path.IpfsPath(cborNode.Cid())); err != nil {
+	// 		return cid.Undef, errmsg.ErrIPFSOperationFailed.Wrap(err)
+	// 	}
+	// }
+
+	return cids, nil
+}
+
 // Read reads a CBOR representation of a given object from IPFS' DAG.
-func (i *IOCbor) Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
-	return ipfs.Dag().Get(ctx, contentIdentifier)
+func (i *IOCbor) Read(ctx context.Context, getter ipld.NodeGetter, cid cid.Cid) (ipld.Node, error) {
+	return getter.Get(ctx, cid)
+}
+
+// Read reads a CBOR representation of a given object from IPFS' DAG.
+func (i *IOCbor) ReadMany(ctx context.Context, getter ipld.NodeGetter, cids []cid.Cid) <-chan *ipld.NodeOption {
+	return getter.GetMany(ctx, cids)
 }
 
 func (i *IOCbor) PreSign(entry iface.IPFSLogEntry) (iface.IPFSLogEntry, error) {

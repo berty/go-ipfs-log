@@ -21,8 +21,11 @@ func TestLogHeadsTails(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(ds.NewMapDatastore())
 	keystore, err := ks.NewKeystore(datastore)
@@ -45,7 +48,7 @@ func TestLogHeadsTails(t *testing.T) {
 
 	t.Run("heads", func(t *testing.T) {
 		t.Run("finds one head after one entry", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
 			require.NoError(t, err)
@@ -54,7 +57,7 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds one head after two entry", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
 			require.NoError(t, err)
@@ -65,9 +68,9 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds head after a join and append", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -89,9 +92,9 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds two heads after a join", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -115,9 +118,9 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds two heads after two joins", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -153,11 +156,11 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds two heads after three joins", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log3, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -193,11 +196,11 @@ func TestLogHeadsTails(t *testing.T) {
 		})
 
 		t.Run("finds three heads after three joins", func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log2, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log2, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
-			log3, err := ipfslog.NewLog(ipfs, identities[0], &ipfslog.LogOptions{ID: "A"})
+			log3, err := ipfslog.NewLog(dag, identities[0], &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			_, err = log1.Append(ctx, []byte("helloA1"), nil)
@@ -238,7 +241,7 @@ func TestLogHeadsTails(t *testing.T) {
 	t.Run("tails", func(t *testing.T) {
 		// TODO: implements findTails(orderedmap)
 		// t.Run("returns a tail", func(t *testing.T) {
-		// 	log1, err := log.NewLog(ipfs, identities[0], &log.LogOptions{ID: "A"})
+		// 	log1, err := log.NewLog(dag, identities[0], &log.LogOptions{ID: "A"})
 		// 	require.NoError(t, err)
 		// 	_, err = log1.Append([]byte("helloA1"), nil)
 		// 	require.NoError(t, err)
@@ -246,9 +249,9 @@ func TestLogHeadsTails(t *testing.T) {
 		// })
 
 		// t.Run("returns tail entries", func(t *testing.T) {
-		// 	log1, err := log.NewLog(ipfs, identities[0], &log.LogOptions{ID: "A"})
+		// 	log1, err := log.NewLog(dag, identities[0], &log.LogOptions{ID: "A"})
 		// 	require.NoError(t, err)
-		// 	log2, err := log.NewLog(ipfs, identities[0], &log.LogOptions{ID: "A"})
+		// 	log2, err := log.NewLog(dag, identities[0], &log.LogOptions{ID: "A"})
 		// 	require.NoError(t, err)
 		// 	_, err = log1.Append([]byte("helloA1"), nil)
 		// 	require.NoError(t, err)

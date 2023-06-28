@@ -8,7 +8,7 @@ import (
 	"sort"
 
 	"github.com/ipfs/go-cid"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/multiformats/go-multibase"
 
 	"berty.tech/go-ipfs-log/errmsg"
@@ -134,18 +134,18 @@ func (e *Entry) SetAdditionalDataValue(key string, value string) {
 	e.AdditionalData[key] = value
 }
 
-func CreateEntry(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (iface.IPFSLogEntry, error) {
+func CreateEntry(ctx context.Context, dag ipld.DAGService, identity *identityprovider.Identity, data *Entry, opts *iface.CreateEntryOptions) (iface.IPFSLogEntry, error) {
 	io, err := cbor.IO(&Entry{}, &LamportClock{})
 	if err != nil {
 		return nil, err
 	}
 
-	return CreateEntryWithIO(ctx, ipfsInstance, identity, data, opts, io)
+	return CreateEntryWithIO(ctx, dag, identity, data, opts, io)
 }
 
 // CreateEntryWithIO creates an Entry.
-func CreateEntryWithIO(ctx context.Context, ipfsInstance core_iface.CoreAPI, identity *identityprovider.Identity, data iface.IPFSLogEntry, opts *iface.CreateEntryOptions, io iface.IO) (iface.IPFSLogEntry, error) {
-	if ipfsInstance == nil {
+func CreateEntryWithIO(ctx context.Context, dag ipld.DAGService, identity *identityprovider.Identity, data iface.IPFSLogEntry, opts *iface.CreateEntryOptions, io iface.IO) (iface.IPFSLogEntry, error) {
+	if dag == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
 
@@ -201,7 +201,7 @@ func CreateEntryWithIO(ctx context.Context, ipfsInstance core_iface.CoreAPI, ide
 
 	data.SetIdentity(identity.Filtered())
 
-	h, err := ToMultihashWithIO(ctx, data, ipfsInstance, opts, io)
+	h, err := ToMultihashWithIO(ctx, data, dag, opts, io)
 	if err != nil {
 		return nil, errmsg.ErrIPFSOperationFailed.Wrap(err)
 	}
@@ -394,17 +394,17 @@ func (e *Entry) Verify(identity identityprovider.Interface, io iface.IO) error {
 }
 
 // ToMultihash gets the multihash of an Entry.
-func (e *Entry) ToMultihash(ctx context.Context, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions) (cid.Cid, error) {
+func (e *Entry) ToMultihash(ctx context.Context, dag ipld.NodeAdder, opts *iface.CreateEntryOptions) (cid.Cid, error) {
 	io, err := cbor.IO(&Entry{}, &LamportClock{})
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	return ToMultihashWithIO(ctx, e, ipfsInstance, opts, io)
+	return ToMultihashWithIO(ctx, e, dag, opts, io)
 }
 
 // ToMultihashWithIO gets the multihash of an Entry.
-func ToMultihashWithIO(ctx context.Context, e iface.IPFSLogEntry, ipfsInstance core_iface.CoreAPI, opts *iface.CreateEntryOptions, io iface.IO) (cid.Cid, error) {
+func ToMultihashWithIO(ctx context.Context, e iface.IPFSLogEntry, adder ipld.NodeAdder, opts *iface.CreateEntryOptions, io iface.IO) (cid.Cid, error) {
 	if opts == nil {
 		opts = &iface.CreateEntryOptions{}
 	}
@@ -413,7 +413,7 @@ func ToMultihashWithIO(ctx context.Context, e iface.IPFSLogEntry, ipfsInstance c
 		return cid.Undef, errmsg.ErrEntryNotDefined
 	}
 
-	if ipfsInstance == nil {
+	if adder == nil {
 		return cid.Undef, errmsg.ErrIPFSNotDefined
 	}
 
@@ -421,9 +421,7 @@ func ToMultihashWithIO(ctx context.Context, e iface.IPFSLogEntry, ipfsInstance c
 		preSigned: opts.PreSigned,
 	})
 
-	return io.Write(ctx, ipfsInstance, data, &iface.WriteOpts{
-		Pin: opts.Pin,
-	})
+	return io.Write(ctx, adder, &iface.WriteOpts{Pin: opts.Pin}, data)
 }
 
 type normalizeEntryOpts struct {
@@ -468,22 +466,22 @@ func Normalize(e iface.IPFSLogEntry, opts *normalizeEntryOpts) *Entry {
 }
 
 // FromMultihash creates an Entry from a hash.
-func FromMultihash(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface) (iface.IPFSLogEntry, error) {
+func FromMultihash(ctx context.Context, getter ipld.NodeGetter, hash cid.Cid, provider identityprovider.Interface) (iface.IPFSLogEntry, error) {
 	io, err := cbor.IO(&Entry{}, &LamportClock{})
 	if err != nil {
 		return nil, err
 	}
 
-	return FromMultihashWithIO(ctx, ipfs, hash, provider, io)
+	return FromMultihashWithIO(ctx, getter, hash, provider, io)
 }
 
 // FromMultihashWithIO creates an Entry from a hash.
-func FromMultihashWithIO(ctx context.Context, ipfs core_iface.CoreAPI, hash cid.Cid, provider identityprovider.Interface, io iface.IO) (iface.IPFSLogEntry, error) {
-	if ipfs == nil {
+func FromMultihashWithIO(ctx context.Context, getter ipld.NodeGetter, hash cid.Cid, provider identityprovider.Interface, io iface.IO) (iface.IPFSLogEntry, error) {
+	if getter == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
 
-	result, err := io.Read(ctx, ipfs, hash)
+	result, err := io.Read(ctx, getter, hash)
 	if err != nil {
 		return nil, errmsg.ErrIPFSReadFailed.Wrap(err)
 	}
@@ -503,7 +501,7 @@ func (e *Entry) Equals(b iface.IPFSLogEntry) bool {
 
 func (e *Entry) IsParent(b iface.IPFSLogEntry) bool {
 	for _, next := range b.GetNext() {
-		if next.String() == e.Hash.String() {
+		if next == e.Hash {
 			return true
 		}
 	}

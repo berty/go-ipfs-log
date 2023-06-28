@@ -4,25 +4,26 @@ import (
 	"sync"
 
 	"berty.tech/go-ipfs-log/iface"
+	"github.com/ipfs/go-cid"
 )
 
 // OrderedMap is an ordered map of entries.
 type OrderedMap struct {
 	lock   sync.RWMutex
-	keys   []string
-	values map[string]iface.IPFSLogEntry
+	keys   []cid.Cid
+	values map[cid.Cid]iface.IPFSLogEntry
 }
 
 func (o *OrderedMap) Copy() iface.IPFSLogOrderedEntries {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
-	values := map[string]iface.IPFSLogEntry{}
+	values := map[cid.Cid]iface.IPFSLogEntry{}
 	for k, v := range o.values {
 		values[k] = v
 	}
 
-	keys := make([]string, len(o.keys))
+	keys := make([]cid.Cid, len(o.keys))
 	copy(keys, o.keys)
 
 	return &OrderedMap{
@@ -47,7 +48,7 @@ func (o *OrderedMap) Reverse() iface.IPFSLogOrderedEntries {
 func NewOrderedMap() iface.IPFSLogOrderedEntries {
 	return &OrderedMap{
 		lock:   sync.RWMutex{},
-		values: map[string]iface.IPFSLogEntry{},
+		values: map[cid.Cid]iface.IPFSLogEntry{},
 	}
 }
 
@@ -60,7 +61,7 @@ func NewOrderedMapFromEntries(entries []iface.IPFSLogEntry) iface.IPFSLogOrdered
 			continue
 		}
 
-		orderedMap.Set(e.GetHash().String(), e)
+		orderedMap.Set(e.GetHash(), e)
 	}
 
 	return orderedMap
@@ -84,7 +85,7 @@ func (o *OrderedMap) Merge(other iface.IPFSLogOrderedEntries) iface.IPFSLogOrder
 }
 
 // Get retrieves an Entry using its key.
-func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
+func (o *OrderedMap) Get(key cid.Cid) (iface.IPFSLogEntry, bool) {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
@@ -93,7 +94,7 @@ func (o *OrderedMap) Get(key string) (iface.IPFSLogEntry, bool) {
 }
 
 // UnsafeGet retrieves an Entry using its key, returns nil if not found.
-func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
+func (o *OrderedMap) UnsafeGet(key cid.Cid) iface.IPFSLogEntry {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
@@ -103,7 +104,7 @@ func (o *OrderedMap) UnsafeGet(key string) iface.IPFSLogEntry {
 }
 
 // Set defines an Entry in the map for a given key.
-func (o *OrderedMap) Set(key string, value iface.IPFSLogEntry) {
+func (o *OrderedMap) Set(key cid.Cid, value iface.IPFSLogEntry) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
@@ -130,7 +131,7 @@ func (o *OrderedMap) Slice() []iface.IPFSLogEntry {
 }
 
 // Keys retrieves the ordered list of keys in the map.
-func (o *OrderedMap) Keys() []string {
+func (o *OrderedMap) Keys() []cid.Cid {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 

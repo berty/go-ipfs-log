@@ -5,13 +5,61 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/ipfs/boxo/bitswap"
+	"github.com/ipfs/boxo/bitswap/network"
+	"github.com/ipfs/go-blockservice"
 	cid "github.com/ipfs/go-cid"
+	datastore "github.com/ipfs/go-datastore"
 	ds "github.com/ipfs/go-datastore"
+	ds_sync "github.com/ipfs/go-datastore/sync"
+	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
+	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p-kad-dht/dual"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/routing"
 	multibase "github.com/multiformats/go-multibase"
 	"github.com/stretchr/testify/require"
 )
 
-func NewIdentityDataStore(t testing.TB) ds.Datastore {
+func setupDAGService(t testing.TB, h host.Host) ipld.DAGService {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	store := setupDatastore()
+	bstore := setupBlockstore(store)
+
+	// setup lan dht
+	lanopts := []dht.Option{
+		dht.ProtocolExtension(dual.LanExtension),
+		dht.QueryFilter(dht.PrivateQueryFilter),
+		dht.RoutingTableFilter(dht.PrivateRoutingTableFilter),
+	}
+	routing, err := dht.New(ctx, h, lanopts...)
+	require.NoError(t, err)
+
+	bservice := setupBlockService(ctx, h, routing, bstore, store)
+	return merkledag.NewDAGService(bservice)
+}
+
+func setupDatastore() datastore.Batching {
+	return ds_sync.MutexWrap(ds.NewMapDatastore())
+}
+
+func setupBlockstore(ds datastore.Batching) blockstore.Blockstore {
+	bs := blockstore.NewBlockstore(ds)
+	// Support Identity multihashes.
+	return blockstore.NewIdStore(bs)
+}
+
+func setupBlockService(ctx context.Context, h host.Host, r routing.ContentRouting, bs blockstore.Blockstore, ds datastore.Batching) blockservice.BlockService {
+	bswapnet := network.NewFromIpfsHost(h, r)
+	bswap := bitswap.New(ctx, bswapnet, bs)
+	return blockservice.New(bs, bswap)
+}
+
+func NewIdentityDataStore(t testing.TB) datastore.Datastore {
 	t.Helper()
 
 	var identityKeys = map[string][]byte{
@@ -25,9 +73,9 @@ func NewIdentityDataStore(t testing.TB) ds.Datastore {
 		"0358df8eb5def772917748fdf8a8b146581ad2041eae48d66cc6865f11783499a6": MustBytesFromHex(t, "1cd65d23d72932f5ca2328988d19a5b11fbab1f4c921ef2471768f1773bd56de"),
 	}
 
-	dataStore := ds.NewMapDatastore()
+	dataStore := datastore.NewMapDatastore()
 	for k, v := range identityKeys {
-		err := dataStore.Put(context.Background(), ds.NewKey(k), v)
+		err := dataStore.Put(context.Background(), datastore.NewKey(k), v)
 		require.NoError(t, err)
 	}
 

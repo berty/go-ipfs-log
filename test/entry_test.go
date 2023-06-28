@@ -9,6 +9,7 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io/cbor"
 	"berty.tech/go-ipfs-log/io/pb"
 
@@ -25,8 +26,11 @@ func TestEntry(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -43,7 +47,7 @@ func TestEntry(t *testing.T) {
 		t.Run("creates an empty entry", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
 
-			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.NotNil(t, ent)
 
@@ -62,7 +66,7 @@ func TestEntry(t *testing.T) {
 
 		t.Run("creates an entry with payload", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAyvJU3TS7LUdfRxwAnJorkz6NfpAWHGypsQEXLZxcCCRC")
-			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello world"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte("hello world"), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.NotNil(t, ent)
 
@@ -83,7 +87,7 @@ func TestEntry(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAqsN9Py4EWSfrGYZS8tuokWuiTd9zhS8dhr9XpSGQajP2")
 			payload1 := "hello world"
 			payload2 := "hello again"
-			ent1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			ent1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.NotNil(t, ent1)
 
@@ -91,7 +95,7 @@ func TestEntry(t *testing.T) {
 			require.True(t, ok)
 
 			e1.Clock.Tick()
-			ent2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}, Clock: e1.Clock}, nil)
+			ent2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.Hash}, Clock: e1.Clock}, nil)
 			require.NoError(t, err)
 			require.NotNil(t, ent2)
 
@@ -107,10 +111,10 @@ func TestEntry(t *testing.T) {
 
 		t.Run("should return an entry interopable with older versions", func(t *testing.T) {
 			expectedHashV1 := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
-			entryV1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{LogID: "A", Payload: []byte("hello")}, nil)
+			entryV1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{LogID: "A", Payload: []byte("hello")}, nil)
 			require.NoError(t, err)
 
-			logV1, err := ipfslog.NewFromEntryHash(ctx, ipfs, identity, entryV1.GetHash(), &ipfslog.LogOptions{ID: "A"}, &ipfslog.FetchOptions{})
+			logV1, err := ipfslog.NewFromEntryHash(ctx, dag, identity, entryV1.GetHash(), &ipfslog.LogOptions{ID: "A"}, &ipfslog.FetchOptions{})
 			require.NoError(t, err)
 
 			require.Equal(t, entryV1.GetHash().String(), expectedHashV1)
@@ -131,21 +135,21 @@ func TestEntry(t *testing.T) {
 		})
 
 		t.Run("returns an error if identity is not set", func(t *testing.T) {
-			e, err := entry.CreateEntry(ctx, ipfs, nil, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			e, err := entry.CreateEntry(ctx, dag, nil, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.Nil(t, e)
 			require.Error(t, err)
 			require.Equal(t, err, errmsg.ErrIdentityNotDefined)
 		})
 
 		t.Run("returns an error if data is not set", func(t *testing.T) {
-			e, err := entry.CreateEntry(ctx, ipfs, identity, nil, nil)
+			e, err := entry.CreateEntry(ctx, dag, identity, nil, nil)
 			require.Nil(t, e)
 			require.Error(t, err)
 			require.Equal(t, err, errmsg.ErrPayloadNotDefined)
 		})
 
 		t.Run("returns an error if LogID is not set", func(t *testing.T) {
-			e, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello")}, nil)
+			e, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte("hello")}, nil)
 			require.Nil(t, e)
 			require.Error(t, err)
 			require.Equal(t, err, errmsg.ErrLogIDNotDefined)
@@ -155,13 +159,13 @@ func TestEntry(t *testing.T) {
 	t.Run("toMultihash", func(t *testing.T) {
 		t.Run("returns an ipfs multihash", func(t *testing.T) {
 			expectedHash := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
-			ent, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			ent, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.NotNil(t, ent)
 
 			e, ok := ent.(*entry.Entry)
 			require.True(t, ok)
-			hash, err := e.ToMultihash(ctx, ipfs, nil)
+			hash, err := e.ToMultihash(ctx, dag, nil)
 			require.NoError(t, err)
 
 			require.Equal(t, e.Hash.String(), expectedHash)
@@ -172,7 +176,7 @@ func TestEntry(t *testing.T) {
 			e := getEntriesV1Fixtures(t, identity)[0]
 			expectedHash := CidB32(t, "zdpuAsJDrLKrAiU8M518eu6mgv9HzS3e1pfH5XC7LUsFgsK5c")
 
-			hash, err := e.ToMultihash(ctx, ipfs, nil)
+			hash, err := e.ToMultihash(ctx, dag, nil)
 			require.NoError(t, err)
 
 			require.Equal(t, hash.String(), expectedHash)
@@ -185,7 +189,7 @@ func TestEntry(t *testing.T) {
 			e := getEntriesV0Fixtures(t)["hello"]
 			expectedHash := CidB32(t, "Qmc2DEiLirMH73kHpuFPbt3V65sBrnDWkJYSjUQHXXvghT")
 
-			hash, err := entry.ToMultihashWithIO(ctx, e, ipfs, nil, pbio)
+			hash, err := entry.ToMultihashWithIO(ctx, e, dag, nil, pbio)
 			require.NoError(t, err)
 
 			require.Equal(t, hash.String(), expectedHash)
@@ -199,13 +203,13 @@ func TestEntry(t *testing.T) {
 
 			payload1 := []byte("hello world")
 			payload2 := []byte("hello again")
-			entry1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: payload1, LogID: "A"}, nil)
+			entry1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: payload1, LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			entry2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: payload2, LogID: "A", Next: []cid.Cid{entry1.GetHash()}}, nil)
+			entry2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: payload2, LogID: "A", Next: []cid.Cid{entry1.GetHash()}}, nil)
 			require.NoError(t, err)
 
-			final, err := entry.FromMultihash(ctx, ipfs, entry2.GetHash(), identity.Provider)
+			final, err := entry.FromMultihash(ctx, dag, entry2.GetHash(), identity.Provider)
 			require.NoError(t, err)
 
 			require.Equal(t, final.GetLogID(), "A")
@@ -222,13 +226,13 @@ func TestEntry(t *testing.T) {
 			io, err := cbor.IO(&entry.Entry{}, &entry.LamportClock{})
 			require.NoError(t, err)
 
-			entry1Hash, err := io.Write(ctx, ipfs, &e1, nil)
+			entry1Hash, err := io.Write(ctx, dag, nil, &e1)
 			require.NoError(t, err)
 
-			entry2Hash, err := io.Write(ctx, ipfs, &e2, nil)
+			entry2Hash, err := io.Write(ctx, dag, nil, &e2)
 			require.NoError(t, err)
 
-			final, err := entry.FromMultihash(ctx, ipfs, entry2Hash, identity.Provider)
+			final, err := entry.FromMultihash(ctx, dag, entry2Hash, identity.Provider)
 			require.NoError(t, err)
 
 			require.Equal(t, final.GetLogID(), "A")
@@ -243,10 +247,10 @@ func TestEntry(t *testing.T) {
 
 		t.Run("should return an entry interoperable with older and newer versions", func(t *testing.T) {
 			expectedHashV1 := CidB32(t, "zdpuAsPdzSyeux5mFsFV1y3WeHAShGNi4xo22cYBYWUdPtxVB")
-			entryV1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
+			entryV1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte("hello"), LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			finalV1, err := entry.FromMultihash(ctx, ipfs, entryV1.GetHash(), identity.Provider)
+			finalV1, err := entry.FromMultihash(ctx, dag, entryV1.GetHash(), identity.Provider)
 			require.NoError(t, err)
 
 			require.Equal(t, expectedHashV1, finalV1.GetHash().String())
@@ -255,10 +259,10 @@ func TestEntry(t *testing.T) {
 			pbio, err := pb.IO(&entry.Entry{}, &entry.LamportClock{})
 			require.NoError(t, err)
 
-			entryHashV0, err := pbio.Write(ctx, ipfs, getEntriesV0Fixtures(t)["helloWorld"], nil)
+			entryHashV0, err := pbio.Write(ctx, dag, nil, getEntriesV0Fixtures(t)["helloWorld"])
 			require.NoError(t, err)
 
-			finalV0, err := entry.FromMultihashWithIO(ctx, ipfs, entryHashV0, identity.Provider, pbio)
+			finalV0, err := entry.FromMultihashWithIO(ctx, dag, entryHashV0, identity.Provider, pbio)
 			require.NoError(t, err)
 
 			require.Equal(t, expectedHashV0, finalV0.GetHash().String())
@@ -269,10 +273,10 @@ func TestEntry(t *testing.T) {
 		t.Run("returns true if entry has a child", func(t *testing.T) {
 			payload1 := "hello world"
 			payload2 := "hello again"
-			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			e1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.GetHash()}}, nil)
+			e2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e1.GetHash()}}, nil)
 			require.NoError(t, err)
 			require.True(t, e1.IsParent(e2))
 		})
@@ -280,11 +284,11 @@ func TestEntry(t *testing.T) {
 		t.Run("returns false if entry has a child", func(t *testing.T) {
 			payload1 := "hello world"
 			payload2 := "hello again"
-			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			e1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
+			e2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
 			require.NoError(t, err)
-			e3, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e2.GetHash()}}, nil)
+			e3, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A", Next: []cid.Cid{e2.GetHash()}}, nil)
 			require.NoError(t, err)
 
 			require.False(t, e1.IsParent(e2))
@@ -296,10 +300,10 @@ func TestEntry(t *testing.T) {
 	t.Run("compare", func(t *testing.T) {
 		t.Run("returns true if entries are the same", func(t *testing.T) {
 			payload1 := "hello world"
-			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			e1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			e2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.True(t, e1.Equals(e2))
 		})
@@ -307,10 +311,10 @@ func TestEntry(t *testing.T) {
 		t.Run("returns true if entries are not the same", func(t *testing.T) {
 			payload1 := "hello world"
 			payload2 := "hello again"
-			e1, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
+			e1, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload1), LogID: "A"}, nil)
 			require.NoError(t, err)
 
-			e2, err := entry.CreateEntry(ctx, ipfs, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
+			e2, err := entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: []byte(payload2), LogID: "A"}, nil)
 			require.NoError(t, err)
 			require.False(t, e1.Equals(e2))
 		})
@@ -319,4 +323,96 @@ func TestEntry(t *testing.T) {
 	// TODO
 	// t.Run("isEntry", func(t *testing.T) {
 	// })
+}
+
+func BenchmarkOrderedEntries(t *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := mocknet.New()
+	defer m.Close()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
+
+	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
+	keystore, err := ks.NewKeystore(datastore)
+	require.NoError(t, err)
+
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
+		Keystore: keystore,
+		ID:       fmt.Sprintf("userA"),
+		Type:     "orbitdb",
+	})
+	require.NoError(t, err)
+
+	N := t.N
+
+	entries := make([]iface.IPFSLogEntry, N)
+	for i := 0; i < N; i++ {
+		payload := []byte(fmt.Sprintf("entry[%d]", i))
+		entries[i], err = entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: payload, LogID: "A"}, nil)
+		require.NoError(t, err)
+	}
+
+	oe := entry.NewOrderedMapFromEntries(entries)
+	ordered := oe.Copy().Slice()
+	require.Equal(t, entries, ordered)
+
+	reverse := oe.Reverse().Slice()
+	for i := 0; i < N; i++ {
+		ri := N - i - 1
+		require.Equal(t, ordered[i], reverse[ri])
+	}
+}
+
+// Merge will fusion two OrderedMap of entries.
+func TestOrderedEntriesMerge(t *testing.T) {
+
+}
+
+// Copy creates a copy of an OrderedMap.
+func TestOrderedEntriesCopy(t *testing.T) {
+
+}
+
+// Get retrieves an Entry using its key.
+func TestOrderedEntriesGet(t *testing.T) {
+
+}
+
+// UnsafeGet retrieves an Entry using its key, returns nil if not found.
+func TestOrderedEntriesUnsafeGet(t *testing.T) {
+
+}
+
+// Set defines an Entry in the map for a given key.
+func TestOrderedEntriesSet(t *testing.T) {
+
+}
+
+// Slice returns an ordered slice of the values existing in the map.
+func TestOrderedEntriesSlice(t *testing.T) {
+
+}
+
+// Keys retrieves the ordered list of keys in the map.
+func TestOrderedEntriesKeys(t *testing.T) {
+
+}
+
+// Len gets the length of the map.
+func TestOrderedEntriesLen(t *testing.T) {
+
+}
+
+// At gets an item at the given index in the map, returns nil if not found.
+func TestOrderedEntriesAt(t *testing.T) {
+
+}
+
+func TestOrderedEntriesReverse(t *testing.T) {
+
 }

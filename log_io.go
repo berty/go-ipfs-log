@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipld "github.com/ipfs/go-ipld-format"
 
 	"berty.tech/go-ipfs-log/iface"
 
@@ -28,16 +28,16 @@ type FetchOptions struct {
 	SortFn        iface.EntrySortFn
 }
 
-func toMultihash(ctx context.Context, services core_iface.CoreAPI, log *IPFSLog) (cid.Cid, error) {
+func toMultihash(ctx context.Context, adder ipld.NodeAdder, log *IPFSLog) (cid.Cid, error) {
 	if log.heads.Len() == 0 {
 		return cid.Undef, errmsg.ErrEmptyLogSerialization
 	}
 
-	return log.io.Write(ctx, services, log.ToJSONLog(), nil)
+	return log.io.Write(ctx, adder, nil, log.ToJSONLog())
 }
 
-func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
-	result, err := io.Read(ctx, services, hash)
+func fromMultihash(ctx context.Context, getter ipld.DAGService, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
+	result, err := io.Read(ctx, getter, hash)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
@@ -53,7 +53,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 		sortFn = options.SortFn
 	}
 
-	entries := entry.FetchAll(ctx, services, logHeads.Heads, &iface.FetchOptions{
+	entries := entry.FetchAll(ctx, getter, logHeads.Heads, &iface.FetchOptions{
 		Length:        options.Length,
 		ShouldExclude: options.ShouldExclude,
 		Exclude:       options.Exclude,
@@ -64,7 +64,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 	})
 
 	if options.Length != nil && *options.Length > -1 {
-		sorting.Sort(sortFn, entries, false)
+		sorting.Sort(sortFn, entries)
 
 		entries = entrySlice(entries, -*options.Length)
 	}
@@ -85,7 +85,7 @@ func fromMultihash(ctx context.Context, services core_iface.CoreAPI, hash cid.Ci
 	}, nil
 }
 
-func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []cid.Cid, options *FetchOptions, io iface.IO) ([]iface.IPFSLogEntry, error) {
+func fromEntryHash(ctx context.Context, services ipld.DAGService, hashes []cid.Cid, options *FetchOptions, io iface.IO) ([]iface.IPFSLogEntry, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -117,14 +117,14 @@ func fromEntryHash(ctx context.Context, services core_iface.CoreAPI, hashes []ci
 
 	entries := all
 	if length > -1 {
-		sorting.Sort(sortFn, entries, false)
+		sorting.Sort(sortFn, entries)
 		entries = entrySlice(all, -length)
 	}
 
 	return entries, nil
 }
 
-func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
+func fromJSON(ctx context.Context, services ipld.DAGService, jsonLog *iface.JSONLog, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -145,7 +145,7 @@ func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.J
 		IO:           options.IO,
 	})
 
-	sorting.Sort(sorting.Compare, entries, false)
+	sorting.Sort(sorting.Compare, entries)
 
 	return &Snapshot{
 		ID:     jsonLog.ID,
@@ -154,7 +154,7 @@ func fromJSON(ctx context.Context, services core_iface.CoreAPI, jsonLog *iface.J
 	}, nil
 }
 
-func fromEntry(ctx context.Context, services core_iface.CoreAPI, sourceEntries []iface.IPFSLogEntry, options *iface.FetchOptions) (*Snapshot, error) {
+func fromEntry(ctx context.Context, services ipld.DAGService, sourceEntries []iface.IPFSLogEntry, options *iface.FetchOptions) (*Snapshot, error) {
 	if services == nil {
 		return nil, errmsg.ErrIPFSNotDefined
 	}
@@ -189,7 +189,7 @@ func fromEntry(ctx context.Context, services core_iface.CoreAPI, sourceEntries [
 	combined := append(sourceEntries, entries...)
 	combined = append(combined, options.Exclude...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
-	sorting.Sort(sorting.Compare, uniques, false)
+	sorting.Sort(sorting.Compare, uniques)
 
 	// Cap the result at the right size by taking the last n entries
 	var sliced []iface.IPFSLogEntry

@@ -20,8 +20,11 @@ func TestLogReferences(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -38,16 +41,16 @@ func TestLogReferences(t *testing.T) {
 		amount := 64
 		maxReferenceDistance := 2
 
-		log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
+		log1, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A"})
 		require.NoError(t, err)
 
-		log2, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "B"})
+		log2, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "B"})
 		require.NoError(t, err)
 
-		log3, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "C"})
+		log3, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "C"})
 		require.NoError(t, err)
 
-		log4, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "D"})
+		log4, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "D"})
 		require.NoError(t, err)
 
 		for i := 0; i < amount; i++ {
@@ -108,8 +111,11 @@ func TestLogReferences2(t *testing.T) {
 
 	m := mocknet.New()
 	defer m.Close()
-	ipfs, closeNode := NewMemoryServices(ctx, t, m)
-	defer closeNode()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
 
 	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
 	keystore, err := ks.NewKeystore(datastore)
@@ -151,7 +157,7 @@ func TestLogReferences2(t *testing.T) {
 	} {
 		key := fmt.Sprintf("has %d references, max distance %d, total of %d entries", input.refLength, input.referenceCount, input.amount)
 		t.Run(key, func(t *testing.T) {
-			log1, err := ipfslog.NewLog(ipfs, identity, &ipfslog.LogOptions{ID: "A"})
+			log1, err := ipfslog.NewLog(dag, identity, &ipfslog.LogOptions{ID: "A"})
 			require.NoError(t, err)
 
 			for i := 0; i < input.amount; i++ {

@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/ipfs/go-cid"
-	format "github.com/ipfs/go-ipld-format"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	ipld "github.com/ipfs/go-ipld-format"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/identityprovider"
@@ -35,10 +34,12 @@ type FetchOptions struct {
 }
 
 type IO interface {
-	Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *WriteOpts) (cid.Cid, error)
-	Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error)
-	DecodeRawEntry(node format.Node, hash cid.Cid, p identityprovider.Interface) (IPFSLogEntry, error)
-	DecodeRawJSONLog(node format.Node) (*JSONLog, error)
+	Write(ctx context.Context, adder ipld.NodeAdder, opts *WriteOpts, obj interface{}) (cid.Cid, error)
+	WriteMany(ctx context.Context, adder ipld.NodeAdder, opts *WriteOpts, obj []interface{}) ([]cid.Cid, error)
+	Read(ctx context.Context, getter ipld.NodeGetter, cid cid.Cid) (ipld.Node, error)
+	ReadMany(ctx context.Context, getter ipld.NodeGetter, cids []cid.Cid) <-chan *ipld.NodeOption
+	DecodeRawEntry(node ipld.Node, hash cid.Cid, p identityprovider.Interface) (IPFSLogEntry, error)
+	DecodeRawJSONLog(node ipld.Node) (*JSONLog, error)
 }
 
 type IOPreSign interface {
@@ -117,19 +118,19 @@ type IPFSLogOrderedEntries interface {
 	Copy() IPFSLogOrderedEntries
 
 	// Get retrieves an Entry using its key.
-	Get(key string) (IPFSLogEntry, bool)
+	Get(key cid.Cid) (IPFSLogEntry, bool)
 
 	// UnsafeGet retrieves an Entry using its key, returns nil if not found.
-	UnsafeGet(key string) IPFSLogEntry
+	UnsafeGet(key cid.Cid) IPFSLogEntry
 
 	// Set defines an Entry in the map for a given key.
-	Set(key string, value IPFSLogEntry)
+	Set(key cid.Cid, value IPFSLogEntry)
 
 	// Slice returns an ordered slice of the values existing in the map.
 	Slice() []IPFSLogEntry
 
 	// Keys retrieves the ordered list of keys in the map.
-	Keys() []string
+	Keys() []cid.Cid
 
 	// Len gets the length of the map.
 	Len() int
