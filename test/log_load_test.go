@@ -719,19 +719,19 @@ func TestLogLoad(t *testing.T) {
 			}
 
 			fetchOrder := l.Values().Slice()
-			sorting.Sort(sorting.Compare, fetchOrder, false)
+			sorting.Sort(sorting.Compare, fetchOrder)
 			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), expectedData)
 
 			reverseOrder := l.Values().Slice()
 			sorting.Reverse(reverseOrder)
-			sorting.Sort(sorting.Compare, reverseOrder, false)
+			sorting.Sort(sorting.Compare, reverseOrder)
 			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(reverseOrder)), expectedData)
 
 			hashOrder := l.Values().Slice()
 			sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
 				return strings.Compare(a.GetHash().String(), b.GetHash().String()), nil
-			}, hashOrder, false)
-			sorting.Sort(sorting.Compare, hashOrder, false)
+			}, hashOrder)
+			sorting.Sort(sorting.Compare, hashOrder)
 			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(hashOrder)), expectedData)
 
 			var partialLog []iface.IPFSLogEntry
@@ -767,15 +767,15 @@ func TestLogLoad(t *testing.T) {
 			expectedData := testLog.ExpectedData
 
 			fetchOrder := l.Values().Slice()
-			sorting.Sort(sorting.Compare, fetchOrder, false)
+			sorting.Sort(sorting.Compare, fetchOrder)
 			require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(fetchOrder)), expectedData)
 
 			for i := 0; i < 1000; i++ {
 				randomOrder := l.Values().Slice()
 				sorting.Sort(func(a, b iface.IPFSLogEntry) (int, error) {
 					return rand.Int(), nil
-				}, randomOrder, false)
-				sorting.Sort(sorting.Compare, randomOrder, false)
+				}, randomOrder)
+				sorting.Sort(sorting.Compare, randomOrder)
 
 				require.Equal(t, entriesAsStrings(entry.NewOrderedMapFromEntries(randomOrder)), expectedData)
 			}

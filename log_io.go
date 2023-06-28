@@ -36,8 +36,8 @@ func toMultihash(ctx context.Context, adder ipld.NodeAdder, log *IPFSLog) (cid.C
 	return log.io.Write(ctx, adder, nil, log.ToJSONLog())
 }
 
-func fromMultihash(ctx context.Context, services ipld.DAGService, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
-	result, err := io.Read(ctx, services, hash)
+func fromMultihash(ctx context.Context, getter ipld.DAGService, hash cid.Cid, options *FetchOptions, io iface.IO) (*Snapshot, error) {
+	result, err := io.Read(ctx, getter, hash)
 	if err != nil {
 		return nil, errmsg.ErrCBOROperationFailed.Wrap(err)
 	}
@@ -53,7 +53,7 @@ func fromMultihash(ctx context.Context, services ipld.DAGService, hash cid.Cid, 
 		sortFn = options.SortFn
 	}
 
-	entries := entry.FetchAll(ctx, services, logHeads.Heads, &iface.FetchOptions{
+	entries := entry.FetchAll(ctx, getter, logHeads.Heads, &iface.FetchOptions{
 		Length:        options.Length,
 		ShouldExclude: options.ShouldExclude,
 		Exclude:       options.Exclude,
@@ -64,7 +64,7 @@ func fromMultihash(ctx context.Context, services ipld.DAGService, hash cid.Cid, 
 	})
 
 	if options.Length != nil && *options.Length > -1 {
-		sorting.Sort(sortFn, entries, false)
+		sorting.Sort(sortFn, entries)
 
 		entries = entrySlice(entries, -*options.Length)
 	}
@@ -117,7 +117,7 @@ func fromEntryHash(ctx context.Context, services ipld.DAGService, hashes []cid.C
 
 	entries := all
 	if length > -1 {
-		sorting.Sort(sortFn, entries, false)
+		sorting.Sort(sortFn, entries)
 		entries = entrySlice(all, -length)
 	}
 
@@ -145,7 +145,7 @@ func fromJSON(ctx context.Context, services ipld.DAGService, jsonLog *iface.JSON
 		IO:           options.IO,
 	})
 
-	sorting.Sort(sorting.Compare, entries, false)
+	sorting.Sort(sorting.Compare, entries)
 
 	return &Snapshot{
 		ID:     jsonLog.ID,
@@ -189,7 +189,7 @@ func fromEntry(ctx context.Context, services ipld.DAGService, sourceEntries []if
 	combined := append(sourceEntries, entries...)
 	combined = append(combined, options.Exclude...)
 	uniques := entry.NewOrderedMapFromEntries(combined).Slice()
-	sorting.Sort(sorting.Compare, uniques, false)
+	sorting.Sort(sorting.Compare, uniques)
 
 	// Cap the result at the right size by taking the last n entries
 	var sliced []iface.IPFSLogEntry

@@ -501,7 +501,7 @@ func (e *Entry) Equals(b iface.IPFSLogEntry) bool {
 
 func (e *Entry) IsParent(b iface.IPFSLogEntry) bool {
 	for _, next := range b.GetNext() {
-		if next.String() == e.Hash.String() {
+		if next == e.Hash {
 			return true
 		}
 	}

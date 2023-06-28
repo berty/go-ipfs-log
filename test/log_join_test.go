@@ -614,7 +614,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 1)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -645,7 +645,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 2)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -676,7 +676,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 3)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())
@@ -707,7 +707,7 @@ func TestLogJoin(t *testing.T) {
 		require.Equal(t, logs[0].Values().Len(), 4)
 
 		var result [][]byte
-		var key string
+		var key cid.Cid
 
 		for _, v := range logs[0].Values().Keys() {
 			result = append(result, logs[0].Values().UnsafeGet(v).GetPayload())

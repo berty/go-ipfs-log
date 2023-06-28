@@ -9,6 +9,7 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io/cbor"
 	"berty.tech/go-ipfs-log/io/pb"
 
@@ -322,4 +323,96 @@ func TestEntry(t *testing.T) {
 	// TODO
 	// t.Run("isEntry", func(t *testing.T) {
 	// })
+}
+
+func BenchmarkOrderedEntries(t *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	m := mocknet.New()
+	defer m.Close()
+
+	p, err := m.GenPeer()
+	require.NoError(t, err)
+
+	dag := setupDAGService(t, p)
+
+	datastore := dssync.MutexWrap(NewIdentityDataStore(t))
+	keystore, err := ks.NewKeystore(datastore)
+	require.NoError(t, err)
+
+	identity, err := idp.CreateIdentity(ctx, &idp.CreateIdentityOptions{
+		Keystore: keystore,
+		ID:       fmt.Sprintf("userA"),
+		Type:     "orbitdb",
+	})
+	require.NoError(t, err)
+
+	N := t.N
+
+	entries := make([]iface.IPFSLogEntry, N)
+	for i := 0; i < N; i++ {
+		payload := []byte(fmt.Sprintf("entry[%d]", i))
+		entries[i], err = entry.CreateEntry(ctx, dag, identity, &entry.Entry{Payload: payload, LogID: "A"}, nil)
+		require.NoError(t, err)
+	}
+
+	oe := entry.NewOrderedMapFromEntries(entries)
+	ordered := oe.Copy().Slice()
+	require.Equal(t, entries, ordered)
+
+	reverse := oe.Reverse().Slice()
+	for i := 0; i < N; i++ {
+		ri := N - i - 1
+		require.Equal(t, ordered[i], reverse[ri])
+	}
+}
+
+// Merge will fusion two OrderedMap of entries.
+func TestOrderedEntriesMerge(t *testing.T) {
+
+}
+
+// Copy creates a copy of an OrderedMap.
+func TestOrderedEntriesCopy(t *testing.T) {
+
+}
+
+// Get retrieves an Entry using its key.
+func TestOrderedEntriesGet(t *testing.T) {
+
+}
+
+// UnsafeGet retrieves an Entry using its key, returns nil if not found.
+func TestOrderedEntriesUnsafeGet(t *testing.T) {
+
+}
+
+// Set defines an Entry in the map for a given key.
+func TestOrderedEntriesSet(t *testing.T) {
+
+}
+
+// Slice returns an ordered slice of the values existing in the map.
+func TestOrderedEntriesSlice(t *testing.T) {
+
+}
+
+// Keys retrieves the ordered list of keys in the map.
+func TestOrderedEntriesKeys(t *testing.T) {
+
+}
+
+// Len gets the length of the map.
+func TestOrderedEntriesLen(t *testing.T) {
+
+}
+
+// At gets an item at the given index in the map, returns nil if not found.
+func TestOrderedEntriesAt(t *testing.T) {
+
+}
+
+func TestOrderedEntriesReverse(t *testing.T) {
+
 }

@@ -118,19 +118,19 @@ type IPFSLogOrderedEntries interface {
 	Copy() IPFSLogOrderedEntries
 
 	// Get retrieves an Entry using its key.
-	Get(key string) (IPFSLogEntry, bool)
+	Get(key cid.Cid) (IPFSLogEntry, bool)
 
 	// UnsafeGet retrieves an Entry using its key, returns nil if not found.
-	UnsafeGet(key string) IPFSLogEntry
+	UnsafeGet(key cid.Cid) IPFSLogEntry
 
 	// Set defines an Entry in the map for a given key.
-	Set(key string, value IPFSLogEntry)
+	Set(key cid.Cid, value IPFSLogEntry)
 
 	// Slice returns an ordered slice of the values existing in the map.
 	Slice() []IPFSLogEntry
 
 	// Keys retrieves the ordered list of keys in the map.
-	Keys() []string
+	Keys() []cid.Cid
 
 	// Len gets the length of the map.
 	Len() int

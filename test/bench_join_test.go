@@ -47,7 +47,7 @@ func BenchmarkJoin(b *testing.B) {
 	logA, err := ipfslog.NewLog(dag, identityA, &ipfslog.LogOptions{ID: "A"})
 	require.NoError(b, err)
 
-	logB, err := ipfslog.NewLog(dag, identityB, &ipfslog.LogOptions{ID: "A"})
+	logB, err := ipfslog.NewLog(dag, identityB, &ipfslog.LogOptions{ID: "B"})
 	require.NoError(b, err)
 
 	b.ResetTimer()
@@ -63,7 +63,7 @@ func BenchmarkJoin(b *testing.B) {
 		}()
 
 		go func() {
-			_, err := logB.Append(ctx, []byte(fmt.Sprintf("a%d", n)), nil)
+			_, err := logB.Append(ctx, []byte(fmt.Sprintf("b%d", n)), nil)
 			require.NoError(b, err)
 			wg.Done()
 		}()
