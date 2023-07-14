@@ -3,8 +3,8 @@ package entry // import "berty.tech/go-ipfs-log/entry"
 import (
 	"context"
 
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/iface"
 )
