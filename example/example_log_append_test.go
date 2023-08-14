@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	idp "berty.tech/go-ipfs-log/identityprovider"
-	"berty.tech/go-ipfs-log/keystore"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	config "github.com/ipfs/kubo/config"
@@ -20,6 +18,8 @@ import (
 	pstore "github.com/libp2p/go-libp2p/core/peerstore"
 
 	log "berty.tech/go-ipfs-log"
+	idp "berty.tech/go-ipfs-log/identityprovider"
+	"berty.tech/go-ipfs-log/keystore"
 )
 
 func buildHostOverrideExample(id peer.ID, ps pstore.Peerstore, options ...libp2p.Option) (host.Host, error) {
@@ -38,7 +38,7 @@ func newRepo() (ipfs_repo.Repo, error) {
 		"/ip4/127.0.0.1/tcp/0",
 	}
 	// we don't need ressources manager for test
-	cfg.Swarm.ResourceMgr.Enabled = cfg.False
+	cfg.Swarm.ResourceMgr.Enabled = config.False
 
 	// Do not bootstrap on ipfs node
 	cfg.Bootstrap = []string{}
@@ -153,5 +153,8 @@ func Example_logAppend() {
 	// nodeB lookup logA
 	fmt.Println(res.ToString(nil))
 
-	// Output: hello world
+	// Output:
+	// go-libp2p resource manager protection disabled
+	// go-libp2p resource manager protection disabled
+	// hello world
 }
