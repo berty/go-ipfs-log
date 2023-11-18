@@ -90,7 +90,7 @@ require (
 	github.com/ipfs/go-unixfs v0.4.4 // indirect
 	github.com/ipfs/go-unixfsnode v1.5.2 // indirect
 	github.com/ipfs/go-verifcid v0.0.2 // indirect
-	github.com/ipfs/interface-go-ipfs-core v0.11.1 // indirect
+	github.com/ipfs/boxo/coreiface v0.11.1 // indirect
 	github.com/ipld/edelweiss v0.2.0 // indirect
 	github.com/ipld/go-codec-dagpb v1.6.0 // indirect
 	github.com/ipld/go-ipld-prime v0.20.0 // indirect

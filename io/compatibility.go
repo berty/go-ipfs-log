@@ -6,9 +6,9 @@ import (
 	"berty.tech/go-ipfs-log/entry"
 	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io/cbor"
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 )
 
 type CBOROptions = cbor.Options

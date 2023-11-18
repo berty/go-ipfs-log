@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"sort"
 
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/multiformats/go-multibase"
 
 	"berty.tech/go-ipfs-log/errmsg"

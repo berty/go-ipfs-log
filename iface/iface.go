@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"berty.tech/go-ipfs-log/accesscontroller"
 	"berty.tech/go-ipfs-log/identityprovider"
