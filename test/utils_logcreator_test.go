@@ -6,7 +6,7 @@ import (
 
 	ipfslog "berty.tech/go-ipfs-log"
 	idp "berty.tech/go-ipfs-log/identityprovider"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	core_iface "github.com/ipfs/boxo/coreiface"
 )
 
 type CreatedLog struct {

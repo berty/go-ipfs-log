@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	core_iface "github.com/ipfs/boxo/coreiface"
 
 	"berty.tech/go-ipfs-log/iface"
 

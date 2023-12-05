@@ -8,8 +8,8 @@ import (
 	"berty.tech/go-ipfs-log/identityprovider"
 	"berty.tech/go-ipfs-log/iface"
 	"berty.tech/go-ipfs-log/io/cbor"
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	"golang.org/x/sync/semaphore"
 )
 

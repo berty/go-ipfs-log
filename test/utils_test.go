@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"berty.tech/go-ipfs-log/iface"
+	core_iface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	config "github.com/ipfs/kubo/config"
 	ipfsCore "github.com/ipfs/kubo/core"
 	"github.com/ipfs/kubo/core/coreapi"
