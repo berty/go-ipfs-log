@@ -2,16 +2,16 @@ package test
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"berty.tech/go-ipfs-log/iface"
 	"github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
 	config "github.com/ipfs/kubo/config"
 	ipfsCore "github.com/ipfs/kubo/core"
 	"github.com/ipfs/kubo/core/coreapi"
+	coreiface "github.com/ipfs/kubo/core/coreiface"
 	mock "github.com/ipfs/kubo/core/mock"
 	ipfs_repo "github.com/ipfs/kubo/repo"
 	mocknet "github.com/libp2p/go-libp2p/p2p/net/mock"
@@ -20,7 +20,7 @@ import (
 
 func newRepo() (ipfs_repo.Repo, error) {
 	// Generating config
-	cfg, err := config.Init(ioutil.Discard, 2048)
+	cfg, err := config.Init(io.Discard, 2048)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func newRepo() (ipfs_repo.Repo, error) {
 	}, nil
 }
 
-func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (core_iface.CoreAPI, func()) {
+func NewMemoryServices(ctx context.Context, t testing.TB, m mocknet.Mocknet) (coreiface.CoreAPI, func()) {
 	t.Helper()
 
 	r, err := newRepo()
