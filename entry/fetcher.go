@@ -21,7 +21,7 @@ const (
 	taskKindDone
 )
 
-func noopShouldExclude(hash cid.Cid) bool {
+func noopShouldExclude(_ cid.Cid) bool {
 	return false
 }
 
@@ -117,11 +117,11 @@ func (f *Fetcher) processQueue(ctx context.Context, hashes []cid.Cid) []iface.IP
 
 		// run process
 		go func(hash cid.Cid) {
-			entry, err := f.fetchEntry(ctx, hash)
-			if err != nil { // nolint:staticcheck
-				// @FIXME(gfanton): log this
-				// fmt.Printf("unable to fetch entry: %s\n", err.Error())
-			}
+			entry, _ := f.fetchEntry(ctx, hash)
+			// if err != nil {
+			// @FIXME(gfanton): log this
+			// fmt.Printf("unable to fetch entry: %s\n", err.Error())
+			// }
 
 			// free process slot
 			f.processDone()
@@ -186,7 +186,7 @@ func (f *Fetcher) processQueue(ctx context.Context, hashes []cid.Cid) []iface.IP
 	return results
 }
 
-func (f *Fetcher) updateClock(ctx context.Context, entry, lastEntry iface.IPFSLogEntry) {
+func (f *Fetcher) updateClock(_ context.Context, entry, lastEntry iface.IPFSLogEntry) {
 	f.muClock.Lock()
 
 	ts := entry.GetClock().GetTime()
@@ -222,7 +222,7 @@ func (f *Fetcher) exclude(hash cid.Cid) (yes bool) {
 	return
 }
 
-func (f *Fetcher) addNextEntry(ctx context.Context, queue processQueue, entry iface.IPFSLogEntry, results []iface.IPFSLogEntry) {
+func (f *Fetcher) addNextEntry(_ context.Context, queue processQueue, entry iface.IPFSLogEntry, results []iface.IPFSLogEntry) {
 	ts := entry.GetClock().GetTime()
 
 	if f.length < 0 {

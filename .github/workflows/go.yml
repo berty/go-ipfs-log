@@ -14,18 +14,18 @@ jobs:
     strategy:
       matrix:
         golang:
-          - '1.19.x'
+          - "1.21.x"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.golang }}
+          cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.3.0
+        uses: golangci/golangci-lint-action@v4
         with:
-          go-version: ${{ matrix.golang }}
-          version: v1.50.1
+          version: v1.54
           args: --timeout=10m
           # only-new-issues: true
 
@@ -34,8 +34,8 @@ jobs:
     strategy:
       matrix:
         golang:
-          - '1.19'
-          - '1.20'
+          - "1.21"
+          - "1.22"
     env:
       OS: ubuntu-latest
       GOLANG: ${{ matrix.golang }}
@@ -80,8 +80,8 @@ jobs:
     strategy:
       matrix:
         golang:
-          - '1.19'
-          - '1.20'
+          - "1.21"
+          - "1.22"
     env:
       OS: macos-latest
       GOLANG: ${{ matrix.golang }}

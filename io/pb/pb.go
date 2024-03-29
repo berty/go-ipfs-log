@@ -20,7 +20,7 @@ type pb struct {
 	refEntry iface.IPFSLogEntry
 }
 
-func (p *pb) Write(ctx context.Context, ipfs coreiface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
+func (p *pb) Write(ctx context.Context, ipfs coreiface.CoreAPI, obj interface{}, _ *iface.WriteOpts) (cid.Cid, error) {
 	var err error
 	payload := []byte(nil)
 
