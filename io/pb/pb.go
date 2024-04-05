@@ -7,7 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	format "github.com/ipfs/go-ipld-format"
 	dag "github.com/ipfs/go-merkledag"
-	core_iface "github.com/ipfs/interface-go-ipfs-core"
+	coreiface "github.com/ipfs/kubo/core/coreiface"
 
 	"berty.tech/go-ipfs-log/errmsg"
 	idp "berty.tech/go-ipfs-log/identityprovider"
@@ -20,7 +20,7 @@ type pb struct {
 	refEntry iface.IPFSLogEntry
 }
 
-func (p *pb) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}, opts *iface.WriteOpts) (cid.Cid, error) {
+func (p *pb) Write(ctx context.Context, ipfs coreiface.CoreAPI, obj interface{}, _ *iface.WriteOpts) (cid.Cid, error) {
 	var err error
 	payload := []byte(nil)
 
@@ -50,7 +50,7 @@ func (p *pb) Write(ctx context.Context, ipfs core_iface.CoreAPI, obj interface{}
 	return node.Cid(), nil
 }
 
-func (p *pb) Read(ctx context.Context, ipfs core_iface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
+func (p *pb) Read(ctx context.Context, ipfs coreiface.CoreAPI, contentIdentifier cid.Cid) (format.Node, error) {
 	node, err := ipfs.Dag().Get(ctx, contentIdentifier)
 	if err != nil {
 		return nil, err

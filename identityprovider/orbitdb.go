@@ -15,7 +15,7 @@ type OrbitDBIdentityProvider struct {
 }
 
 // VerifyIdentity checks an OrbitDB identity.
-func (p *OrbitDBIdentityProvider) VerifyIdentity(identity *Identity) error {
+func (p *OrbitDBIdentityProvider) VerifyIdentity(_ *Identity) error {
 	return nil
 }
 
