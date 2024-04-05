@@ -154,7 +154,5 @@ func Example_logAppend() {
 	fmt.Println(res.ToString(nil))
 
 	// Output:
-	// go-libp2p resource manager protection disabled
-	// go-libp2p resource manager protection disabled
 	// hello world
 }
