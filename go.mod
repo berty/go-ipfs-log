@@ -19,7 +19,7 @@ require (
 	github.com/polydawn/refmt v0.89.1-0.20231129105047-37766d95467a
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
-	golang.org/x/crypto v0.51.0
+	golang.org/x/crypto v0.52.0
 	golang.org/x/sync v0.20.0
 )
 
